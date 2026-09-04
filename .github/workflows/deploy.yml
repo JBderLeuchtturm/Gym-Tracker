@@ -5,7 +5,11 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    # Aktuelle Default-Branch des Repos zuerst; "main" bleibt drin, falls
+    # spaeter dorthin umbenannt oder gemerged wird.
+    branches:
+      - claude/gym-tracker-website-aeaazi
+      - main
   workflow_dispatch:
 
 permissions:

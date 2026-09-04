@@ -60,10 +60,14 @@ Getestet mit Node 20+.
 Die App ist eine reine Statik-Seite ohne Server – `dist/` kann überall liegen.
 
 Mit **GitHub Pages** passiert das automatisch: Der Workflow unter
-`.github/workflows/deploy.yml` baut und veröffentlicht bei jedem Push auf `main`.
-Einmalig musst du dafür unter *Settings → Pages → Source* den Eintrag
-**„GitHub Actions"** auswählen. Danach ist die App unter
+`.github/workflows/deploy.yml` baut und veröffentlicht bei jedem Push auf die
+Default-Branch des Repos. Einmalig musst du dafür unter *Settings → Pages →
+Source* den Eintrag **„GitHub Actions"** auswählen. Danach ist die App unter
 `https://<benutzername>.github.io/Gym-Tracker/` erreichbar.
+
+Wird die Branch später umbenannt oder auf `main` gemerged, muss die Liste unter
+`on.push.branches` im Workflow entsprechend angepasst werden – `main` ist dort
+bereits eingetragen.
 
 Der Build verwendet relative Pfade, funktioniert also auch in jedem Unterordner
 oder bei Netlify, Vercel und Co.
