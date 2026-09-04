@@ -505,6 +505,10 @@ export function useSync(): SyncValue {
 /** Uebersetzt die haeufigsten Meldungen von Supabase ins Deutsche. */
 function translateAuthError(message: string): string {
   const lower = message.toLowerCase();
+  if (lower.includes('failed to fetch') || lower.includes('networkerror') || lower.includes('load failed')) {
+    return 'Der Server ist gerade nicht erreichbar. Prüfe die Internetverbindung – '
+      + 'oder das Supabase-Projekt schläft und muss im Dashboard geweckt werden.';
+  }
   if (lower.includes('invalid login')) return 'E-Mail oder Passwort stimmt nicht';
   if (lower.includes('already registered')) return 'Für diese E-Mail gibt es schon ein Konto';
   if (lower.includes('password should be')) return 'Das Passwort ist zu kurz (mindestens 6 Zeichen)';

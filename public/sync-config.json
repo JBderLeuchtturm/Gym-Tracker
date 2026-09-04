@@ -1,5 +1,5 @@
 {
-  "_hinweis": "Hier die Zugangsdaten des eigenen Supabase-Projekts eintragen. Solange die Felder leer sind, laeuft die App rein lokal - ohne Konto, ohne Freunde, ohne Synchronisierung. Der anonKey ist absichtlich oeffentlich; geschuetzt wird alles ueber die Zeilenregeln in supabase/schema.sql.",
-  "url": "",
-  "anonKey": ""
+  "_hinweis": "Zugangsdaten des Supabase-Projekts. Der publishable Key ist absichtlich oeffentlich - geschuetzt wird alles ueber die Zeilenregeln aus supabase/schema.sql. Niemals den service_role- oder sb_secret_-Key hier eintragen.",
+  "url": "https://vuiycerxdjpcefuezdbt.supabase.co",
+  "anonKey": "sb_publishable_vWb5vldjD1NUZM2zpPmROA_l4T8BxU-"
 }
