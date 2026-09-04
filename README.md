@@ -265,11 +265,23 @@ Benachrichtigungen – auch bei geschlossener App – braucht es ein
 VAPID-Schlüsselpaar und eine kleine Funktion auf dem Supabase-Projekt. Das ist
 einmalige Arbeit von etwa zehn Minuten und kostet nichts.
 
-1. **Schlüsselpaar erzeugen** (irgendwo mit Node):
+1. **Schlüsselpaar erzeugen.** Am schnellsten geht das im Browser, ganz ohne
+   Installation: *F12* drücken, Reiter **Console**, das hier einfügen und Enter.
+   Die Schlüssel entstehen dabei auf deinem Rechner und verlassen ihn nicht.
 
-   ```bash
-   npx web-push generate-vapid-keys
+   ```js
+   const b64 = (b) => btoa(String.fromCharCode(...new Uint8Array(b)))
+     .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+   const p = await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'}, true, ['sign','verify']);
+   console.log('PUBLIC :', b64(await crypto.subtle.exportKey('raw', p.publicKey)));
+   console.log('PRIVATE:', (await crypto.subtle.exportKey('jwk', p.privateKey)).d);
    ```
+
+   Der Schlüssel ist jeweils nur der Teil hinter `PUBLIC :` bzw. `PRIVATE:` –
+   die Herkunftsangabe, die Chrome links danebenschreibt, gehört nicht dazu.
+
+   Wer Node zur Hand hat, kann stattdessen `npx web-push generate-vapid-keys`
+   nehmen; das Ergebnis ist dasselbe.
 
 2. **Öffentlichen Schlüssel eintragen** in `public/sync-config.json` unter
    `vapidPublicKey`. Der gehört dorthin – er ist öffentlich, genau wie der
