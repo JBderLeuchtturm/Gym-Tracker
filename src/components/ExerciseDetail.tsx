@@ -9,6 +9,8 @@ import { useStore } from '../storage/store';
 import { LineChart, type Point } from './charts/Charts';
 import { Modal, Stat, fmt } from './ui';
 import { IconTrophy } from './icons';
+import { BodyMap, type Intensity } from './MuscleMap';
+import { REGION_LABELS, regionsOf, type MuscleRegion } from '../lib/muscles';
 
 type Metric = '1rm' | 'weight' | 'volume' | 'reps' | 'duration';
 
@@ -74,14 +76,7 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
           {exercise.equipment.map((item) => <span key={item} className="chip">{item}</span>)}
         </div>
 
-        {exercise.primaryMuscles.length > 0 && (
-          <div className="tiny dim">
-            <strong style={{ color: 'var(--text-muted)' }}>{t("Primär:")}</strong> {exercise.primaryMuscles.join(', ')}
-            {exercise.secondaryMuscles.length > 0 && (
-              <> · <strong style={{ color: 'var(--text-muted)' }}>{t("Sekundär:")}</strong> {exercise.secondaryMuscles.join(', ')}</>
-            )}
-          </div>
-        )}
+        <MuscleCard exercise={exercise} />
 
         {exercise.description && <p className="small muted">{exercise.description}</p>}
 
@@ -204,6 +199,49 @@ function RecordRow({ label, value, date }: { label: string; value: string; date:
         <span className="bold mono">{value}</span>
         <span className="tiny dim">{formatDateShort(date)}</span>
       </span>
+    </div>
+  );
+}
+
+/**
+ * Zeigt auf der Koerperkarte, welche Muskeln die Uebung anspricht.
+ * Kraeftig = primaer, blass = unterstuetzend. Darunter stehen die
+ * Originalbezeichnungen aus dem Katalog, damit nichts verloren geht.
+ */
+function MuscleCard({ exercise }: { exercise: Exercise }) {
+  const { primary, secondary } = useMemo(() => regionsOf(exercise), [exercise]);
+  if (primary.size === 0 && secondary.size === 0) return null;
+
+  const intensity = (region: MuscleRegion): Intensity => {
+    if (primary.has(region)) return 'primary';
+    if (secondary.has(region)) return 'secondary';
+    return 'none';
+  };
+
+  return (
+    <div className="card">
+      <div className="card__header">
+        <div className="card__title">{t("Beanspruchte Muskeln")}</div>
+        <span className="tiny dim">{t("kräftig = primär")}</span>
+      </div>
+
+      <BodyMap intensity={intensity} size={140} />
+
+      <div className="muscle-legend" style={{ marginTop: 10 }}>
+        {[...primary].map((region) => (
+          <span key={region} className="chip chip--accent">{t(REGION_LABELS[region])}</span>
+        ))}
+        {[...secondary].map((region) => (
+          <span key={region} className="chip">{t(REGION_LABELS[region])}</span>
+        ))}
+      </div>
+
+      {exercise.primaryMuscles.length > 0 && (
+        <div className="tiny dim" style={{ marginTop: 8, textAlign: 'center' }}>
+          {exercise.primaryMuscles.join(', ')}
+          {exercise.secondaryMuscles.length > 0 && ` · ${exercise.secondaryMuscles.join(', ')}`}
+        </div>
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { ProfilePage } from './pages/Profile';
 import { HistoryPage } from './pages/History';
 import { FriendsPage } from './pages/Friends';
 import { useSync } from './sync/SyncProvider';
+import { applyUpdate, onUpdateAvailable } from './lib/appUpdate';
 import { formatDateLong, todayISO } from './lib/date';
 import { IconCalendar, IconChart, IconDumbbell, IconFlame, IconUser } from './components/icons';
 import { IconUsers } from './components/icons';
@@ -43,6 +44,9 @@ export function App() {
   // Wer über einen Einladungslink kommt, landet direkt bei den Freunden.
   const [tab, setTab] = useState<Tab>(() => (sync.pendingInvite ? 'friends' : 'today'));
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [updateReady, setUpdateReady] = useState(false);
+
+  useEffect(() => onUpdateAvailable(setUpdateReady), []);
 
   // Farbschema anwenden (dunkel, hell oder Systemvorgabe).
   useEffect(() => {
@@ -103,6 +107,17 @@ export function App() {
           </button>
         ))}
       </nav>
+
+      {updateReady && (
+        <div className="update-banner" role="status">
+          <span style={{ fontSize: '1.2rem' }}>✨</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="bold small">{t('Neue Version verfügbar')}</div>
+            <div className="tiny" style={{ opacity: 0.85 }}>{t('Einmal neu laden, dann ist sie da.')}</div>
+          </div>
+          <button className="btn btn--sm" onClick={applyUpdate}>{t('Jetzt laden')}</button>
+        </div>
+      )}
 
       <main className="page">
         {historyOpen ? (

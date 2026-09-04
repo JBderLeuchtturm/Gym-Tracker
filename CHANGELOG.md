@@ -2,6 +2,39 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Muskelkarte, Passwort vergessen, App-Updates
+
+*Branch `claude/muskelkarte`*
+
+**Muskelkarte**
+- Selbst gezeichnete Körperkarte von vorne und hinten (SVG, keine fremden
+  Abbildungen)
+- In den Übungsdetails: kräftig eingefärbt sind die Zielmuskeln, blass die
+  unterstützenden
+- Im Training: welche Muskeln der heutige Tag abdeckt – kräftig, was schon
+  abgehakt ist
+- In der Übungssuche: eine Region antippen und passende Übungen vorgeschlagen
+  bekommen, Zielmuskel zuerst
+- In der Auswertung: Belastungskarte über den gewählten Zeitraum, sekundäre
+  Muskeln zählen halb; ein Tipp auf eine Region zeigt, woher die Sätze kommen,
+  und schlägt bei Lücken Übungen vor; darunter steht, was gar nicht drankam
+
+**Anmeldung**
+- „Passwort vergessen“ schickt einen Link per E-Mail; darüber lässt sich direkt
+  in der App ein neues Passwort setzen
+
+**App-Updates**
+- Die installierte App lädt neue Versionen selbst und meldet sich mit einem
+  Balken „Neue Version verfügbar“; erst ein Tipp darauf schaltet um, damit
+  mitten im Satz nichts wegspringt
+- Im Profil steht, welcher Stand gerade läuft
+
+**Robustheit**
+- Fehlen auf dem Server neuere Tabellen, erscheint statt einer roten Fehlermeldung
+  ein Hinweis, dass `supabase/schema.sql` erneut ausgeführt werden muss
+- „Beinbizeps" wurde bei der Muskelzuordnung als Armbizeps gewertet – behoben
+- Neunter Testlauf `tests/muscles.mjs` für Karte, Zuordnung und Vorschläge
+
 ## Ausbau nach der Ideensammlung
 
 *Branch `claude/ausbau`*

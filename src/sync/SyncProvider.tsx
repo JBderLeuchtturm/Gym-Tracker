@@ -41,6 +41,13 @@ interface SyncValue {
   signUp: (email: string, password: string) => Promise<{ needsConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Verschickt eine E-Mail mit Link zum Zuruecksetzen des Passworts. */
+  requestPasswordReset: (email: string) => Promise<void>;
+  /** Setzt das Passwort der laufenden Wiederherstellungs-Sitzung. */
+  setNewPassword: (password: string) => Promise<void>;
+  /** true, solange die App aus einem Wiederherstellungs-Link kommt. */
+  recoveryMode: boolean;
+  endRecoveryMode: () => void;
   saveProfile: (patch: Partial<Pick<RemoteProfile, 'handle' | 'display_name' | 'emoji'>>) => Promise<void>;
 
   friends: Friend[];
@@ -77,6 +84,16 @@ interface SyncValue {
   removeComment: (id: string) => Promise<void>;
   /** Neue Trainings von Freunden seit dem letzten Blick. */
   freshActivity: FriendActivity[];
+  /**
+   * true, wenn die Datenbank aelter ist als die App - dann fehlen die Tabellen
+   * fuer Gruppen, Challenges und Kommentare.
+   */
+  schemaOutdated: boolean;
+}
+
+/** Erkennt die Meldung von PostgREST fuer eine unbekannte Tabelle. */
+function isMissingTable(message: string): boolean {
+  return /could not find the table|does not exist|schema cache/i.test(message);
 }
 
 const SyncContext = createContext<SyncValue | null>(null);
@@ -101,6 +118,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [comments, setComments] = useState<ActivityComment[]>([]);
   const [freshActivity, setFreshActivity] = useState<FriendActivity[]>([]);
   const [friendData, setFriendData] = useState<Record<string, FriendData>>({});
+  const [schemaOutdated, setSchemaOutdated] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(false);
   const [pendingInvite, setPendingInvite] = useState<string | null>(() => captureInviteFromUrl());
   const [inviteNote, setInviteNote] = useState<string | null>(null);
 
@@ -144,7 +163,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       setStatus(data.session?.user ? 'signed-in' : 'signed-out');
     });
 
-    const { data: listener } = client.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = client.auth.onAuthStateChange((event, session) => {
+      // Kommt der Nutzer ueber den Link aus der E-Mail, ist er zwar angemeldet,
+      // soll aber zuerst ein neues Passwort setzen.
+      if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true);
       setUser(session?.user ?? null);
       setStatus(session?.user ? 'signed-in' : 'signed-out');
       if (!session?.user) {
@@ -478,8 +500,20 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       setChallenges(loadedChallenges);
       setReactions(feedback.reactions);
       setComments(feedback.comments);
+      setSchemaOutdated(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Gruppen konnten nicht geladen werden');
+      const message = caught instanceof Error ? caught.message : '';
+      // Fehlen die Tabellen, ist nur das Schema aelter als die App. Das ist
+      // kein Betriebsfehler - Training und Freunde laufen unveraendert weiter.
+      if (isMissingTable(message)) {
+        setSchemaOutdated(true);
+        setGroups([]);
+        setChallenges([]);
+        setReactions([]);
+        setComments([]);
+        return;
+      }
+      setError(message || t('Gruppen konnten nicht geladen werden'));
     }
   }, [client, user]);
 
@@ -619,6 +653,34 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     await client.auth.signOut();
   }, [client]);
 
+  const requestPasswordReset = useCallback(async (email: string) => {
+    if (!client) throw new Error(t('Synchronisierung ist nicht eingerichtet'));
+    setBusy(true);
+    try {
+      // Der Link fuehrt zurueck auf dieselbe Seite; Supabase haengt die
+      // Wiederherstellungs-Sitzung als Anker an die Adresse.
+      const redirectTo = `${window.location.origin}${window.location.pathname}`;
+      const { error: resetError } = await client.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+      if (resetError) throw new Error(translateAuthError(resetError.message));
+    } finally {
+      setBusy(false);
+    }
+  }, [client]);
+
+  const setNewPassword = useCallback(async (password: string) => {
+    if (!client) throw new Error(t('Synchronisierung ist nicht eingerichtet'));
+    setBusy(true);
+    try {
+      const { error: updateError } = await client.auth.updateUser({ password });
+      if (updateError) throw new Error(translateAuthError(updateError.message));
+      setRecoveryMode(false);
+    } finally {
+      setBusy(false);
+    }
+  }, [client]);
+
+  const endRecoveryMode = useCallback(() => setRecoveryMode(false), []);
+
   const saveProfile = useCallback(async (
     patch: Partial<Pick<RemoteProfile, 'handle' | 'display_name' | 'emoji'>>,
   ) => {
@@ -657,22 +719,24 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<SyncValue>(() => ({
     status, user, profile, error, busy, lastSyncAt, lastMergeNote, pendingInvite, inviteNote,
     signUp, signIn, signOut, saveProfile,
+    requestPasswordReset, setNewPassword, recoveryMode, endRecoveryMode,
     friends, refreshFriends, addFriend, acceptFriend, removeFriend,
     grants, setGrant, loadFriendData, friendData, syncNow,
     groups, challenges, reactions, comments, refreshSocial,
     createGroup: doCreateGroup, joinGroup: doJoinGroup, leaveGroup: doLeaveGroup,
     createChallenge: doCreateChallenge, joinChallenge: doJoinChallenge,
     leaveChallenge: doLeaveChallenge, deleteChallenge: doDeleteChallenge,
-    react, comment, removeComment, freshActivity,
+    react, comment, removeComment, freshActivity, schemaOutdated,
   }), [
     status, user, profile, error, busy, lastSyncAt, lastMergeNote, pendingInvite, inviteNote,
     signUp, signIn, signOut, saveProfile,
+    requestPasswordReset, setNewPassword, recoveryMode, endRecoveryMode,
     friends, refreshFriends, addFriend, acceptFriend, removeFriend,
     grants, setGrant, loadFriendData, friendData, syncNow,
     groups, challenges, reactions, comments, refreshSocial,
     doCreateGroup, doJoinGroup, doLeaveGroup,
     doCreateChallenge, doJoinChallenge, doLeaveChallenge, doDeleteChallenge,
-    react, comment, removeComment, freshActivity,
+    react, comment, removeComment, freshActivity, schemaOutdated,
   ]);
 
   // config wird nur zum Aufbau gebraucht, taucht aber in der Oberflaeche als Hinweis auf.

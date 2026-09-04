@@ -12,6 +12,8 @@ import { useStore } from '../storage/store';
 import { uid } from '../storage/defaults';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { ExerciseDetail } from '../components/ExerciseDetail';
+import { BodyMap, type Intensity } from '../components/MuscleMap';
+import { REGION_LABELS, regionsOf, type MuscleRegion } from '../lib/muscles';
 import { ConfirmDialog, EmptyState, NumberInput, fmt, useToast } from '../components/ui';
 import { ProgressRing } from '../components/ProgressRing';
 import { CATEGORY_ICONS, categoryColor, categoryTint } from '../lib/categoryColors';
@@ -410,6 +412,8 @@ export function TodayPage() {
       <button className="btn btn--primary btn--block" onClick={() => setPickerOpen(true)}>
         <IconPlus /> {t('Übung hinzufügen')}
       </button>
+
+      <SessionMuscles rows={rows} />
 
       {workout && (
         <div className="card">
@@ -963,6 +967,53 @@ function RecordBanner({
       <button className="btn btn--ghost btn--icon btn--sm" onClick={onClose} aria-label={t("Schließen")}>
         <IconX />
       </button>
+    </div>
+  );
+}
+
+
+/**
+ * Welche Muskeln das heutige Training abdeckt. Kraeftig eingefaerbt ist,
+ * was schon abgehakt wurde, blass das, was noch aussteht.
+ */
+function SessionMuscles({ rows }: { rows: Row[] }) {
+  const { done, planned } = useMemo(() => {
+    const doneRegions = new Set<MuscleRegion>();
+    const plannedRegions = new Set<MuscleRegion>();
+    for (const row of rows) {
+      if (!row.exercise) continue;
+      const { primary, secondary } = regionsOf(row.exercise);
+      const target = row.sets.some((set) => set.done) ? doneRegions : plannedRegions;
+      for (const region of primary) target.add(region);
+      for (const region of secondary) plannedRegions.add(region);
+    }
+    for (const region of doneRegions) plannedRegions.delete(region);
+    return { done: doneRegions, planned: plannedRegions };
+  }, [rows]);
+
+  if (done.size === 0 && planned.size === 0) return null;
+
+  const intensity = (region: MuscleRegion): Intensity => {
+    if (done.has(region)) return 'primary';
+    if (planned.has(region)) return 'secondary';
+    return 'none';
+  };
+
+  return (
+    <div className="card">
+      <div className="card__header">
+        <div className="card__title">{t("Heute beansprucht")}</div>
+        <span className="tiny dim">{t("kräftig = schon trainiert")}</span>
+      </div>
+      <BodyMap intensity={intensity} size={130} />
+      <div className="muscle-legend" style={{ marginTop: 10 }}>
+        {[...done].map((region) => (
+          <span key={region} className="chip chip--accent">{t(REGION_LABELS[region])}</span>
+        ))}
+        {[...planned].map((region) => (
+          <span key={region} className="chip">{t(REGION_LABELS[region])}</span>
+        ))}
+      </div>
     </div>
   );
 }

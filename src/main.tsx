@@ -5,6 +5,7 @@ import { StoreProvider } from './storage/store';
 import { SyncProvider } from './sync/SyncProvider';
 import { ToastProvider } from './components/ui';
 import { I18nProvider } from './i18n';
+import { registerServiceWorker } from './lib/appUpdate';
 import './styles.css';
 
 const container = document.getElementById('root');
@@ -26,12 +27,9 @@ createRoot(container).render(
   </React.StrictMode>,
 );
 
-// Service Worker fuer Offline-Betrieb registrieren (nur im Produktions-Build).
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+// Service Worker fuer Offline-Betrieb und Update-Erkennung (nur im Produktionsbau).
+if (import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    const base = import.meta.env.BASE_URL || '/';
-    navigator.serviceWorker.register(`${base}sw.js`, { scope: base }).catch(() => {
-      // Ohne Service Worker funktioniert die App weiterhin, nur nicht offline.
-    });
+    registerServiceWorker(import.meta.env.BASE_URL || '/');
   });
 }

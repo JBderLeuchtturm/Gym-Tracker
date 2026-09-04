@@ -32,6 +32,9 @@ export function FriendsPage() {
   if (sync.status === 'disabled') {
     return <SetupNotice />;
   }
+  if (sync.recoveryMode) {
+    return <NewPasswordPanel />;
+  }
   if (sync.status === 'signed-out') {
     return <AuthPanel />;
   }
@@ -122,6 +125,7 @@ function AuthPanel() {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
 
   const submit = async () => {
     setFailure(null);
@@ -205,6 +209,148 @@ function AuthPanel() {
           onClick={() => { setMode(mode === 'in' ? 'up' : 'in'); setFailure(null); setMessage(null); }}
         >
           {mode === 'in' ? t('Noch kein Konto? Jetzt anlegen') : t('Ich habe schon ein Konto')}
+        </button>
+
+        {mode === 'in' && (
+          <button
+            className="btn btn--ghost btn--block btn--sm"
+            onClick={() => { setResetOpen(true); setFailure(null); setMessage(null); }}
+          >
+            {t('Passwort vergessen?')}
+          </button>
+        )}
+      </div>
+
+      {resetOpen && (
+        <PasswordResetDialog
+          initialEmail={email}
+          onClose={() => setResetOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------- Passwort zurücksetzen */
+
+/** Verschickt den Wiederherstellungs-Link an die angegebene Adresse. */
+function PasswordResetDialog({
+  initialEmail, onClose,
+}: {
+  initialEmail: string;
+  onClose: () => void;
+}) {
+  const sync = useSync();
+  const [email, setEmail] = useState(initialEmail);
+  const [sent, setSent] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  return (
+    <Modal title={t('Passwort zurücksetzen')} onClose={onClose}>
+      <div className="list">
+        {sent ? (
+          <>
+            <div className="small" style={{ color: 'var(--success)' }}>
+              {t('Wir haben dir einen Link geschickt. Öffne ihn auf diesem Gerät, dann kannst du hier direkt ein neues Passwort setzen.')}
+            </div>
+            <div className="tiny dim">
+              {t('Nichts angekommen? Sieh im Spam-Ordner nach – und prüfe, ob die Adresse stimmt.')}
+            </div>
+            <button className="btn btn--block" onClick={onClose}>{t('Alles klar')}</button>
+          </>
+        ) : (
+          <>
+            <div className="small muted">
+              {t('Gib die E-Mail-Adresse deines Kontos ein. Du bekommst einen Link, mit dem du ein neues Passwort vergeben kannst.')}
+            </div>
+            <div className="field">
+              <label className="field__label">{t('E-Mail')}</label>
+              <input
+                className="input" type="email" autoComplete="email" value={email} autoFocus
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
+            {failure && <div className="small" style={{ color: 'var(--danger)' }}>{failure}</div>}
+            <button
+              className="btn btn--primary btn--block"
+              disabled={sync.busy || !email.trim()}
+              onClick={async () => {
+                setFailure(null);
+                try {
+                  await sync.requestPasswordReset(email);
+                  setSent(true);
+                } catch (caught) {
+                  setFailure(caught instanceof Error ? caught.message : t('Hat nicht geklappt'));
+                }
+              }}
+            >
+              {sync.busy ? t('Einen Moment…') : t('Link schicken')}
+            </button>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+/* -------------------------------------------------- Neues Passwort setzen */
+
+/** Erscheint, wenn die App aus einem Wiederherstellungs-Link geoeffnet wurde. */
+function NewPasswordPanel() {
+  const sync = useSync();
+  const toast = useToast();
+  const [password, setPassword] = useState('');
+  const [repeat, setRepeat] = useState('');
+  const [failure, setFailure] = useState<string | null>(null);
+
+  const mismatch = repeat.length > 0 && password !== repeat;
+
+  return (
+    <div className="card">
+      <div className="card__title" style={{ marginBottom: 4 }}>{t('Neues Passwort setzen')}</div>
+      <div className="tiny dim" style={{ marginBottom: 12 }}>
+        {t('Du bist über den Link aus der E-Mail hier gelandet. Vergib jetzt ein neues Passwort.')}
+      </div>
+
+      <div className="list">
+        <div className="field">
+          <label className="field__label">{t('Neues Passwort')}</label>
+          <input
+            className="input" type="password" autoComplete="new-password" value={password} autoFocus
+            onChange={(event) => setPassword(event.target.value)}
+          />
+          <span className="field__hint">{t('Mindestens 6 Zeichen')}</span>
+        </div>
+        <div className="field">
+          <label className="field__label">{t('Wiederholen')}</label>
+          <input
+            className="input" type="password" autoComplete="new-password" value={repeat}
+            onChange={(event) => setRepeat(event.target.value)}
+          />
+          {mismatch && <span className="field__hint" style={{ color: 'var(--danger)' }}>
+            {t('Die beiden stimmen nicht überein')}
+          </span>}
+        </div>
+
+        {failure && <div className="small" style={{ color: 'var(--danger)' }}>{failure}</div>}
+
+        <button
+          className="btn btn--primary btn--block"
+          disabled={sync.busy || password.length < 6 || mismatch || repeat.length === 0}
+          onClick={async () => {
+            setFailure(null);
+            try {
+              await sync.setNewPassword(password);
+              toast.show(t('Passwort geändert'));
+            } catch (caught) {
+              setFailure(caught instanceof Error ? caught.message : t('Hat nicht geklappt'));
+            }
+          }}
+        >
+          {sync.busy ? t('Einen Moment…') : t('Passwort speichern')}
+        </button>
+        <button className="btn btn--ghost btn--block btn--sm" onClick={sync.endRecoveryMode}>
+          {t('Doch nicht ändern')}
         </button>
       </div>
     </div>
@@ -315,6 +461,25 @@ function FriendsHome() {
         {sync.error && <div className="tiny" style={{ color: 'var(--danger)', marginTop: 4 }}>{sync.error}</div>}
       </div>
 
+      {sync.schemaOutdated && (
+        <div className="card" style={{ borderColor: 'var(--warn)' }}>
+          <div className="row" style={{ gap: 10, alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '1.3rem' }}>🛠️</span>
+            <div className="small">
+              <div className="bold" style={{ marginBottom: 3 }}>
+                {t('Die Datenbank ist älter als die App')}
+              </div>
+              <span className="muted">
+                {t('Gruppen, Challenges und Kommentare brauchen ein paar zusätzliche Tabellen. Führe supabase/schema.sql noch einmal im SQL-Editor deines Supabase-Projekts aus – das Skript ist wiederholbar und ändert an den vorhandenen Daten nichts.')}
+              </span>
+              <div className="tiny dim" style={{ marginTop: 6 }}>
+                {t('Training, Freunde und Freigaben funktionieren solange normal weiter.')}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {sync.inviteNote && (
         <div className="card" style={{ borderColor: 'var(--accent)' }}>
           <div className="row" style={{ gap: 9 }}>
@@ -406,8 +571,12 @@ function FriendsHome() {
       </div>
 
       {section === 'feed' && <ActivityFeed friends={accepted} />}
-      {section === 'groups' && <GroupsSection />}
-      {section === 'challenges' && <ChallengesSection friends={accepted} />}
+      {section === 'groups' && (sync.schemaOutdated
+        ? <EmptyState icon="🛠️" title={t('Gruppen brauchen das neue Schema')} hint={t('Siehe Hinweis oben.')} />
+        : <GroupsSection />)}
+      {section === 'challenges' && (sync.schemaOutdated
+        ? <EmptyState icon="🛠️" title={t('Challenges brauchen das neue Schema')} hint={t('Siehe Hinweis oben.')} />
+        : <ChallengesSection friends={accepted} />)}
 
       {/* -------------------------------------------------------- Freunde */}
       {section === 'friends' && (accepted.length === 0 ? (
