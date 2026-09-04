@@ -2,6 +2,56 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Zweite Runde aus der Ideensammlung
+
+*Branch `claude/zweite-runde`*
+
+Setzt alles aus der zweiten Runde in [#3](https://github.com/JBderLeuchtturm/Gym-Tracker/issues/3)
+um – außer den Anbindungen an Strava und Health.
+
+**Behoben**
+- Der Trainingsverbrauch wurde gegen eine unmögliche Trainingsdauer gerechnet.
+  Wer die Stoppuhr versehentlich kurz laufen ließ, hatte danach eine Dauer von
+  einer Minute stehen – aus zwölf Sätzen wurden neun Kilokalorien. Eine
+  gemessene Dauer muss jetzt mindestens so lang sein wie die reine Hebezeit;
+  sonst zählt die Schätzung, und im Training steht ein Hinweis darauf.
+
+**Pläne**
+- Einen Tag auf beliebig viele Wochentage gleichzeitig kopieren
+- Mehrwöchige Zyklen mit Steigerung je Woche und Entlastungswoche
+- Steigerung je Übung für die doppelte Progression
+- Pläne als Textbaustein weitergeben und einlesen – ohne Server, ohne Konto
+
+**Training**
+- Ersatzübung mit denselben Zielmuskeln; eingetragene Sätze bleiben stehen
+- Countdown für Halteübungen mit Signalton
+- Notiz je Satz
+- Sätze des Trainingspartners – im Training sichtbar, aus der eigenen
+  Auswertung heraus
+
+**Auswertung**
+- Wochenziel je Muskelgruppe als Ampel auf der Körperkarte
+- „Diese Woche fehlt noch“ und „lange nicht dran“ im Klartext
+- Trainingskalender über 27 Wochen
+- Hochrechnung je Übung aufs nächste runde Ziel, mit Angabe der Streuung
+- Export als CSV (Sätze, Trainings, Körperdaten) und druckbarer Bericht
+
+**Körper**
+- Umfänge mit Verlauf je Maß
+- Fortschrittsfotos, zwei nebeneinander vergleichbar; bleiben auf dem Gerät
+
+**Freunde**
+- Wochenrückblick über alle Freigaben, eigene Zahlen daneben
+- Echte Push-Nachrichten über VAPID und eine Supabase Edge Function;
+  bewusst ohne Nutzlast, damit beim Push-Dienst keine Trainingsdaten liegen
+
+**Profil**
+- Wochenziele je Muskelgruppe, Geräteprofil, Trainingspartner, Signalton
+
+**Technik**
+- Zehnter Testlauf `tests/features.mjs`
+- Neue Tabelle `push_subscriptions` in `supabase/schema.sql`
+
 ## Muskelkarte, Passwort vergessen, App-Updates
 
 *Branch `claude/muskelkarte`*

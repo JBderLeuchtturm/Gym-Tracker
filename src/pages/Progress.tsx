@@ -658,6 +658,7 @@ function MuscleLoadCard({
           <span className="chip chip--warn">{t("knapp drunter")}</span>
           <span className="chip chip--success">{t("im Ziel")}</span>
           <span className="chip">{t("darüber")}</span>
+          <span className="chip">{t("grau = noch nichts")}</span>
         </div>
       ) : (
         <div className="tiny dim" style={{ textAlign: 'center', marginTop: 8 }}>

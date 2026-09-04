@@ -85,7 +85,11 @@ export type LoadStatus = 'off' | 'none' | 'low' | 'mid' | 'good' | 'over';
 
 /**
  * Ampel: Wie steht die Region zu ihrem Wochenziel?
- * "off" heisst, dass fuer diese Region kein Ziel gesetzt ist.
+ *
+ * Bewusst getrennt: "noch gar nichts" ist grau, nicht rot. Am Montagmorgen
+ * waere sonst der ganze Koerper rot, und eine Karte, die immer Alarm schlaegt,
+ * sagt nichts mehr. Rot heisst: angefangen, aber deutlich zu wenig. Was ganz
+ * fehlt, steht darunter im Klartext.
  */
 export function loadStatus(sets: number, target: number): LoadStatus {
   if (target <= 0) return 'off';
