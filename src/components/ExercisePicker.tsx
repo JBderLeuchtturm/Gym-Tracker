@@ -9,7 +9,9 @@ import { useStore } from '../storage/store';
 import { Modal, useToast } from './ui';
 import { IconInfo, IconPlus, IconSearch } from './icons';
 import { BodyMap } from './MuscleMap';
-import { REGION_LABELS, regionRole, suggestForRegion, type MuscleRegion } from '../lib/muscles';
+import {
+  REGION_LABELS, fitsEquipment, regionRole, suggestForRegion, type MuscleRegion,
+} from '../lib/muscles';
 
 const CATEGORY_ICONS: Record<ExerciseCategory, string> = {
   chest: '🫁', back: '🔙', legs: '🦵', shoulders: '🏋️', arms: '💪',
@@ -43,6 +45,9 @@ export function ExercisePicker({
   const [apiDown, setApiDown] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  // Ist ein Geraeteprofil hinterlegt, filtert die Suche zunaechst danach.
+  const ownEquipment = state.settings.availableEquipment;
+  const [onlyMine, setOnlyMine] = useState(ownEquipment.length > 0);
   const [region, setRegion] = useState<MuscleRegion | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -67,9 +72,10 @@ export function ExercisePicker({
       if (category !== 'all' && exercise.category !== category) return false;
       if (equipment !== 'all' && !exercise.equipment.includes(equipment)) return false;
       if (region && !regionRole(exercise, region)) return false;
+      if (onlyMine && !fitsEquipment(exercise, ownEquipment)) return false;
       return true;
     });
-  }, [allExercises, category, equipment, region]);
+  }, [allExercises, category, equipment, region, onlyMine, ownEquipment]);
 
   const localResults = useMemo(() => {
     if (query.trim().length === 0) {
@@ -165,6 +171,15 @@ export function ExercisePicker({
           >
             {t("Muskelkarte")}
           </button>
+          {ownEquipment.length > 0 && (
+            <button
+              className={`chip chip--button ${onlyMine ? 'chip--accent' : ''}`}
+              aria-pressed={onlyMine}
+              onClick={() => setOnlyMine((value) => !value)}
+            >
+              {t("Meine Geräte")}
+            </button>
+          )}
           <span className="tiny dim nowrap">{totalCount} Treffer</span>
         </div>
 

@@ -50,6 +50,10 @@ export function relativeDayLabel(iso: string): string {
 /** Montag der Woche, in der das Datum liegt. */
 export const startOfWeek = (iso: string): string => addDays(iso, -weekdayOf(iso));
 
+/** Ganze Tage zwischen zwei Datumsangaben (spaeter minus frueher). */
+export const daysBetween = (from: string, to: string): number =>
+  Math.round((parseISODate(to).getTime() - parseISODate(from).getTime()) / 86400000);
+
 /** ISO-Kalenderwochen-Schluessel wie "2026-KW12" - fuer Gruppierungen. */
 export function weekKey(iso: string): string {
   const date = parseISODate(iso);

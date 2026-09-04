@@ -3,6 +3,7 @@ import { addDays, todayISO } from '../lib/date';
 import { calcDayEnergy } from '../lib/calories';
 import {
   exerciseHistory, personalRecords, streakInfo, weeklySummaries, workoutSetCount, workoutVolume,
+  countsAsWork,
 } from '../lib/stats';
 
 /**
@@ -91,7 +92,7 @@ export function buildProgressShare(
   const exerciseIds = new Set<ID>();
   for (const workout of done) {
     for (const logged of workout.exercises) {
-      if (logged.sets.some((set) => set.done)) exerciseIds.add(logged.exerciseId);
+      if (logged.sets.some(countsAsWork)) exerciseIds.add(logged.exerciseId);
     }
   }
 
@@ -130,7 +131,7 @@ export function buildProgressShare(
     let best: { weight: number; reps: number; name: string } | null = null;
     for (const logged of workout.exercises) {
       for (const set of logged.sets) {
-        if (!set.done || set.isWarmup) continue;
+        if (!countsAsWork(set)) continue;
         const weight = set.weightKg ?? 0;
         if (weight > 0 && (!best || weight > best.weight)) {
           best = { weight, reps: set.reps ?? 0, name: getExercise(logged.exerciseId)?.name ?? '' };

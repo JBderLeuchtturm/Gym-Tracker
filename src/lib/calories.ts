@@ -108,7 +108,8 @@ export function calcWorkoutBurn(
     const name = exercise?.name ?? 'Unbekannte Übung';
     let minutes = 0;
     for (const set of logged.sets) {
-      if (!set.done) continue;
+      // Saetze des Partners sind fremde Arbeit und zaehlen nicht in den eigenen Verbrauch.
+      if (!set.done || set.forPartner) continue;
       minutes += setMinutes(set.reps, set.durationSec, defaultRestSec);
     }
     if (minutes > 0) rows.push({ exerciseId: logged.exerciseId, name, met, minutes });

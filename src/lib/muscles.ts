@@ -170,3 +170,13 @@ export function suggestForRegion(exercises: Exercise[], region: MuscleRegion): E
   ));
   return scored.map((item) => item.exercise);
 }
+
+/**
+ * Laesst sich die Uebung mit den vorhandenen Geraeten machen?
+ * Ohne Geraeteprofil ist alles moeglich; Uebungen ohne Geraet immer.
+ */
+export function fitsEquipment(exercise: Exercise, available: string[]): boolean {
+  if (available.length === 0) return true;
+  if (exercise.equipment.length === 0) return true;
+  return exercise.equipment.every((item) => available.includes(item));
+}

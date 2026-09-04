@@ -7,19 +7,23 @@ import {
 } from '../lib/date';
 import { calcWorkoutBurn } from '../lib/calories';
 import { detectRecord, suggestWeight, warmupSets, type NewRecord } from '../lib/coaching';
-import { exerciseVolume, lastPerformance, workoutSetCount, workoutVolume } from '../lib/stats';
+import {
+  countsAsWork, exerciseVolume, lastPerformance, workoutSetCount, workoutVolume,
+} from '../lib/stats';
 import { useStore } from '../storage/store';
 import { uid } from '../storage/defaults';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { ExerciseDetail } from '../components/ExerciseDetail';
 import { BodyMap, type Intensity } from '../components/MuscleMap';
-import { REGION_LABELS, regionsOf, type MuscleRegion } from '../lib/muscles';
-import { ConfirmDialog, EmptyState, NumberInput, fmt, useToast } from '../components/ui';
+import {
+  REGION_LABELS, fitsEquipment, regionsOf, suggestForRegion, type MuscleRegion,
+} from '../lib/muscles';
+import { ConfirmDialog, EmptyState, Modal, NumberInput, fmt, useToast } from '../components/ui';
 import { ProgressRing } from '../components/ProgressRing';
 import { CATEGORY_ICONS, categoryColor, categoryTint } from '../lib/categoryColors';
 import {
   IconCheck, IconChart, IconChevronDown, IconChevronLeft, IconChevronRight, IconClock,
-  IconPlus, IconTrash, IconX,
+  IconPlus, IconSwap, IconTrash, IconX,
 } from '../components/icons';
 
 /* ------------------------------------------------------------ Zeilenmodell */
@@ -58,6 +62,7 @@ export function TodayPage() {
 
   const [date, setDate] = useState(todayISO());
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [swapFor, setSwapFor] = useState<Row | null>(null);
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
@@ -195,6 +200,40 @@ export function TodayPage() {
 
     const rest = row.planExercise?.restSec ?? state.settings.restTimerSec;
     if (rest > 0) startRest(rest);
+  };
+
+  /**
+   * Tauscht die Uebung einer Zeile gegen eine andere. Die bereits
+   * eingetragenen Saetze bleiben stehen - das Geraet war besetzt, die Arbeit
+   * war es nicht.
+   */
+  const swapExercise = (row: Row, next: Exercise) => {
+    upsertWorkout(date, (current) => {
+      const existing = current.exercises.find((logged) => logged.exerciseId === row.exerciseId);
+      const exercises = existing
+        ? current.exercises.map((logged) => (
+            logged.exerciseId === row.exerciseId
+              ? { ...logged, exerciseId: next.id, planExerciseId: undefined }
+              : logged
+          ))
+        : [
+            ...current.exercises,
+            {
+              id: uid('le'),
+              exerciseId: next.id,
+              groupId: row.groupId,
+              sets: row.sets.map((set) => ({ ...set, id: uid('set') })),
+            },
+          ];
+
+      // Die Plan-Uebung wird ersetzt, nicht ergaenzt: ihre Reihenfolge bleibt.
+      const order = (current.exerciseOrder ?? rows.map((item) => item.exerciseId))
+        .map((id) => (id === row.exerciseId ? next.id : id));
+
+      return { ...current, exercises, exerciseOrder: order };
+    });
+    setSwapFor(null);
+    toast.show(t('Getauscht gegen {name}', { name: exerciseName(next) }));
   };
 
   const addSet = (row: Row) => {
@@ -402,6 +441,7 @@ export function TodayPage() {
             onAddSet={() => addSet(row)}
             onRemove={() => removeRow(row)}
             onOpenDetail={() => row.exercise && setDetail(row.exercise)}
+            onSwap={() => setSwapFor(row)}
             onStartRest={startRest}
             onMove={(direction) => moveRow(index, direction)}
             onToggleSuperset={() => toggleSuperset(index)}
@@ -476,6 +516,14 @@ export function TodayPage() {
         />
       )}
 
+      {swapFor && (
+        <SwapDialog
+          row={swapFor}
+          onClose={() => setSwapFor(null)}
+          onPick={(next) => swapExercise(swapFor, next)}
+        />
+      )}
+
       {detail && <ExerciseDetail exercise={detail} onClose={() => setDetail(null)} />}
 
       {confirmClear && workout && (
@@ -531,7 +579,7 @@ function WeekStrip({
 
 function ExerciseCard({
   row, index, total, date, sortMode, groupedWithAbove,
-  onToggleSet, onUpdate, onAddSet, onRemove, onOpenDetail, onStartRest, onMove, onToggleSuperset,
+  onToggleSet, onUpdate, onAddSet, onRemove, onOpenDetail, onSwap, onStartRest, onMove, onToggleSuperset,
 }: {
   row: Row;
   index: number;
@@ -544,6 +592,7 @@ function ExerciseCard({
   onAddSet: () => void;
   onRemove: () => void;
   onOpenDetail: () => void;
+  onSwap: () => void;
   onStartRest: (seconds: number) => void;
   onMove: (direction: -1 | 1) => void;
   onToggleSuperset: () => void;
@@ -559,7 +608,7 @@ function ExerciseCard({
     [state, row.exerciseId, row.exercise, row.planExercise, date],
   );
 
-  const doneSets = row.sets.filter((set) => set.done && !set.isWarmup).length;
+  const doneSets = row.sets.filter(countsAsWork).length;
   const [open, setOpen] = useState(doneSets === 0);
   const isTimed = row.exercise?.kind === 'time' || row.exercise?.kind === 'cardio';
 
@@ -785,6 +834,9 @@ function ExerciseCard({
               <IconClock /> {t('Pause')}
             </button>
             <button className="btn btn--sm" onClick={onOpenDetail}><IconChart /> {t("Fortschritt")}</button>
+            <button className="btn btn--sm" onClick={onSwap} title={t("Gerät besetzt? Ersatz suchen")}>
+              <IconSwap /> {t('Ersatz')}
+            </button>
             <span className="spacer" />
             {row.sets.length > 1 && (
               <button
@@ -983,7 +1035,7 @@ function SessionMuscles({ rows }: { rows: Row[] }) {
     for (const row of rows) {
       if (!row.exercise) continue;
       const { primary, secondary } = regionsOf(row.exercise);
-      const target = row.sets.some((set) => set.done) ? doneRegions : plannedRegions;
+      const target = row.sets.some(countsAsWork) ? doneRegions : plannedRegions;
       for (const region of primary) target.add(region);
       for (const region of secondary) plannedRegions.add(region);
     }
@@ -1015,5 +1067,90 @@ function SessionMuscles({ rows }: { rows: Row[] }) {
         ))}
       </div>
     </div>
+  );
+}
+
+
+/**
+ * Ersatzuebungen: Was trifft dieselben Zielmuskeln? Ist ein Geraeteprofil
+ * hinterlegt, stehen die machbaren Uebungen oben; der Rest bleibt sichtbar,
+ * denn im fremden Studio steht manchmal doch etwas anderes herum.
+ */
+function SwapDialog({
+  row, onClose, onPick,
+}: {
+  row: Row;
+  onClose: () => void;
+  onPick: (exercise: Exercise) => void;
+}) {
+  const { state, allExercises } = useStore();
+  const available = state.settings.availableEquipment;
+
+  const candidates = useMemo(() => {
+    if (!row.exercise) return [];
+    const { primary } = regionsOf(row.exercise);
+    if (primary.size === 0) return [];
+
+    const seen = new Map<string, { exercise: Exercise; hits: number }>();
+    for (const region of primary) {
+      for (const exercise of suggestForRegion(allExercises, region)) {
+        if (exercise.id === row.exerciseId) continue;
+        const entry = seen.get(exercise.id) ?? { exercise, hits: 0 };
+        entry.hits += 1;
+        seen.set(exercise.id, entry);
+      }
+    }
+
+    return [...seen.values()]
+      .map((entry) => ({ ...entry, fits: fitsEquipment(entry.exercise, available) }))
+      .sort((a, b) => (
+        Number(b.fits) - Number(a.fits)
+        || b.hits - a.hits
+        || a.exercise.name.localeCompare(b.exercise.name)
+      ))
+      .slice(0, 30);
+  }, [row.exercise, row.exerciseId, allExercises, available]);
+
+  const regions = row.exercise ? [...regionsOf(row.exercise).primary] : [];
+
+  return (
+    <Modal title={t('Ersatz für {name}', { name: exerciseName(row.exercise) })} onClose={onClose} flush>
+      <div style={{ padding: '12px 14px 6px' }}>
+        <div className="row row--wrap" style={{ gap: 6 }}>
+          {regions.map((region) => (
+            <span key={region} className="chip chip--accent">{t(REGION_LABELS[region])}</span>
+          ))}
+        </div>
+        <div className="tiny dim" style={{ marginTop: 8 }}>
+          {t("Die eingetragenen Sätze bleiben stehen.")}
+        </div>
+      </div>
+
+      <div style={{ maxHeight: '54vh', overflowY: 'auto' }}>
+        {candidates.length === 0 && (
+          <div className="empty tiny">{t("Keine passende Alternative gefunden.")}</div>
+        )}
+        {candidates.map(({ exercise, fits }) => (
+          <button key={exercise.id} className="search-result" onClick={() => onPick(exercise)}>
+            <span
+              className="search-result__thumb search-result__thumb--cat"
+              style={{
+                '--cat': categoryColor(exercise.category),
+                '--cat-tint': categoryTint(exercise.category),
+              } as React.CSSProperties}
+            >
+              {CATEGORY_ICONS[exercise.category]}
+            </span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span className="search-result__name">{exerciseName(exercise)}</span>
+              <span className="search-result__meta" style={{ display: 'block' }}>
+                {exercise.equipment.length > 0 ? exercise.equipment.join(', ') : t('ohne Gerät')}
+              </span>
+            </span>
+            {!fits && available.length > 0 && <span className="chip chip--warn">{t("fehlt dir")}</span>}
+          </button>
+        ))}
+      </div>
+    </Modal>
   );
 }

@@ -21,6 +21,10 @@ export const DEFAULT_SETTINGS: Settings = {
   restTimerSec: 120,
   weekStartsMonday: true,
   useWgerApi: true,
+  weeklySetTargets: {},
+  availableEquipment: [],
+  partnerName: '',
+  countdownBeep: true,
   yazio: { bridgeUrl: '', token: '', enabled: false, lastSyncAt: null },
 };
 
@@ -104,6 +108,7 @@ export function createInitialState(): AppState {
     activePlanId: plan.id,
     workouts: [],
     weightLog: [],
+    measurements: [],
     nutrition: [],
     settings: { ...DEFAULT_SETTINGS, yazio: { ...DEFAULT_SETTINGS.yazio } },
   };

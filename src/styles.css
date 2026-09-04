@@ -988,3 +988,20 @@ table.data tr:last-child td { border-bottom: 0; }
   gap: 6px;
   justify-content: center;
 }
+
+/* Zeile, die sich wie ein Link anfuehlt - fuer Listen in Karten. */
+.link-row {
+  width: 100%;
+  padding: 4px 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.link-row:hover {
+  color: var(--accent);
+}

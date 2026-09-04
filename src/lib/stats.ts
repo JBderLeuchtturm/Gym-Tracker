@@ -2,8 +2,15 @@ import type { AppState, ID, LoggedExercise, SetLog, Workout } from '../types';
 import { weekKey } from './date';
 
 /** Volumen eines Satzes (Gewicht x Wiederholungen). */
+/**
+ * Zaehlt der Satz in die eigene Auswertung? Aufwaermsaetze und Saetze des
+ * Trainingspartners tun das nicht - abgehakt sein muss er ohnehin.
+ */
+export const countsAsWork = (set: SetLog): boolean =>
+  set.done && !set.isWarmup && !set.forPartner;
+
 export const setVolume = (set: SetLog): number =>
-  set.done && !set.isWarmup ? (set.weightKg ?? 0) * (set.reps ?? 0) : 0;
+  countsAsWork(set) ? (set.weightKg ?? 0) * (set.reps ?? 0) : 0;
 
 export const exerciseVolume = (logged: LoggedExercise): number =>
   logged.sets.reduce((sum, set) => sum + setVolume(set), 0);
@@ -13,7 +20,7 @@ export const workoutVolume = (workout: Workout): number =>
 
 export const workoutSetCount = (workout: Workout): number =>
   workout.exercises.reduce(
-    (sum, logged) => sum + logged.sets.filter((set) => set.done && !set.isWarmup).length,
+    (sum, logged) => sum + logged.sets.filter(countsAsWork).length,
     0,
   );
 
@@ -46,7 +53,7 @@ export function exerciseHistory(state: AppState, exerciseId: ID): ExerciseSessio
   for (const workout of state.workouts) {
     for (const logged of workout.exercises) {
       if (logged.exerciseId !== exerciseId) continue;
-      const sets = logged.sets.filter((set) => set.done);
+      const sets = logged.sets.filter((set) => set.done && !set.forPartner);
       if (sets.length === 0) continue;
 
       const working = sets.filter((set) => !set.isWarmup);
@@ -197,7 +204,7 @@ export function volumeByCategory(
     for (const logged of workout.exercises) {
       const category = getCategory(logged.exerciseId);
       const entry = map.get(category) ?? { category, sets: 0, volume: 0 };
-      entry.sets += logged.sets.filter((set) => set.done && !set.isWarmup).length;
+      entry.sets += logged.sets.filter(countsAsWork).length;
       entry.volume += exerciseVolume(logged);
       map.set(category, entry);
     }
@@ -310,7 +317,7 @@ export function buildReview(
   for (const workout of current) {
     for (const logged of workout.exercises) {
       const category = getCategory(logged.exerciseId);
-      const sets = logged.sets.filter((set) => set.done && !set.isWarmup).length;
+      const sets = logged.sets.filter(countsAsWork).length;
       if (sets > 0) focusMap.set(category, (focusMap.get(category) ?? 0) + sets);
     }
   }
@@ -347,7 +354,7 @@ export function categoryTrend(
     const bucket = map.get(key) ?? {};
     for (const logged of workout.exercises) {
       const category = getCategory(logged.exerciseId);
-      const sets = logged.sets.filter((set) => set.done && !set.isWarmup).length;
+      const sets = logged.sets.filter(countsAsWork).length;
       if (sets > 0) bucket[category] = (bucket[category] ?? 0) + sets;
     }
     map.set(key, bucket);

@@ -77,7 +77,7 @@ export function HistoryPage() {
 
             {open.exercises.map((logged) => {
               const exercise = getExercise(logged.exerciseId);
-              const done = logged.sets.filter((set) => set.done);
+              const done = logged.sets.filter((set) => set.done && !set.forPartner);
               if (done.length === 0) return null;
               return (
                 <div key={logged.id} className="card" style={{ background: 'var(--surface-2)', padding: 11 }}>

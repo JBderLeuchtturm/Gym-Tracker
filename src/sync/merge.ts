@@ -1,5 +1,7 @@
 import { t } from '../i18n';
-import type { AppState, Exercise, NutritionEntry, Plan, WeightEntry, Workout } from '../types';
+import type {
+  AppState, Exercise, MeasurementEntry, NutritionEntry, Plan, WeightEntry, Workout,
+} from '../types';
 
 /**
  * Fuehrt zwei Staende desselben Kontos zusammen - etwa Handy und Rechner.
@@ -33,6 +35,9 @@ export function mergeStates(local: AppState, remote: AppState): AppState {
     weightLog: mergeByKeyPreferSide(
       local.weightLog, remote.weightLog, (entry) => entry.date, localNewer,
     ).sort((a, b) => a.date.localeCompare(b.date)) as WeightEntry[],
+    measurements: mergeByKeyPreferSide(
+      local.measurements ?? [], remote.measurements ?? [], (entry) => entry.date, localNewer,
+    ).sort((a, b) => a.date.localeCompare(b.date)) as MeasurementEntry[],
     nutrition: mergeByKeyPreferSide(
       local.nutrition, remote.nutrition, (entry) => entry.date, localNewer,
     ).sort((a, b) => a.date.localeCompare(b.date)) as NutritionEntry[],
@@ -89,6 +94,7 @@ export function isPristine(state: AppState): boolean {
   return (
     !hasTraining &&
     state.weightLog.length === 0 &&
+    (state.measurements ?? []).length === 0 &&
     state.nutrition.length === 0 &&
     state.exercises.length === 0 &&
     state.plans.length <= 1 &&

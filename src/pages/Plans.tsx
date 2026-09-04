@@ -1,5 +1,5 @@
 import { exerciseName, t } from '../i18n';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Exercise, ExerciseCategory, Plan, PlanExercise, Weekday } from '../types';
 import { WEEKDAY_NAMES, WEEKDAY_SHORT, weekdayOf, todayISO } from '../lib/date';
 import { CATEGORY_LABELS } from '../data/catalog';
@@ -387,55 +387,91 @@ function PlanEditor({
   );
 }
 
-/** Kopiert einen Tag auf einen anderen Wochentag. */
+/** Kopiert einen Tag auf beliebig viele andere Wochentage. */
 function CopyDayRow({
   activeDay, onChange,
 }: {
   activeDay: Weekday;
   onChange: (updater: (plan: Plan) => Plan) => void;
 }) {
-  const [target, setTarget] = useState<Weekday | ''>('');
+  const toast = useToast();
+  const [targets, setTargets] = useState<Weekday[]>([]);
   const options = useMemo(
     () => ([0, 1, 2, 3, 4, 5, 6] as Weekday[]).filter((weekday) => weekday !== activeDay),
     [activeDay],
   );
 
+  // Wechselt der bearbeitete Tag, passt die alte Auswahl nicht mehr.
+  useEffect(() => { setTargets([]); }, [activeDay]);
+
+  const toggle = (weekday: Weekday) => setTargets((current) => (
+    current.includes(weekday)
+      ? current.filter((entry) => entry !== weekday)
+      : [...current, weekday]
+  ));
+
+  const copy = () => {
+    if (targets.length === 0) return;
+    const chosen = new Set(targets);
+    onChange((current) => {
+      const source = current.days[activeDay];
+      return {
+        ...current,
+        days: current.days.map((day, index) => (
+          chosen.has(index as Weekday)
+            ? {
+                ...day,
+                title: source.title,
+                isRestDay: source.isRestDay,
+                // Jeder Zieltag bekommt eigene IDs, sonst zeigen zwei Tage auf denselben Eintrag.
+                exercises: source.exercises.map((exercise) => ({ ...exercise, id: uid('pe') })),
+              }
+            : day
+        )),
+      };
+    });
+    toast.show(targets.length === 1
+      ? t('Auf einen Tag kopiert')
+      : t('Auf {count} Tage kopiert', { count: targets.length }));
+    setTargets([]);
+  };
+
   return (
-    <div className="row" style={{ gap: 8 }}>
-      <select
-        className="select"
-        value={target}
-        onChange={(event) => setTarget(event.target.value === '' ? '' : (Number(event.target.value) as Weekday))}
-      >
-        <option value="">{t("Diesen Tag kopieren nach…")}</option>
-        {options.map((weekday) => <option key={weekday} value={weekday}>{t(WEEKDAY_NAMES[weekday])}</option>)}
-      </select>
-      <button
-        className="btn"
-        disabled={target === ''}
-        onClick={() => {
-          if (target === '') return;
-          onChange((current) => {
-            const source = current.days[activeDay];
-            return {
-              ...current,
-              days: current.days.map((day, index) =>
-                index === target
-                  ? {
-                      ...day,
-                      title: source.title,
-                      isRestDay: source.isRestDay,
-                      exercises: source.exercises.map((exercise) => ({ ...exercise, id: uid('pe') })),
-                    }
-                  : day,
-              ),
-            };
-          });
-          setTarget('');
-        }}
-      >
-        Kopieren
+    <div className="list">
+      <div className="row row--between">
+        <span className="section-label">{t("Diesen Tag kopieren nach")}</span>
+        <button
+          className="chip chip--button"
+          onClick={() => setTargets(targets.length === options.length ? [] : options)}
+        >
+          {targets.length === options.length ? t('Keinen') : t('Alle')}
+        </button>
+      </div>
+
+      <div className="row row--wrap" style={{ gap: 6 }}>
+        {options.map((weekday) => (
+          <button
+            key={weekday}
+            className={`chip chip--button ${targets.includes(weekday) ? 'chip--accent' : ''}`}
+            aria-pressed={targets.includes(weekday)}
+            onClick={() => toggle(weekday)}
+          >
+            {t(WEEKDAY_SHORT[weekday])}
+          </button>
+        ))}
+      </div>
+
+      <button className="btn btn--block" disabled={targets.length === 0} onClick={copy}>
+        <IconCopy /> {targets.length === 0
+          ? t('Zieltage wählen')
+          : t('Auf {count} Tage kopieren', { count: targets.length })}
       </button>
+
+      {targets.length > 0 && (
+        <div className="tiny dim">
+          {t("Was dort steht, wird überschrieben.")}
+        </div>
+      )}
     </div>
   );
 }
