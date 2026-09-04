@@ -8,6 +8,8 @@ import { enrichWgerExercise, isWgerUnavailable, searchWger } from '../api/wger';
 import { useStore } from '../storage/store';
 import { Modal, useToast } from './ui';
 import { IconInfo, IconPlus, IconSearch } from './icons';
+import { BodyMap } from './MuscleMap';
+import { REGION_LABELS, regionRole, suggestForRegion, type MuscleRegion } from '../lib/muscles';
 
 const CATEGORY_ICONS: Record<ExerciseCategory, string> = {
   chest: '🫁', back: '🔙', legs: '🦵', shoulders: '🏋️', arms: '💪',
@@ -40,6 +42,8 @@ export function ExercisePicker({
   const [loading, setLoading] = useState(false);
   const [apiDown, setApiDown] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [region, setRegion] = useState<MuscleRegion | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
@@ -62,17 +66,27 @@ export function ExercisePicker({
     return allExercises.filter((exercise) => {
       if (category !== 'all' && exercise.category !== category) return false;
       if (equipment !== 'all' && !exercise.equipment.includes(equipment)) return false;
+      if (region && !regionRole(exercise, region)) return false;
       return true;
     });
-  }, [allExercises, category, equipment]);
+  }, [allExercises, category, equipment, region]);
 
   const localResults = useMemo(() => {
     if (query.trim().length === 0) {
+      if (region) {
+        // Vorschlaege zur angetippten Muskelgruppe: erst die Uebungen, die sie
+        // direkt treffen, danach die, bei denen sie mitarbeitet.
+        return suggestForRegion(filteredPool, region).slice(0, 80).map((exercise) => ({
+          exercise,
+          score: 0,
+          reason: regionRole(exercise, region) === 'primary' ? t('Zielmuskel') : t('unterstützt'),
+        }));
+      }
       // Ohne Suchbegriff: die Auswahl nach Kategorie sortiert anzeigen.
       return filteredPool.slice(0, 80).map((exercise) => ({ exercise, score: 0, reason: '' }));
     }
     return searchExercises(filteredPool, query, 70);
-  }, [filteredPool, query]);
+  }, [filteredPool, query, region]);
 
   const remoteResults = useMemo(() => {
     const known = new Set(allExercises.map((exercise) => normalize(exercise.name)));
@@ -82,9 +96,10 @@ export function ExercisePicker({
     return remote.filter((exercise) => {
       if (known.has(normalize(exercise.name))) return false;
       if (category !== 'all' && exercise.category !== category) return false;
+      if (region && !regionRole(exercise, region)) return false;
       return true;
     });
-  }, [remote, allExercises, category]);
+  }, [remote, allExercises, category, region]);
 
   const pick = async (exercise: Exercise, isRemote: boolean) => {
     let final = exercise;
@@ -144,8 +159,39 @@ export function ExercisePicker({
             <option value="all">{t("Alle Geräte")}</option>
             {ALL_EQUIPMENT.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
+          <button
+            className={`chip chip--button ${showMap ? 'chip--accent' : ''}`}
+            onClick={() => setShowMap((open) => !open)}
+          >
+            {t("Muskelkarte")}
+          </button>
           <span className="tiny dim nowrap">{totalCount} Treffer</span>
         </div>
+
+        {showMap && (
+          <div style={{ marginTop: 10 }}>
+            <BodyMap
+              size={130}
+              selected={region}
+              onSelect={(picked) => setRegion(picked === region ? null : picked)}
+              intensity={(candidate) => (candidate === region ? 'primary' : 'none')}
+            />
+            <div className="tiny dim" style={{ textAlign: 'center', marginTop: 6 }}>
+              {region
+                ? t('Vorschläge für {muscle}', { muscle: t(REGION_LABELS[region]) })
+                : t('Tippe eine Muskelgruppe an, um passende Übungen zu sehen.')}
+            </div>
+          </div>
+        )}
+
+        {region && (
+          <div className="row row--wrap" style={{ marginTop: 8, gap: 6 }}>
+            <span className="chip chip--accent">{t(REGION_LABELS[region])}</span>
+            <button className="chip chip--button" onClick={() => setRegion(null)}>
+              {t("Filter aufheben")}
+            </button>
+          </div>
+        )}
       </div>
 
       <div style={{ maxHeight: '52vh', overflowY: 'auto' }}>

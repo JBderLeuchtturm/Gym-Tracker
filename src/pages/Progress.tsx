@@ -1,6 +1,6 @@
 import { exerciseName, t } from '../i18n';
 import { useMemo, useState } from 'react';
-import type { Exercise } from '../types';
+import type { Exercise, Workout } from '../types';
 import { CATEGORY_LABELS } from '../data/catalog';
 import { categoryColor } from '../lib/categoryColors';
 import { addDays, formatDateShort, formatDateTiny, todayISO } from '../lib/date';
@@ -11,6 +11,8 @@ import {
 import { useStore } from '../storage/store';
 import { BarChart, LineChart, Sparkline, StackedBarChart, type Point } from '../components/charts/Charts';
 import { ExerciseDetail } from '../components/ExerciseDetail';
+import { BodyMap } from '../components/MuscleMap';
+import { ALL_REGIONS, REGION_LABELS, regionsOf, suggestForRegion, type MuscleRegion } from '../lib/muscles';
 import { EmptyState, Stat, fmt } from '../components/ui';
 import { formatClock } from '../lib/date';
 import { IconChevronRight, IconSearch } from '../components/icons';
@@ -37,7 +39,7 @@ function bestLabel(exercise: Exercise, records: ReturnType<typeof personalRecord
 }
 
 export function ProgressPage() {
-  const { state, getExercise } = useStore();
+  const { state, getExercise, allExercises } = useStore();
   const [range, setRange] = useState<Range>(90);
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [filter, setFilter] = useState('');
@@ -258,6 +260,14 @@ export function ProgressPage() {
               </div>
             </div>
           )}
+
+          <MuscleLoadCard
+            workouts={workouts}
+            getExercise={getExercise}
+            allExercises={allExercises}
+            rangeLabel={RANGE_LABELS[range]}
+            onOpen={setDetail}
+          />
         </>
       )}
 
@@ -397,6 +407,153 @@ function ReviewCard({ review, label }: { review: ReturnType<typeof buildReview>;
             ))}
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+
+/**
+ * Belastungskarte: wie viele Arbeitssaetze im Zeitraum auf welche Region
+ * entfallen. Sekundaere Muskeln zaehlen halb - sie arbeiten mit, sind aber
+ * nicht das Ziel des Satzes. Ein Tipp auf eine Region zeigt, woher die Saetze
+ * kommen, und schlaegt bei Luecken Uebungen vor.
+ */
+function MuscleLoadCard({
+  workouts, getExercise, allExercises, rangeLabel, onOpen,
+}: {
+  workouts: Workout[];
+  getExercise: (id: string) => Exercise | undefined;
+  allExercises: Exercise[];
+  rangeLabel: string;
+  onOpen: (exercise: Exercise) => void;
+}) {
+  const [selected, setSelected] = useState<MuscleRegion | null>(null);
+
+  const load = useMemo(() => {
+    const map = new Map<MuscleRegion, { sets: number; byExercise: Map<string, number> }>();
+    const add = (region: MuscleRegion, sets: number, exerciseId: string) => {
+      const entry = map.get(region) ?? { sets: 0, byExercise: new Map<string, number>() };
+      entry.sets += sets;
+      entry.byExercise.set(exerciseId, (entry.byExercise.get(exerciseId) ?? 0) + sets);
+      map.set(region, entry);
+    };
+
+    for (const workout of workouts) {
+      for (const logged of workout.exercises) {
+        const sets = logged.sets.filter((set) => set.done).length;
+        if (sets === 0) continue;
+        const exercise = getExercise(logged.exerciseId);
+        if (!exercise) continue;
+        const { primary, secondary } = regionsOf(exercise);
+        for (const region of primary) add(region, sets, exercise.id);
+        for (const region of secondary) add(region, sets * 0.5, exercise.id);
+      }
+    }
+    return map;
+  }, [workouts, getExercise]);
+
+  const max = useMemo(
+    () => Math.max(1, ...[...load.values()].map((entry) => entry.sets)),
+    [load],
+  );
+
+  const detail = selected ? load.get(selected) : undefined;
+
+  /** Uebungen, die im Zeitraum auf die gewaehlte Region eingezahlt haben. */
+  const trained = useMemo(() => {
+    if (!detail) return [];
+    return [...detail.byExercise.entries()]
+      .map(([id, sets]) => ({ exercise: getExercise(id), sets }))
+      .filter((item): item is { exercise: Exercise; sets: number } => Boolean(item.exercise))
+      .sort((a, b) => b.sets - a.sets);
+  }, [detail, getExercise]);
+
+  const suggestions = useMemo(() => {
+    if (!selected) return [];
+    const known = new Set(trained.map((item) => item.exercise.id));
+    return suggestForRegion(allExercises, selected)
+      .filter((exercise) => !known.has(exercise.id))
+      .slice(0, 5);
+  }, [selected, allExercises, trained]);
+
+  const neglected = useMemo(
+    () => ALL_REGIONS.filter((region) => !load.has(region)),
+    [load],
+  );
+
+  if (load.size === 0) return null;
+
+  return (
+    <div className="card">
+      <div className="card__header">
+        <div className="card__title">{t("Muskelkarte")}</div>
+        <span className="tiny dim">{rangeLabel}</span>
+      </div>
+
+      <BodyMap
+        size={150}
+        selected={selected}
+        onSelect={(region) => setSelected(region === selected ? null : region)}
+        intensity={(region) => (load.get(region)?.sets ?? 0) / max}
+      />
+
+      {!selected && (
+        <div className="tiny dim" style={{ textAlign: 'center', marginTop: 8 }}>
+          {t("Je kräftiger die Farbe, desto mehr Sätze. Tippe eine Region an.")}
+        </div>
+      )}
+
+      {selected && (
+        <div className="list" style={{ marginTop: 10 }}>
+          <div className="row row--between">
+            <span className="bold">{t(REGION_LABELS[selected])}</span>
+            <span className="tiny dim">
+              {fmt(detail?.sets ?? 0, 1)} {t("Sätze")}
+            </span>
+          </div>
+
+          {trained.length > 0 ? (
+            <div className="list">
+              {trained.slice(0, 6).map((item) => (
+                <button
+                  key={item.exercise.id}
+                  className="row row--between"
+                  style={{ background: 'none', border: 0, padding: '3px 0', width: '100%', cursor: 'pointer' }}
+                  onClick={() => onOpen(item.exercise)}
+                >
+                  <span className="small">{exerciseName(item.exercise)}</span>
+                  <span className="tiny dim mono">{fmt(item.sets, 1)}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="tiny dim">{t("Im Zeitraum nichts für diese Region trainiert.")}</div>
+          )}
+
+          {suggestions.length > 0 && (
+            <>
+              <div className="section-label">{t("Passende Übungen")}</div>
+              <div className="row row--wrap" style={{ gap: 6 }}>
+                {suggestions.map((exercise) => (
+                  <button
+                    key={exercise.id}
+                    className="chip chip--button"
+                    onClick={() => onOpen(exercise)}
+                  >
+                    {exerciseName(exercise)}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {neglected.length > 0 && (
+        <div className="tiny dim" style={{ marginTop: 10 }}>
+          {t("Nicht trainiert:")} {neglected.map((region) => t(REGION_LABELS[region])).join(', ')}
+        </div>
       )}
     </div>
   );

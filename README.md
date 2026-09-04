@@ -30,6 +30,16 @@ und für jede einzelne Übung ein Verlaufsdiagramm – wahlweise nach geschätzt
 bestem Gewicht, Volumen, Wiederholungen oder Zeit. Dazu persönliche Bestleistungen
 und eine Tabelle der letzten Einheiten.
 
+**Muskelkarte**
+Eine Körperkarte von vorne und hinten zeigt bei jeder Übung, welche Muskeln
+das Ziel sind (kräftig) und welche mitarbeiten (blass). Auf der Startseite
+steht dieselbe Karte für den heutigen Tag – kräftig ist, was schon abgehakt
+ist. In der Übungssuche lässt sich eine Region antippen und man bekommt
+passende Übungen vorgeschlagen, Zielmuskel zuerst. In der Auswertung wird
+daraus eine Belastungskarte über den gewählten Zeitraum: je kräftiger die
+Farbe, desto mehr Sätze; darunter steht, welche Regionen gar nicht drankamen.
+Die Zeichnung ist selbst gemacht, damit keine fremden Abbildungen im Spiel sind.
+
 **Kalorienverbrauch**
 Aus den Profildaten wird der Grundumsatz berechnet, daraus der Alltagsumsatz, und
 das Training kommt über MET-Werte je Übung obendrauf. Die Zufuhr kann von Hand,
@@ -63,10 +73,11 @@ npm run build && npm test        # alle Läufe
 npm test training                # nur einen Lauf
 ```
 
-Acht Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
-Übungssuche ohne Netz, Layout auf schmalen Geräten, Mehrsprachigkeit, Freunde
-und Freigaben, Gruppen und Challenges sowie Einladungslinks ab. Die Läufe mit
-Konto arbeiten gegen ein nachgebautes Supabase unter
+Neun Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
+Übungssuche ohne Netz, Layout auf schmalen Geräten, Muskelkarte,
+Mehrsprachigkeit, Freunde und Freigaben, Gruppen und Challenges sowie
+Einladungslinks ab. Die Läufe mit Konto arbeiten gegen ein nachgebautes
+Supabase unter
 [`tests/mockBackend.mjs`](tests/mockBackend.mjs) und fassen das echte Projekt
 nie an. Bei jedem Push und Pull Request laufen sie zusätzlich in GitHub Actions.
 
@@ -104,6 +115,12 @@ Im Browser die Seite öffnen und „Zum Startbildschirm hinzufügen" wählen
 (Safari: Teilen-Menü, Chrome: Drei-Punkte-Menü). Danach startet der Tracker im
 Vollbild wie eine normale App und funktioniert dank Service Worker auch ohne
 Internet – nur die Online-Übungssuche braucht dann eine Verbindung.
+
+**Updates** kommen von selbst: Die installierte App prüft beim Öffnen und
+stündlich, ob eine neuere Fassung online steht, lädt sie im Hintergrund und
+meldet sich dann mit einem Balken *Neue Version verfügbar*. Erst ein Tipp
+darauf schaltet um – so springt mitten im Satz nichts weg. Welcher Stand
+gerade läuft, steht unter *Profil → App-Version*.
 
 ## Freunde und Synchronisierung
 
@@ -165,6 +182,12 @@ Einladung wird nur ein einziges Mal eingelöst.
 
 Wer lieber von Hand sucht, gibt unter *Freund hinzufügen* einfach den
 Benutzernamen ein.
+
+**Passwort vergessen** steht direkt unter dem Anmeldeformular. Ein Tipp darauf
+schickt einen Link an die hinterlegte Adresse; wird er auf demselben Gerät
+geöffnet, erscheint in der App ein Feld für das neue Passwort. Damit das
+funktioniert, muss die Adresse der Seite in Supabase unter
+*Authentication → URL Configuration → Redirect URLs* eingetragen sein.
 
 **Was andere sehen, entscheidest du pro Freund.** Bei jedem Freund gibt es drei
 Schalter unter „Was ich zeige":
@@ -267,9 +290,9 @@ Verbrauch, die Bilanz und alle Diagramme funktionieren dann genauso.
 src/
 ├── api/           wger-Übungsdatenbank, Yazio (Bridge + CSV)
 ├── sync/          Konto, Freunde, Freigaben, Einladungslinks, Zusammenführen
-├── components/    UI-Bausteine, Übungssuche, Detailansicht, Diagramme
+├── components/    UI-Bausteine, Übungssuche, Detailansicht, Diagramme, Körperkarte
 ├── data/          Übungskatalog (216 Einträge) und Planvorlagen
-├── lib/           Datum, Suche, Kalorien- und Statistikberechnung
+├── lib/           Datum, Suche, Kalorien, Statistik, Muskelzuordnung
 ├── pages/         Heute, Pläne, Fortschritt, Kalorien, Freunde, Profil, Verlauf
 ├── storage/       Speicherung, Migration, globaler Zustand
 └── types.ts       Datenmodell

@@ -2,7 +2,7 @@ import { LANGUAGE_LABELS, t, useI18n, type Language } from '../i18n';
 import { useMemo, useRef, useState } from 'react';
 import type { ActivityLevel, Goal, Sex } from '../types';
 import { ACTIVITY_LABELS, GOAL_LABELS, calcBMR, calcTDEE, proteinTarget } from '../lib/calories';
-import { ageFromBirthDate, formatDateShort, todayISO } from '../lib/date';
+import { ageFromBirthDate, formatDateShort, locale, todayISO } from '../lib/date';
 import { streakInfo, workoutSetCount } from '../lib/stats';
 import { useStore } from '../storage/store';
 import { downloadBackup, importState } from '../storage/db';
@@ -257,6 +257,10 @@ export function ProfilePage() {
             <IconUpload /> {t('Importieren')}
           </button>
         </div>
+        <div className="tiny dim center" style={{ marginTop: 11 }}>
+          {t('App-Version')}: {new Date(__BUILD_TIME__).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' })}
+        </div>
+
         <button className="btn btn--danger btn--block" style={{ marginTop: 9 }} onClick={() => setResetOpen(true)}>
           <IconTrash /> {t('Alle Daten löschen')}
         </button>

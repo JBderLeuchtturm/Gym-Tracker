@@ -10,8 +10,14 @@ const IMAGE_CACHE = 'gym-tracker-wger-images-v1';
 const IMAGE_LIMIT = 150;
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  // Bewusst kein skipWaiting: Die neue Fassung wartet, bis die App Bescheid
+  // sagt. Sonst tauschen wir dem Nutzer die Dateien mitten im Training aus.
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['./', './index.html'])).catch(() => undefined));
+});
+
+// Die App meldet sich, wenn der Nutzer das Update annehmen will.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
