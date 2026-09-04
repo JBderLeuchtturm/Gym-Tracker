@@ -6,16 +6,20 @@ import { ProgressPage } from './pages/Progress';
 import { CaloriesPage } from './pages/Calories';
 import { ProfilePage } from './pages/Profile';
 import { HistoryPage } from './pages/History';
+import { FriendsPage } from './pages/Friends';
+import { useSync } from './sync/SyncProvider';
 import { formatDateLong, todayISO } from './lib/date';
 import { IconCalendar, IconChart, IconDumbbell, IconFlame, IconUser } from './components/icons';
+import { IconUsers } from './components/icons';
 
-type Tab = 'today' | 'plans' | 'progress' | 'calories' | 'profile';
+type Tab = 'today' | 'plans' | 'progress' | 'calories' | 'friends' | 'profile';
 
 const TABS: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
   { id: 'today', label: 'Heute', icon: <IconDumbbell /> },
   { id: 'plans', label: 'Pläne', icon: <IconCalendar /> },
   { id: 'progress', label: 'Fortschritt', icon: <IconChart /> },
   { id: 'calories', label: 'Kalorien', icon: <IconFlame /> },
+  { id: 'friends', label: 'Freunde', icon: <IconUsers /> },
   { id: 'profile', label: 'Profil', icon: <IconUser /> },
 ];
 
@@ -24,11 +28,14 @@ const TITLES: Record<Tab, string> = {
   plans: 'Wochenpläne',
   progress: 'Fortschritt',
   calories: 'Kalorien',
+  friends: 'Freunde',
   profile: 'Profil',
 };
 
 export function App() {
   const { state } = useStore();
+  const sync = useSync();
+  const pendingRequests = sync.friends.filter((friend) => friend.state === 'incoming').length;
   const [tab, setTab] = useState<Tab>('today');
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -79,7 +86,14 @@ export function App() {
             onClick={() => { setTab(item.id); setHistoryOpen(false); window.scrollTo({ top: 0 }); }}
             aria-current={tab === item.id ? 'page' : undefined}
           >
-            {item.icon}
+            <span className="nav__icon">
+              {item.icon}
+              {item.id === 'friends' && pendingRequests > 0 && (
+                <span className="nav__badge" aria-label={`${pendingRequests} offene Anfragen`}>
+                  {pendingRequests}
+                </span>
+              )}
+            </span>
             <span>{item.label}</span>
           </button>
         ))}
@@ -99,6 +113,7 @@ export function App() {
             {tab === 'plans' && <PlansPage />}
             {tab === 'progress' && <ProgressPage />}
             {tab === 'calories' && <CaloriesPage />}
+            {tab === 'friends' && <FriendsPage />}
             {tab === 'profile' && <ProfilePage />}
           </>
         )}

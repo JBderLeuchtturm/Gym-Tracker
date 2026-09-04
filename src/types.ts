@@ -154,6 +154,8 @@ export interface Settings {
 
 export interface AppState {
   version: number;
+  /** Zeitpunkt der letzten Aenderung - entscheidet beim Zusammenfuehren zweier Geraete. */
+  updatedAt: string;
   profile: Profile;
   exercises: Exercise[];
   plans: Plan[];

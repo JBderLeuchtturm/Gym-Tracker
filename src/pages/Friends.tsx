@@ -1,0 +1,851 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useStore } from '../storage/store';
+import { useSync } from '../sync/SyncProvider';
+import type { Friend, FriendData } from '../sync/types';
+import {
+  SCOPE_HINTS, SCOPE_LABELS, buildProgressShare, type ProgressShare, type ShareScope,
+} from '../sync/sharePayload';
+import { hasOverride, saveOverride } from '../sync/config';
+import { formatClock, formatDateShort, formatDateTiny, relativeDayLabel } from '../lib/date';
+import { BarChart, LineChart, Sparkline } from '../components/charts/Charts';
+import { EmptyState, Modal, Stat, fmt, useToast } from '../components/ui';
+import {
+  IconCheck, IconChevronRight, IconCopy, IconPlus, IconRefresh,
+  IconTrash, IconTrophy, IconUser, IconX,
+} from '../components/icons';
+
+const SCOPES: ShareScope[] = ['progress', 'weight', 'nutrition'];
+
+export function FriendsPage() {
+  const sync = useSync();
+
+  if (sync.status === 'loading') {
+    return <div className="empty">Verbindung wird geprüft…</div>;
+  }
+  if (sync.status === 'disabled') {
+    return <SetupNotice />;
+  }
+  if (sync.status === 'signed-out') {
+    return <AuthPanel />;
+  }
+  return <FriendsHome />;
+}
+
+/* ------------------------------------------------- Noch nicht eingerichtet */
+
+function SetupNotice() {
+  const toast = useToast();
+  const [url, setUrl] = useState('');
+  const [key, setKey] = useState('');
+
+  return (
+    <>
+      <div className="card">
+        <div className="card__title" style={{ marginBottom: 8 }}><IconUser /> Freunde & Synchronisierung</div>
+        <p className="small muted">
+          Damit du Trainings mit Freunden teilen kannst, braucht die App einen gemeinsamen
+          Speicherort. Dafür ist ein kostenloses Supabase-Projekt vorgesehen – ohne Kreditkarte,
+          und du bleibst Eigentümer der Daten.
+        </p>
+        <ol className="small muted" style={{ paddingLeft: 18, margin: '10px 0 0' }}>
+          <li style={{ marginBottom: 6 }}>
+            Auf <strong>supabase.com</strong> anmelden und ein neues Projekt anlegen.
+          </li>
+          <li style={{ marginBottom: 6 }}>
+            Im Projekt den <strong>SQL Editor</strong> öffnen, den Inhalt von
+            {' '}<code>supabase/schema.sql</code> aus diesem Repository einfügen und ausführen.
+          </li>
+          <li style={{ marginBottom: 6 }}>
+            Unter <strong>Project Settings → API</strong> die <em>Project URL</em> und den
+            {' '}<em>anon public</em>-Schlüssel kopieren.
+          </li>
+          <li>
+            Beides in die Datei <code>public/sync-config.json</code> eintragen und
+            committen – danach ist die Funktion für alle da, die deinen Link benutzen.
+          </li>
+        </ol>
+      </div>
+
+      <div className="card">
+        <div className="card__title" style={{ marginBottom: 4 }}>Nur zum Ausprobieren</div>
+        <div className="tiny dim" style={{ marginBottom: 10 }}>
+          Die Werte hier bleiben nur in diesem Browser. Für Freunde muss es die Datei sein.
+        </div>
+        <div className="list">
+          <div className="field">
+            <label className="field__label">Project URL</label>
+            <input className="input" value={url} placeholder="https://abcdef.supabase.co" onChange={(event) => setUrl(event.target.value)} />
+          </div>
+          <div className="field">
+            <label className="field__label">anon public key</label>
+            <input className="input" value={key} placeholder="eyJhbGciOi…" onChange={(event) => setKey(event.target.value)} />
+          </div>
+          <button
+            className="btn btn--primary btn--block"
+            disabled={!url.trim() || key.trim().length < 20}
+            onClick={() => {
+              saveOverride({ url: url.trim(), anonKey: key.trim() });
+              toast.show('Gespeichert – App wird neu geladen');
+              setTimeout(() => window.location.reload(), 600);
+            }}
+          >
+            Speichern und neu laden
+          </button>
+          {hasOverride() && (
+            <button
+              className="btn btn--ghost btn--block"
+              onClick={() => { saveOverride(null); window.location.reload(); }}
+            >
+              Lokale Werte wieder entfernen
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ---------------------------------------------------------- Anmelden */
+
+function AuthPanel() {
+  const sync = useSync();
+  const toast = useToast();
+  const [mode, setMode] = useState<'in' | 'up'>('in');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  const submit = async () => {
+    setFailure(null);
+    setMessage(null);
+    try {
+      if (mode === 'up') {
+        const { needsConfirmation } = await sync.signUp(email.trim(), password);
+        if (needsConfirmation) {
+          setMessage('Fast fertig: Bestätige den Link in der E-Mail, dann kannst du dich anmelden.');
+        } else {
+          toast.show('Konto angelegt');
+        }
+      } else {
+        await sync.signIn(email.trim(), password);
+        toast.show('Angemeldet');
+      }
+    } catch (caught) {
+      setFailure(caught instanceof Error ? caught.message : 'Es hat nicht geklappt');
+    }
+  };
+
+  return (
+    <div className="card">
+      <div className="card__title" style={{ marginBottom: 4 }}>
+        {mode === 'in' ? 'Anmelden' : 'Konto anlegen'}
+      </div>
+      <div className="tiny dim" style={{ marginBottom: 12 }}>
+        Dein Konto verbindet deine Geräte und macht das Teilen mit Freunden möglich.
+        Deine Trainingsdaten bleiben privat, bis du jemanden freischaltest.
+      </div>
+
+      <div className="list">
+        <div className="field">
+          <label className="field__label">E-Mail</label>
+          <input
+            className="input" type="email" autoComplete="email" value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label className="field__label">Passwort</label>
+          <input
+            className="input" type="password" value={password}
+            autoComplete={mode === 'up' ? 'new-password' : 'current-password'}
+            onChange={(event) => setPassword(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Enter') void submit(); }}
+          />
+          {mode === 'up' && <span className="field__hint">Mindestens 6 Zeichen</span>}
+        </div>
+
+        {failure && <div className="small" style={{ color: 'var(--danger)' }}>{failure}</div>}
+        {message && <div className="small" style={{ color: 'var(--success)' }}>{message}</div>}
+
+        <button
+          className="btn btn--primary btn--block"
+          disabled={sync.busy || !email.trim() || password.length < 6}
+          onClick={submit}
+        >
+          {sync.busy ? 'Einen Moment…' : mode === 'in' ? 'Anmelden' : 'Konto anlegen'}
+        </button>
+        <button
+          className="btn btn--ghost btn--block"
+          onClick={() => { setMode(mode === 'in' ? 'up' : 'in'); setFailure(null); setMessage(null); }}
+        >
+          {mode === 'in' ? 'Noch kein Konto? Jetzt anlegen' : 'Ich habe schon ein Konto'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ Angemeldet */
+
+function FriendsHome() {
+  const sync = useSync();
+  const { state, getExercise } = useStore();
+  const toast = useToast();
+
+  const [handleInput, setHandleInput] = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
+  const [open, setOpen] = useState<Friend | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [friendData, setFriendData] = useState<Record<string, FriendData>>({});
+
+  const accepted = useMemo(() => sync.friends.filter((f) => f.state === 'accepted'), [sync.friends]);
+  const incoming = useMemo(() => sync.friends.filter((f) => f.state === 'incoming'), [sync.friends]);
+  const outgoing = useMemo(() => sync.friends.filter((f) => f.state === 'outgoing'), [sync.friends]);
+
+  // Die Auswertungen aller Freunde laden, sobald die Liste steht.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const entries = await Promise.all(accepted.map(async (friend) => {
+        try {
+          return [friend.userId, await sync.loadFriendData(friend.userId)] as const;
+        } catch {
+          return [friend.userId, { scopes: [], updatedAt: null } as FriendData] as const;
+        }
+      }));
+      if (!cancelled) setFriendData(Object.fromEntries(entries));
+    })();
+    return () => { cancelled = true; };
+  }, [accepted, sync]);
+
+  const myProgress = useMemo(
+    () => buildProgressShare(state, getExercise),
+    [state, getExercise],
+  );
+
+  const submitAdd = async () => {
+    setAddError(null);
+    try {
+      const note = await sync.addFriend(handleInput);
+      setHandleInput('');
+      toast.show(note);
+    } catch (caught) {
+      setAddError(caught instanceof Error ? caught.message : 'Hat nicht geklappt');
+    }
+  };
+
+  const shareLink = `${window.location.origin}${window.location.pathname}`;
+
+  return (
+    <>
+      {/* --------------------------------------------------- Eigenes Konto */}
+      <div className="card">
+        <div className="row" style={{ gap: 11 }}>
+          <span style={{ fontSize: '1.7rem' }}>{sync.profile?.emoji ?? '💪'}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="bold">{sync.profile?.display_name || 'Ohne Namen'}</div>
+            <div className="tiny dim">@{sync.profile?.handle ?? '…'}</div>
+          </div>
+          <button className="btn btn--sm" onClick={() => setEditing(true)}>Ändern</button>
+        </div>
+
+        <div className="divider" style={{ margin: '11px 0' }} />
+
+        <div className="row row--wrap" style={{ gap: 7 }}>
+          <button
+            className="btn btn--sm"
+            onClick={() => {
+              void navigator.clipboard?.writeText(sync.profile?.handle ?? '');
+              toast.show('Benutzername kopiert');
+            }}
+          >
+            <IconCopy /> Name kopieren
+          </button>
+          <button
+            className="btn btn--sm"
+            onClick={() => {
+              const text = `Trainier mit mir im Gym Tracker: ${shareLink}\nMein Benutzername: @${sync.profile?.handle ?? ''}`;
+              if (navigator.share) void navigator.share({ text }).catch(() => undefined);
+              else { void navigator.clipboard?.writeText(text); toast.show('Einladung kopiert'); }
+            }}
+          >
+            Einladung teilen
+          </button>
+          <button className="btn btn--sm" disabled={sync.busy} onClick={() => void sync.syncNow()}>
+            <IconRefresh /> Abgleichen
+          </button>
+          <span className="spacer" />
+          <button className="btn btn--sm btn--ghost" onClick={() => void sync.signOut()}>Abmelden</button>
+        </div>
+
+        <div className="tiny dim" style={{ marginTop: 9 }}>
+          {sync.busy
+            ? 'Abgleich läuft…'
+            : sync.lastSyncAt
+              ? `Zuletzt abgeglichen um ${new Date(sync.lastSyncAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
+              : 'Noch nicht abgeglichen'}
+          {sync.lastMergeNote && ` · ${sync.lastMergeNote}`}
+        </div>
+        {sync.error && <div className="tiny" style={{ color: 'var(--danger)', marginTop: 4 }}>{sync.error}</div>}
+      </div>
+
+      {/* ------------------------------------------------- Freund hinzufügen */}
+      <div className="card">
+        <div className="card__title" style={{ marginBottom: 9 }}><IconPlus /> Freund hinzufügen</div>
+        <div className="row" style={{ gap: 8 }}>
+          <input
+            className="input"
+            placeholder="Benutzername, z. B. jan-4f2a"
+            value={handleInput}
+            onChange={(event) => setHandleInput(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Enter') void submitAdd(); }}
+          />
+          <button className="btn btn--primary" disabled={!handleInput.trim()} onClick={submitAdd}>
+            Anfragen
+          </button>
+        </div>
+        {addError && <div className="tiny" style={{ color: 'var(--danger)', marginTop: 6 }}>{addError}</div>}
+        <div className="tiny dim" style={{ marginTop: 7 }}>
+          Schick deinen Freunden den Link zur App und deinen Benutzernamen – sie legen ein
+          Konto an und schicken dir eine Anfrage.
+        </div>
+      </div>
+
+      {/* ------------------------------------------------------- Anfragen */}
+      {incoming.length > 0 && (
+        <div className="card">
+          <div className="card__title" style={{ marginBottom: 9 }}>Offene Anfragen an dich</div>
+          <div className="list">
+            {incoming.map((friend) => (
+              <div key={friend.linkId} className="row row--between">
+                <div className="row" style={{ gap: 9, minWidth: 0 }}>
+                  <span style={{ fontSize: '1.3rem' }}>{friend.emoji}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="bold small">{friend.displayName}</div>
+                    <div className="tiny dim">@{friend.handle}</div>
+                  </div>
+                </div>
+                <div className="row" style={{ gap: 5 }}>
+                  <button className="btn btn--sm btn--success" onClick={() => void sync.acceptFriend(friend.linkId)}>
+                    <IconCheck /> Annehmen
+                  </button>
+                  <button className="btn btn--sm btn--ghost" onClick={() => void sync.removeFriend(friend.linkId)} aria-label="Ablehnen">
+                    <IconX />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {outgoing.length > 0 && (
+        <div className="card">
+          <div className="card__title" style={{ marginBottom: 9 }}>Von dir verschickt</div>
+          <div className="list">
+            {outgoing.map((friend) => (
+              <div key={friend.linkId} className="row row--between">
+                <div className="small">@{friend.handle} <span className="dim">wartet auf Antwort</span></div>
+                <button className="btn btn--sm btn--ghost" onClick={() => void sync.removeFriend(friend.linkId)}>
+                  Zurückziehen
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------- Freunde */}
+      {accepted.length === 0 ? (
+        <EmptyState
+          icon="🤝"
+          title="Noch keine Freunde verbunden"
+          hint="Sobald ihr verbunden seid, seht ihr gegenseitig euren Fortschritt."
+        />
+      ) : (
+        <>
+          <div className="card card--flush">
+            <div className="section-label" style={{ padding: '12px 14px 6px' }}>
+              Freunde ({accepted.length})
+            </div>
+            {accepted.map((friend) => {
+              const data = friendData[friend.userId];
+              const last = data?.progress?.totals.lastWorkoutDate;
+              return (
+                <button key={friend.linkId} className="search-result" onClick={() => setOpen(friend)}>
+                  <span className="search-result__thumb" style={{ fontSize: '1.2rem' }}>{friend.emoji}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span className="search-result__name">{friend.displayName}</span>
+                    <span className="search-result__meta" style={{ display: 'block' }}>
+                      {data
+                        ? data.scopes.length === 0
+                          ? 'teilt gerade nichts mit dir'
+                          : last
+                            ? `zuletzt trainiert: ${relativeDayLabel(last)}`
+                            : 'noch kein Training'
+                        : 'wird geladen…'}
+                    </span>
+                  </span>
+                  {data?.progress && data.progress.totals.streakWeeks > 0 && (
+                    <span className="chip chip--success">{data.progress.totals.streakWeeks} Wo.</span>
+                  )}
+                  <IconChevronRight style={{ width: 16, height: 16, color: 'var(--text-dim)', flexShrink: 0 }} />
+                </button>
+              );
+            })}
+          </div>
+
+          <Leaderboard mine={myProgress} friends={accepted} data={friendData} myName="Du" />
+        </>
+      )}
+
+      {open && (
+        <FriendDetail
+          friend={open}
+          data={friendData[open.userId]}
+          mine={myProgress}
+          onClose={() => setOpen(null)}
+          onRemove={() => { void sync.removeFriend(open.linkId); setOpen(null); toast.show('Freund entfernt'); }}
+        />
+      )}
+
+      {editing && <ProfileEditor onClose={() => setEditing(false)} />}
+    </>
+  );
+}
+
+/* -------------------------------------------------------- Profil ändern */
+
+function ProfileEditor({ onClose }: { onClose: () => void }) {
+  const sync = useSync();
+  const toast = useToast();
+  const [name, setName] = useState(sync.profile?.display_name ?? '');
+  const [handle, setHandle] = useState(sync.profile?.handle ?? '');
+  const [emoji, setEmoji] = useState(sync.profile?.emoji ?? '💪');
+  const [failure, setFailure] = useState<string | null>(null);
+
+  const EMOJIS = ['💪', '🏋️', '🔥', '🦍', '🐺', '⚡', '🎯', '🚀', '🥇', '🧗', '🏃', '🥊'];
+
+  return (
+    <Modal title="Wie sollen dich Freunde sehen?" onClose={onClose}>
+      <div className="list">
+        <div className="field">
+          <label className="field__label">Anzeigename</label>
+          <input className="input" value={name} onChange={(event) => setName(event.target.value)} />
+        </div>
+        <div className="field">
+          <label className="field__label">Benutzername</label>
+          <input className="input" value={handle} onChange={(event) => setHandle(event.target.value)} />
+          <span className="field__hint">
+            Darüber finden dich Freunde. Kleinbuchstaben, Ziffern, Bindestrich – 3 bis 24 Zeichen.
+          </span>
+        </div>
+        <div className="field">
+          <label className="field__label">Symbol</label>
+          <div className="row row--wrap" style={{ gap: 6 }}>
+            {EMOJIS.map((item) => (
+              <button
+                key={item}
+                className={`chip chip--button ${emoji === item ? 'chip--accent' : ''}`}
+                style={{ fontSize: '1.1rem', padding: '5px 10px' }}
+                onClick={() => setEmoji(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {failure && <div className="small" style={{ color: 'var(--danger)' }}>{failure}</div>}
+
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <button className="btn" onClick={onClose}>Abbrechen</button>
+          <button
+            className="btn btn--primary"
+            onClick={async () => {
+              setFailure(null);
+              try {
+                await sync.saveProfile({ display_name: name, handle, emoji });
+                toast.show('Gespeichert');
+                onClose();
+              } catch (caught) {
+                setFailure(caught instanceof Error ? caught.message : 'Hat nicht geklappt');
+              }
+            }}
+          >
+            Speichern
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* --------------------------------------------------------- Freund-Detail */
+
+function FriendDetail({
+  friend, data, mine, onClose, onRemove,
+}: {
+  friend: Friend;
+  data: FriendData | undefined;
+  mine: ProgressShare;
+  onClose: () => void;
+  onRemove: () => void;
+}) {
+  const sync = useSync();
+  const myGrants = sync.grants[friend.userId] ?? [];
+  const [tab, setTab] = useState<'progress' | 'compare' | 'sharing'>('progress');
+
+  const progress = data?.progress;
+  const weight = data?.weight;
+  const nutrition = data?.nutrition;
+
+  return (
+    <Modal title={`${friend.emoji} ${friend.displayName}`} onClose={onClose}>
+      <div className="list">
+        <div className="tiny dim">@{friend.handle}</div>
+
+        <div className="chip-scroll">
+          <button className={`chip chip--button ${tab === 'progress' ? 'chip--accent' : ''}`} onClick={() => setTab('progress')}>
+            Fortschritt
+          </button>
+          <button className={`chip chip--button ${tab === 'compare' ? 'chip--accent' : ''}`} onClick={() => setTab('compare')}>
+            Vergleich
+          </button>
+          <button className={`chip chip--button ${tab === 'sharing' ? 'chip--accent' : ''}`} onClick={() => setTab('sharing')}>
+            Was ich zeige
+          </button>
+        </div>
+
+        {tab === 'sharing' && (
+          <div className="card" style={{ background: 'var(--surface-2)' }}>
+            <div className="tiny dim" style={{ marginBottom: 10 }}>
+              Das hier bestimmt, was <strong>{friend.displayName}</strong> von <strong>dir</strong> sieht.
+              Änderungen gelten sofort.
+            </div>
+            <div className="list">
+              {SCOPES.map((scope) => {
+                const on = myGrants.includes(scope);
+                return (
+                  <label key={scope} className="row" style={{ gap: 10, cursor: 'pointer', alignItems: 'flex-start' }}>
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      style={{ marginTop: 3 }}
+                      onChange={(event) => void sync.setGrant(friend.userId, scope, event.target.checked)}
+                    />
+                    <span>
+                      <span className="small bold">{SCOPE_LABELS[scope]}</span>
+                      <span className="tiny dim" style={{ display: 'block' }}>{SCOPE_HINTS[scope]}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <button className="btn btn--danger btn--sm btn--block" style={{ marginTop: 14 }} onClick={onRemove}>
+              <IconTrash /> Freundschaft beenden
+            </button>
+          </div>
+        )}
+
+        {tab === 'progress' && (
+          <>
+            {!data || data.scopes.length === 0 ? (
+              <EmptyState
+                icon="🔒"
+                title={`${friend.displayName} teilt gerade nichts mit dir`}
+                hint="Jede Seite entscheidet selbst, was sichtbar ist."
+              />
+            ) : (
+              <>
+                {progress && progress.totals.workouts === 0 && (
+                  <div className="tiny dim">Fortschritt ist freigegeben, aber es wurde noch nichts aufgezeichnet.</div>
+                )}
+
+                {progress ? (
+                  <>
+                    <div className="grid-2">
+                      <Stat label="Trainings" value={progress.totals.workouts} tone="accent" />
+                      <Stat label="Sätze" value={progress.totals.sets} />
+                      <Stat label="Volumen" value={fmt(progress.totals.volume)} unit="kg" />
+                      <Stat
+                        label="Wochen-Serie"
+                        value={progress.totals.streakWeeks}
+                        sub={`Rekord: ${progress.totals.longestStreak}`}
+                        tone="success"
+                      />
+                    </div>
+
+                    {progress.weekly.length > 0 && (
+                      <div className="card">
+                        <div className="card__header"><div className="card__title">Volumen je Woche</div></div>
+                        <BarChart
+                          points={progress.weekly.map((week) => ({
+                            label: week.key.replace(/^\d{4}-/, ''),
+                            value: week.volume,
+                            detail: `${week.key} · ${week.workouts} Einheiten`,
+                          }))}
+                          unit="kg"
+                        />
+                      </div>
+                    )}
+
+                    <div className="card card--flush">
+                      <div className="section-label" style={{ padding: '12px 14px 4px' }}>Übungen</div>
+                      {progress.exercises.slice(0, 25).map((exercise) => (
+                        <div key={exercise.id} className="search-result" style={{ cursor: 'default' }}>
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <span className="search-result__name">{exercise.name}</span>
+                            <span className="search-result__meta" style={{ display: 'block' }}>
+                              {exercise.sessions} Einheiten
+                              {exercise.bestWeight > 0
+                                ? ` · ${fmt(exercise.bestWeight, 1)} kg × ${exercise.bestReps}`
+                                : exercise.bestDurationSec > 0
+                                  ? ` · ${formatClock(exercise.bestDurationSec)}`
+                                  : ''}
+                            </span>
+                          </span>
+                          {exercise.series.length > 1 && (
+                            <Sparkline values={exercise.series.map((point) => point.value)} color="var(--success)" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="tiny dim">Fortschritt ist nicht freigegeben.</div>
+                )}
+
+                {weight && (
+                  <div className="card">
+                    <div className="card__header">
+                      <div className="card__title">Körpergewicht</div>
+                      {weight.entries.length > 0 && (
+                        <span className="tiny dim">{fmt(weight.entries[weight.entries.length - 1].kg, 1)} kg</span>
+                      )}
+                    </div>
+                    {weight.entries.length > 1 ? (
+                      <LineChart
+                        points={weight.entries.map((entry) => ({
+                          label: formatDateTiny(entry.date), value: entry.kg, detail: formatDateShort(entry.date),
+                        }))}
+                        unit="kg" color="var(--success)" formatValue={(value) => fmt(value, 1)}
+                      />
+                    ) : (
+                      <div className="tiny dim">
+                        {weight.entries.length === 1
+                          ? `Bisher nur ein Eintrag: ${fmt(weight.entries[0].kg, 1)} kg`
+                          : 'Freigegeben, aber noch keine Einträge vorhanden.'}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {nutrition && (
+                  <div className="card">
+                    <div className="card__header"><div className="card__title">Kalorien</div></div>
+                    {nutrition.days.length > 1 ? (
+                      <LineChart
+                        points={nutrition.days.map((day) => ({
+                          label: formatDateTiny(day.date), value: day.burn, detail: `${formatDateShort(day.date)} · Verbrauch`,
+                        }))}
+                        unit="kcal" color="var(--warn)"
+                      />
+                    ) : (
+                      <div className="tiny dim">Freigegeben, aber noch keine Tage erfasst.</div>
+                    )}
+                  </div>
+                )}
+
+                {data.updatedAt && (
+                  <div className="tiny dim center">
+                    Stand: {new Date(data.updatedAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        {tab === 'compare' && <Comparison mine={mine} theirs={progress} theirName={friend.displayName} />}
+      </div>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------ Vergleich */
+
+function Comparison({
+  mine, theirs, theirName,
+}: {
+  mine: ProgressShare;
+  theirs: ProgressShare | undefined;
+  theirName: string;
+}) {
+  const rows = useMemo(() => {
+    if (!theirs) return [];
+    const byId = new Map(theirs.exercises.map((exercise) => [exercise.id, exercise]));
+    return mine.exercises
+      .map((exercise) => {
+        const other = byId.get(exercise.id);
+        if (!other) return null;
+        const timed = exercise.kind === 'time' || exercise.kind === 'cardio';
+        const my = timed ? exercise.bestDurationSec : exercise.best1RM || exercise.bestWeight;
+        const their = timed ? other.bestDurationSec : other.best1RM || other.bestWeight;
+        if (my <= 0 && their <= 0) return null;
+        return { name: exercise.name, timed, my, their };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null)
+      .sort((a, b) => Math.max(b.my, b.their) - Math.max(a.my, a.their));
+  }, [mine, theirs]);
+
+  if (!theirs) {
+    return <div className="tiny dim">Für einen Vergleich muss der Fortschritt freigegeben sein.</div>;
+  }
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon="🔍"
+        title="Noch keine gemeinsamen Übungen"
+        hint={`Sobald ihr beide dieselbe Übung trainiert, wird hier verglichen.`}
+      />
+    );
+  }
+
+  const wins = rows.filter((row) => row.my > row.their).length;
+
+  return (
+    <>
+      <div className="row row--wrap" style={{ gap: 7 }}>
+        <span className="chip chip--success">Du vorn: {wins}</span>
+        <span className="chip chip--warn">{theirName} vorn: {rows.length - wins}</span>
+        <span className="chip">{rows.length} gemeinsame Übungen</span>
+      </div>
+
+      <div className="card card--flush">
+        <table className="data">
+          <thead>
+            <tr>
+              <th>Übung</th>
+              <th className="right">Du</th>
+              <th className="right">{theirName.split(' ')[0]}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const format = (value: number) => (row.timed ? formatClock(value) : `${fmt(value, 1)} kg`);
+              return (
+                <tr key={row.name}>
+                  <td>{row.name}</td>
+                  <td className="right mono" style={{ color: row.my >= row.their ? 'var(--success)' : undefined }}>
+                    {row.my > 0 ? format(row.my) : '–'}
+                  </td>
+                  <td className="right mono" style={{ color: row.their > row.my ? 'var(--warn)' : undefined }}>
+                    {row.their > 0 ? format(row.their) : '–'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="tiny dim">
+        Verglichen wird das geschätzte Ein-Wiederholungs-Maximum, bei Halte- und Cardio-Übungen die Bestzeit.
+      </div>
+    </>
+  );
+}
+
+/* --------------------------------------------------------- Bestenliste */
+
+function Leaderboard({
+  mine, friends, data, myName,
+}: {
+  mine: ProgressShare;
+  friends: Friend[];
+  data: Record<string, FriendData>;
+  myName: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const boards = useMemo(() => {
+    interface Entry { name: string; emoji: string; value: number; timed: boolean }
+    const perExercise = new Map<string, { name: string; timed: boolean; entries: Entry[] }>();
+
+    const add = (
+      exercises: ProgressShare['exercises'], who: string, emoji: string,
+    ) => {
+      for (const exercise of exercises) {
+        const timed = exercise.kind === 'time' || exercise.kind === 'cardio';
+        const value = timed ? exercise.bestDurationSec : exercise.best1RM || exercise.bestWeight;
+        if (value <= 0) continue;
+        const bucket = perExercise.get(exercise.id)
+          ?? { name: exercise.name, timed, entries: [] as Entry[] };
+        bucket.entries.push({ name: who, emoji, value, timed });
+        perExercise.set(exercise.id, bucket);
+      }
+    };
+
+    add(mine.exercises, myName, '⭐');
+    for (const friend of friends) {
+      const progress = data[friend.userId]?.progress;
+      if (progress) add(progress.exercises, friend.displayName, friend.emoji);
+    }
+
+    return [...perExercise.values()]
+      .filter((bucket) => bucket.entries.length >= 2)
+      .map((bucket) => ({ ...bucket, entries: bucket.entries.sort((a, b) => b.value - a.value) }))
+      .sort((a, b) => b.entries.length - a.entries.length || a.name.localeCompare(b.name, 'de'));
+  }, [mine, friends, data, myName]);
+
+  if (boards.length === 0) return null;
+  const shown = expanded ? boards : boards.slice(0, 4);
+
+  return (
+    <div className="card">
+      <div className="card__header">
+        <div className="card__title"><IconTrophy style={{ color: 'var(--warn)' }} /> Bestenliste</div>
+        <span className="tiny dim">{boards.length} Übungen</span>
+      </div>
+
+      <div className="list">
+        {shown.map((board) => (
+          <div key={board.name}>
+            <div className="tiny bold" style={{ marginBottom: 4 }}>{board.name}</div>
+            {board.entries.slice(0, 5).map((entry, index) => {
+              const best = board.entries[0].value || 1;
+              return (
+                <div key={`${entry.name}-${index}`} style={{ marginBottom: 4 }}>
+                  <div className="row row--between tiny">
+                    <span className="nowrap">
+                      {['🥇', '🥈', '🥉'][index] ?? '　'} {entry.emoji} {entry.name}
+                    </span>
+                    <span className="mono dim">
+                      {board.timed ? formatClock(entry.value) : `${fmt(entry.value, 1)} kg`}
+                    </span>
+                  </div>
+                  <div className="progress-bar" style={{ height: 5 }}>
+                    <div
+                      className="progress-bar__fill"
+                      style={{
+                        width: `${(entry.value / best) * 100}%`,
+                        background: entry.name === myName ? 'var(--accent)' : 'var(--violet)',
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {boards.length > 4 && (
+        <button className="btn btn--ghost btn--sm btn--block" style={{ marginTop: 8 }} onClick={() => setExpanded(!expanded)}>
+          {expanded ? 'Weniger anzeigen' : `Alle ${boards.length} anzeigen`}
+        </button>
+      )}
+    </div>
+  );
+}

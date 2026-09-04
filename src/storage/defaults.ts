@@ -82,7 +82,9 @@ export function createStarterPlan(): Plan {
   ]);
 
   return {
-    id: uid('plan'),
+    // Feste ID: Legt ein zweites Geraet denselben Startplan an, erkennt die
+    // Synchronisierung ihn als denselben und macht keine Kopie daraus.
+    id: 'plan_starter',
     name: 'Push / Pull / Legs',
     description: 'Klassischer 3er-Split: Mo Push, Mi Pull, Fr Beine.',
     days,
@@ -95,6 +97,7 @@ export function createInitialState(): AppState {
   const plan = createStarterPlan();
   return {
     version: SCHEMA_VERSION,
+    updatedAt: new Date().toISOString(),
     profile: { ...DEFAULT_PROFILE },
     exercises: [],
     plans: [plan],

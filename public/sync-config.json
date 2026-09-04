@@ -1,0 +1,5 @@
+{
+  "_hinweis": "Hier die Zugangsdaten des eigenen Supabase-Projekts eintragen. Solange die Felder leer sind, laeuft die App rein lokal - ohne Konto, ohne Freunde, ohne Synchronisierung. Der anonKey ist absichtlich oeffentlich; geschuetzt wird alles ueber die Zeilenregeln in supabase/schema.sql.",
+  "url": "",
+  "anonKey": ""
+}

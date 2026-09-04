@@ -47,6 +47,17 @@ const emptyWorkout = (date: string): Workout => ({
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(() => loadState());
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+
+  /**
+   * Jede Aenderung bekommt einen Zeitstempel. Daran erkennt die
+   * Synchronisierung, welcher von zwei Geraetestaenden der juengere ist.
+   */
+  const commit = useCallback((updater: (prev: AppState) => AppState) => {
+    setState((prev) => {
+      const next = updater(prev);
+      return next === prev ? prev : { ...next, updatedAt: new Date().toISOString() };
+    });
+  }, []);
   const saveTimer = useRef<number | null>(null);
 
   // Schreiben wird gebuendelt, damit schnelles Tippen nicht bei jedem Zeichen speichert.
@@ -95,40 +106,40 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const getExercise = useCallback((id: ID) => exerciseIndex.get(id), [exerciseIndex]);
 
   const updateProfile = useCallback((patch: Partial<Profile>) => {
-    setState((prev) => ({ ...prev, profile: { ...prev.profile, ...patch } }));
-  }, []);
+    commit((prev) => ({ ...prev, profile: { ...prev.profile, ...patch } }));
+  }, [commit]);
 
   const updateSettings = useCallback((patch: Partial<Settings>) => {
-    setState((prev) => ({ ...prev, settings: { ...prev.settings, ...patch } }));
-  }, []);
+    commit((prev) => ({ ...prev, settings: { ...prev.settings, ...patch } }));
+  }, [commit]);
 
   const logBodyWeight = useCallback((date: string, kg: number) => {
-    setState((prev) => {
+    commit((prev) => {
       const rest = prev.weightLog.filter((entry) => entry.date !== date);
       const weightLog = [...rest, { date, kg }].sort((a, b) => a.date.localeCompare(b.date));
       // Das Profilgewicht folgt immer dem juengsten Eintrag.
       const latest = weightLog[weightLog.length - 1];
       return { ...prev, weightLog, profile: { ...prev.profile, weightKg: latest.kg } };
     });
-  }, []);
+  }, [commit]);
 
   const removeBodyWeight = useCallback((date: string) => {
-    setState((prev) => ({
+    commit((prev) => ({
       ...prev,
       weightLog: prev.weightLog.filter((entry) => entry.date !== date),
     }));
-  }, []);
+  }, [commit]);
 
   const addExercise = useCallback((exercise: Exercise) => {
-    setState((prev) => {
+    commit((prev) => {
       if (prev.exercises.some((e) => e.id === exercise.id)) return prev;
       return { ...prev, exercises: [...prev.exercises, exercise] };
     });
     return exercise;
-  }, []);
+  }, [commit]);
 
   const updateExercise = useCallback((id: ID, patch: Partial<Exercise>) => {
-    setState((prev) => {
+    commit((prev) => {
       const existing = prev.exercises.find((e) => e.id === id);
       if (existing) {
         return {
@@ -141,39 +152,39 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (!fromCatalog) return prev;
       return { ...prev, exercises: [...prev.exercises, { ...fromCatalog, ...patch }] };
     });
-  }, []);
+  }, [commit]);
 
   const deleteExercise = useCallback((id: ID) => {
-    setState((prev) => ({ ...prev, exercises: prev.exercises.filter((e) => e.id !== id) }));
-  }, []);
+    commit((prev) => ({ ...prev, exercises: prev.exercises.filter((e) => e.id !== id) }));
+  }, [commit]);
 
   const addPlan = useCallback((plan: Plan) => {
-    setState((prev) => ({ ...prev, plans: [...prev.plans, plan], activePlanId: plan.id }));
-  }, []);
+    commit((prev) => ({ ...prev, plans: [...prev.plans, plan], activePlanId: plan.id }));
+  }, [commit]);
 
   const updatePlan = useCallback((id: ID, updater: (plan: Plan) => Plan) => {
-    setState((prev) => ({
+    commit((prev) => ({
       ...prev,
       plans: prev.plans.map((plan) =>
         plan.id === id ? { ...updater(plan), updatedAt: new Date().toISOString() } : plan,
       ),
     }));
-  }, []);
+  }, [commit]);
 
   const deletePlan = useCallback((id: ID) => {
-    setState((prev) => {
+    commit((prev) => {
       const plans = prev.plans.filter((plan) => plan.id !== id);
       const activePlanId = prev.activePlanId === id ? (plans[0]?.id ?? null) : prev.activePlanId;
       return { ...prev, plans, activePlanId };
     });
-  }, []);
+  }, [commit]);
 
   const setActivePlan = useCallback((id: ID) => {
-    setState((prev) => ({ ...prev, activePlanId: id }));
-  }, []);
+    commit((prev) => ({ ...prev, activePlanId: id }));
+  }, [commit]);
 
   const upsertWorkout = useCallback((date: string, updater: (workout: Workout) => Workout) => {
-    setState((prev) => {
+    commit((prev) => {
       const existing = prev.workouts.find((workout) => workout.date === date);
       const next = { ...updater(existing ?? emptyWorkout(date)), updatedAt: new Date().toISOString() };
       const workouts = existing
@@ -182,18 +193,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       workouts.sort((a, b) => a.date.localeCompare(b.date));
       return { ...prev, workouts };
     });
-  }, []);
+  }, [commit]);
 
   const deleteWorkout = useCallback((id: ID) => {
-    setState((prev) => ({ ...prev, workouts: prev.workouts.filter((w) => w.id !== id) }));
-  }, []);
+    commit((prev) => ({ ...prev, workouts: prev.workouts.filter((w) => w.id !== id) }));
+  }, [commit]);
 
   const setNutrition = useCallback((entry: NutritionEntry) => {
-    setState((prev) => {
+    commit((prev) => {
       const rest = prev.nutrition.filter((item) => item.date !== entry.date);
       return { ...prev, nutrition: [...rest, entry].sort((a, b) => a.date.localeCompare(b.date)) };
     });
-  }, []);
+  }, [commit]);
 
   const replaceState = useCallback((next: AppState) => setState(next), []);
 

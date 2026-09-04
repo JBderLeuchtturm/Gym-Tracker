@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { StoreProvider } from './storage/store';
+import { SyncProvider } from './sync/SyncProvider';
 import { ToastProvider } from './components/ui';
 import './styles.css';
 
@@ -12,7 +13,9 @@ createRoot(container).render(
   <React.StrictMode>
     <StoreProvider>
       <ToastProvider>
-        <App />
+        <SyncProvider>
+          <App />
+        </SyncProvider>
       </ToastProvider>
     </StoreProvider>
   </React.StrictMode>,

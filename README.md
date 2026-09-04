@@ -79,10 +79,90 @@ Im Browser die Seite öffnen und „Zum Startbildschirm hinzufügen" wählen
 Vollbild wie eine normale App und funktioniert dank Service Worker auch ohne
 Internet – nur die Online-Übungssuche braucht dann eine Verbindung.
 
+## Freunde und Synchronisierung
+
+Ohne Einrichtung läuft alles rein lokal auf dem Gerät – so wie oben beschrieben.
+Wer Trainings mit Freunden teilen oder mehrere Geräte abgleichen will, hängt ein
+kostenloses **Supabase**-Projekt an. Das ist einmalig eingerichtet und gilt dann
+für alle, die deinen Link benutzen.
+
+### Einrichten (etwa fünf Minuten)
+
+1. Auf [supabase.com](https://supabase.com) anmelden und ein neues Projekt
+   anlegen. Der kostenlose Tarif reicht dafür aus und verlangt keine Zahlungsdaten.
+2. Im Projekt den **SQL Editor** öffnen, den gesamten Inhalt von
+   [`supabase/schema.sql`](supabase/schema.sql) einfügen und ausführen. Das legt
+   die Tabellen an und schaltet die Zugriffsregeln scharf. Das Skript kann
+   gefahrlos mehrfach laufen.
+3. Unter **Project Settings → API** die *Project URL* und den *anon public*-Key
+   kopieren.
+4. Beides in [`public/sync-config.json`](public/sync-config.json) eintragen und
+   committen. Der Deploy-Workflow veröffentlicht die Änderung automatisch.
+
+```json
+{
+  "url": "https://abcdefgh.supabase.co",
+  "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…"
+}
+```
+
+Der `anon`-Key gehört in den Quelltext – er ist dafür gedacht, öffentlich zu
+sein. Geschützt werden die Daten nicht durch den Schlüssel, sondern durch die
+Zeilenregeln (Row Level Security) aus dem Schema: Ohne gültige Anmeldung kommt
+niemand an Daten, und angemeldete Konten sehen ausschließlich das, was ihnen
+ausdrücklich freigegeben wurde. Den *service_role*-Key darfst du dagegen
+**niemals** eintragen – der umgeht alle Regeln.
+
+**Optional, aber bequem:** In Supabase unter *Authentication → Sign In / Providers
+→ Email* die Bestätigungs-Mail abschalten, dann können sich Freunde ohne den
+Umweg über den Posteingang anmelden.
+
+**Zwei Dinge zum kostenlosen Tarif:** Projekte, die etwa eine Woche lang gar nicht
+benutzt werden, legt Supabase schlafen – ein Klick im Dashboard weckt sie wieder.
+Und wer regelmäßig trainiert, hält das Projekt ohnehin wach. Das Speicherlimit ist
+für diese App kein Thema: Ein Jahr Training liegt im niedrigen einstelligen
+Megabyte-Bereich.
+
+### Wie es sich benutzt
+
+Unter *Freunde* legt jeder ein Konto mit E-Mail und Passwort an und bekommt
+automatisch einen Benutzernamen wie `jan-4f2a`, den man ändern kann. Du schickst
+Freunden den Link zur App und deinen Benutzernamen; sie schicken dir eine
+Anfrage, du nimmst sie an – fertig.
+
+**Was andere sehen, entscheidest du pro Freund.** Bei jedem Freund gibt es drei
+Schalter unter „Was ich zeige":
+
+| Bereich | Inhalt | Standard |
+| --- | --- | --- |
+| Fortschritt | Trainings, Sätze, Volumen, Bestleistungen je Übung | an |
+| Körpergewicht | Der Gewichtsverlauf | aus |
+| Kalorien | Verbrauch und Zufuhr je Tag | aus |
+
+Alles andere bleibt grundsätzlich privat: Trainingsnotizen, Pläne, Profildaten
+wie Größe und Geburtsdatum werden nie geteilt. Geteilt werden auch nicht die
+Rohdaten, sondern fertige Auswertungen. Nimmst du eine Freigabe zurück oder
+beendest die Freundschaft, ist der Zugriff sofort weg.
+
+Im Detail eines Freundes gibt es außerdem einen **Vergleich** der Übungen, die
+ihr beide trainiert, und auf der Übersicht eine **Bestenliste** über alle
+verbundenen Konten.
+
+### Mehrere Geräte
+
+Sobald du angemeldet bist, gleicht sich der Trainingsstand automatisch ab –
+kurz nach jeder Änderung, beim Zurückkehren zur App und im Hintergrund.
+Treffen zwei Stände aufeinander (etwa Handy und Rechner), werden sie
+zusammengeführt statt überschrieben: Trainings, Pläne und Einträge aus beiden
+Richtungen bleiben erhalten, und bei demselben Eintrag gewinnt der jüngere.
+
 ## Wo die Daten liegen
 
-Alles bleibt auf deinem Gerät, im `localStorage` des Browsers. Es gibt keinen
-Server, kein Konto und keine Übertragung an Dritte. Die Daten überstehen das
+Ohne eingerichtete Synchronisierung bleibt alles auf deinem Gerät, im
+`localStorage` des Browsers – kein Server, kein Konto, keine Übertragung an
+Dritte. Mit Synchronisierung liegt zusätzlich eine Kopie in deinem eigenen
+Supabase-Projekt; das Gerät bleibt trotzdem die Arbeitsgrundlage, die App
+funktioniert also auch offline weiter. Die Daten überstehen das
 Schließen des Browsers und Neustarts des Geräts; die App fordert zusätzlich
 dauerhaften Speicher an (`navigator.storage.persist()`), damit mobile Browser
 sie nicht bei Speicherdruck wegräumen.
@@ -150,13 +230,18 @@ Verbrauch, die Bilanz und alle Diagramme funktionieren dann genauso.
 ```
 src/
 ├── api/           wger-Übungsdatenbank, Yazio (Bridge + CSV)
+├── sync/          Konto, Freunde, Freigaben, Zusammenführen zweier Stände
 ├── components/    UI-Bausteine, Übungssuche, Detailansicht, Diagramme
 ├── data/          Übungskatalog (216 Einträge) und Planvorlagen
 ├── lib/           Datum, Suche, Kalorien- und Statistikberechnung
-├── pages/         Heute, Pläne, Fortschritt, Kalorien, Profil, Verlauf
+├── pages/         Heute, Pläne, Fortschritt, Kalorien, Freunde, Profil, Verlauf
 ├── storage/       Speicherung, Migration, globaler Zustand
 └── types.ts       Datenmodell
 ```
 
-Keine Laufzeit-Abhängigkeiten außer React – Diagramme, Icons und Suche sind
-selbst geschrieben, damit die App klein und offline-fähig bleibt.
+Dazu `supabase/schema.sql` – das Datenbankschema samt Zugriffsregeln.
+
+Abhängigkeiten sind nur React und der Supabase-Client; Diagramme, Icons und
+Suche sind selbst geschrieben, damit die App klein und offline-fähig bleibt.
+Der Supabase-Client wird erst nachgeladen, wenn die Synchronisierung wirklich
+eingerichtet ist – ohne sie lädt die App nichts davon.

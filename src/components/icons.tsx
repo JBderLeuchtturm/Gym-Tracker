@@ -79,3 +79,10 @@ export const IconPause = (p: IconProps) => (<Base {...p}><path d="M9 5v14M15 5v1
 export const IconScale = (p: IconProps) => (
   <Base {...p}><rect x="3.5" y="4.5" width="17" height="15" rx="3" /><path d="M8 12a4 4 0 0 1 8 0" /><path d="M12 12l2.5-3" /></Base>
 );
+export const IconUsers = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="9" cy="8" r="3.2" />
+    <path d="M3 19a6 6 0 0 1 12 0" />
+    <path d="M16.5 5.4a3.2 3.2 0 0 1 0 5.2M18 14.2a6 6 0 0 1 3 4.8" />
+  </Base>
+);

@@ -117,8 +117,8 @@ p { margin: 0 0 0.6em; }
   bottom: 0; left: 0; right: 0;
   z-index: 40;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 2px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
   padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
   background: color-mix(in srgb, var(--bg-soft) 94%, transparent);
   backdrop-filter: blur(16px);
@@ -135,12 +135,27 @@ p { margin: 0 0 0.6em; }
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-dim);
-  font-size: 0.66rem;
+  font-size: 0.6rem;
   font-weight: 600;
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
 }
-.nav__item svg { width: 21px; height: 21px; }
+.nav__item svg { width: 20px; height: 20px; }
+.nav__icon { position: relative; display: grid; place-items: center; }
+.nav__badge {
+  position: absolute;
+  top: -5px; right: -8px;
+  min-width: 15px; height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
 .nav__item--active { color: var(--accent); background: var(--accent-soft); }
 
 /* ----------------------------------------------------------------- Cards */
@@ -533,7 +548,7 @@ table.data tr:last-child td { border-bottom: 0; }
   .nav {
     position: sticky;
     top: 0;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     max-width: 900px;
     margin: 0 auto;
     border-top: 0;
