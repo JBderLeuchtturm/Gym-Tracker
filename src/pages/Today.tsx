@@ -1,3 +1,4 @@
+import { exerciseName, t } from '../i18n';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Exercise, LoggedExercise, PlanExercise, SetLog, Workout } from '../types';
 import {
@@ -179,7 +180,7 @@ export function TodayPage() {
     // Ist der Satz eine Bestleistung? Dann kurz feiern.
     const beaten = detectRecord(state, row.exerciseId, target, date);
     if (beaten) {
-      setRecord({ name: row.exercise?.name ?? 'Übung', record: beaten });
+      setRecord({ name: exerciseName(row.exercise), record: beaten });
       navigator.vibrate?.([25, 40, 25]);
     }
 
@@ -228,7 +229,7 @@ export function TodayPage() {
     }));
 
     setPickerOpen(false);
-    toast.show(`„${exercise.name}“ hinzugefügt`);
+    toast.show(t('„{name}“ hinzugefügt', { name: exercise.name }));
   };
 
   /** Verschiebt eine Uebung im Tagesablauf und haelt die Reihenfolge fest. */
@@ -279,7 +280,7 @@ export function TodayPage() {
       const minutes = started ? Math.max(1, Math.round((Date.now() - started) / 60000)) : current.durationMin;
       return { ...current, endedAt: new Date().toISOString(), durationMin: minutes };
     });
-    toast.show('Training beendet');
+    toast.show(t("Training beendet"));
   };
 
   const removeRow = (row: Row) => {
@@ -313,23 +314,23 @@ export function TodayPage() {
       <WeekStrip date={date} onSelect={setDate} workouts={state.workouts} />
 
       <div className="row row--between">
-        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, -1))} aria-label="Vorheriger Tag">
+        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, -1))} aria-label={t("Vorheriger Tag")}>
           <IconChevronLeft />
         </button>
         <div className="center" style={{ flex: 1, minWidth: 0 }}>
           <div className="bold">{relativeDayLabel(date)}</div>
           <div className="tiny dim">
-            {planDay && !planDay.isRestDay ? planDay.title : planDay ? 'Ruhetag laut Plan' : 'Kein Plan aktiv'}
+            {planDay && !planDay.isRestDay ? t(planDay.title) : planDay ? t('Ruhetag laut Plan') : t('Kein Plan aktiv')}
           </div>
         </div>
-        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, 1))} aria-label="Nächster Tag">
+        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, 1))} aria-label={t("Nächster Tag")}>
           <IconChevronRight />
         </button>
       </div>
 
       {date !== todayISO() && (
         <button className="btn btn--sm" style={{ alignSelf: 'center' }} onClick={() => setDate(todayISO())}>
-          Zurück zu heute
+          {t('Zurück zu heute')}
         </button>
       )}
 
@@ -339,27 +340,27 @@ export function TodayPage() {
             <div className="hero__ring-value">
               {plannedSets > 0 ? `${Math.round(progress)}%` : stats.sets}
             </div>
-            <div className="hero__ring-unit">{plannedSets > 0 ? 'geschafft' : 'Sätze'}</div>
+            <div className="hero__ring-unit">{plannedSets > 0 ? t('geschafft') : t('Sätze')}</div>
           </ProgressRing>
 
           <div className="hero__facts">
             <div className="hero__fact">
-              <span className="hero__fact-label">Sätze</span>
+              <span className="hero__fact-label">{t("Sätze")}</span>
               <span className="hero__fact-value">
                 {stats.sets}
-                {plannedSets > 0 && <span className="hero__fact-unit">von {plannedSets}</span>}
+                {plannedSets > 0 && <span className="hero__fact-unit">{t('von {count}', { count: plannedSets })}</span>}
               </span>
             </div>
             <div className="hero__fact">
-              <span className="hero__fact-label">Volumen</span>
+              <span className="hero__fact-label">{t("Volumen")}</span>
               <span className="hero__fact-value">
-                {fmt(stats.volume)}<span className="hero__fact-unit">kg</span>
+                {fmt(stats.volume)}<span className="hero__fact-unit">{t("kg")}</span>
               </span>
             </div>
             <div className="hero__fact">
-              <span className="hero__fact-label">Verbrauch</span>
+              <span className="hero__fact-label">{t("Verbrauch")}</span>
               <span className="hero__fact-value" style={{ color: 'var(--warn)' }}>
-                {fmt(stats.kcal)}<span className="hero__fact-unit">kcal</span>
+                {fmt(stats.kcal)}<span className="hero__fact-unit">{t("kcal")}</span>
               </span>
             </div>
           </div>
@@ -379,8 +380,8 @@ export function TodayPage() {
       {rows.length === 0 && (
         <EmptyState
           icon={planDay?.isRestDay ? '😴' : '🏋️'}
-          title={planDay?.isRestDay ? 'Heute ist Ruhetag' : 'Für heute ist nichts geplant'}
-          hint="Du kannst trotzdem jederzeit eine Übung hinzufügen."
+          title={planDay?.isRestDay ? t('Heute ist Ruhetag') : t('Für heute ist nichts geplant')}
+          hint={t('Du kannst trotzdem jederzeit eine Übung hinzufügen.')}
         />
       )}
 
@@ -407,27 +408,27 @@ export function TodayPage() {
       </div>
 
       <button className="btn btn--primary btn--block" onClick={() => setPickerOpen(true)}>
-        <IconPlus /> Übung hinzufügen
+        <IconPlus /> {t('Übung hinzufügen')}
       </button>
 
       {workout && (
         <div className="card">
-          <div className="section-label" style={{ marginBottom: 10 }}>Training</div>
+          <div className="section-label" style={{ marginBottom: 10 }}>{t("Training")}</div>
           <div className="grid-2">
             <div className="field">
-              <label className="field__label">Dauer (min)</label>
+              <label className="field__label">{t("Dauer (min)")}</label>
               <NumberInput
                 value={workout.durationMin}
                 min={0}
                 onChange={(value) => upsertWorkout(date, (current) => ({ ...current, durationMin: value }))}
-                placeholder="gemessen"
+                placeholder={t("gemessen")}
               />
               <span className="field__hint">
                 {workout.endedAt ? 'Von der Stoppuhr übernommen' : 'Leer lassen = wird geschätzt'}
               </span>
             </div>
             <div className="field">
-              <label className="field__label">Körpergewicht (kg)</label>
+              <label className="field__label">{t("Körpergewicht (kg)")}</label>
               <NumberInput
                 value={workout.bodyWeightKg}
                 min={0}
@@ -436,16 +437,16 @@ export function TodayPage() {
             </div>
           </div>
           <div className="field" style={{ marginTop: 10 }}>
-            <label className="field__label">Notiz zum Training</label>
+            <label className="field__label">{t("Notiz zum Training")}</label>
             <textarea
               className="textarea"
               value={workout.notes ?? ''}
-              placeholder="Wie lief es? Was ist aufgefallen?"
+              placeholder={t("Wie lief es? Was ist aufgefallen?")}
               onChange={(event) => upsertWorkout(date, (current) => ({ ...current, notes: event.target.value }))}
             />
           </div>
           <button className="btn btn--danger btn--sm" style={{ marginTop: 10 }} onClick={() => setConfirmClear(true)}>
-            <IconTrash /> Training löschen
+            <IconTrash /> {t('Training löschen')}
           </button>
         </div>
       )}
@@ -464,7 +465,7 @@ export function TodayPage() {
 
       {pickerOpen && (
         <ExercisePicker
-          title="Übung hinzufügen"
+          title={t("Übung hinzufügen")}
           onPick={addExercise}
           onClose={() => setPickerOpen(false)}
           excludeIds={rows.map((row) => row.exerciseId)}
@@ -475,10 +476,10 @@ export function TodayPage() {
 
       {confirmClear && workout && (
         <ConfirmDialog
-          title="Training löschen?"
-          message={`Alle Sätze vom ${formatDateShort(date)} werden entfernt. Das lässt sich nicht rückgängig machen.`}
+          title={t("Training löschen?")}
+          message={t('Alle Sätze vom {date} werden entfernt. Das lässt sich nicht rückgängig machen.', { date: formatDateShort(date) })}
           onCancel={() => setConfirmClear(false)}
-          onConfirm={() => { deleteWorkout(workout.id); setConfirmClear(false); toast.show('Training gelöscht'); }}
+          onConfirm={() => { deleteWorkout(workout.id); setConfirmClear(false); toast.show(t("Training gelöscht")); }}
         />
       )}
     </>
@@ -512,7 +513,7 @@ function WeekStrip({
         ].filter(Boolean).join(' ');
         return (
           <button key={day} className={classes} onClick={() => onSelect(day)}>
-            <span>{WEEKDAY_SHORT[index]}</span>
+            <span>{t(WEEKDAY_SHORT[index])}</span>
             <span className="day-strip__num">{parseISODate(day).getDate()}</span>
             <span className={`day-strip__dot ${trained.has(day) ? '' : 'day-strip__dot--empty'}`} />
           </button>
@@ -618,15 +619,15 @@ function ExerciseCard({
       style={{ '--cat': accent, '--cat-tint': row.exercise ? categoryTint(row.exercise.category) : undefined } as React.CSSProperties}
     >
       {row.groupId && !groupedWithAbove && (
-        <div className="exercise__group-label">Supersatz</div>
+        <div className="exercise__group-label">{t("Supersatz")}</div>
       )}
 
       {sortMode && (
         <div className="exercise__sort">
-          <button className="btn btn--sm btn--icon" onClick={() => onMove(-1)} disabled={index === 0} aria-label="Nach oben">
+          <button className="btn btn--sm btn--icon" onClick={() => onMove(-1)} disabled={index === 0} aria-label={t("Nach oben")}>
             <IconChevronDown style={{ transform: 'rotate(180deg)' }} />
           </button>
-          <button className="btn btn--sm btn--icon" onClick={() => onMove(1)} disabled={index === total - 1} aria-label="Nach unten">
+          <button className="btn btn--sm btn--icon" onClick={() => onMove(1)} disabled={index === total - 1} aria-label={t("Nach unten")}>
             <IconChevronDown />
           </button>
           {index > 0 && (
@@ -634,7 +635,7 @@ function ExerciseCard({
               className={`btn btn--sm ${groupedWithAbove ? 'btn--primary' : ''}`}
               onClick={onToggleSuperset}
             >
-              {groupedWithAbove ? 'Supersatz lösen' : 'Mit Übung darüber koppeln'}
+              {groupedWithAbove ? t('Supersatz lösen') : t('Mit Übung darüber koppeln')}
             </button>
           )}
         </div>
@@ -646,12 +647,12 @@ function ExerciseCard({
         </span>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="exercise__name">{row.exercise?.name ?? 'Unbekannte Übung'}</div>
+          <div className="exercise__name">{exerciseName(row.exercise)}</div>
           <div className="exercise__meta">
             {targetText}
             {previous
-              ? ` · zuletzt ${formatDateShort(previous.date)}: ${summarizeSets(previous.sets, isTimed)}`
-              : ' · noch keine Vorleistung'}
+              ? ` · ${t('zuletzt')} ${formatDateShort(previous.date)}: ${summarizeSets(previous.sets, isTimed)}`
+              : ` · ${t('noch keine Vorleistung')}`}
           </div>
         </div>
 
@@ -698,9 +699,9 @@ function ExerciseCard({
 
           <div className="set-header">
             <span>#</span>
-            <span>{isTimed ? 'Sek.' : 'kg'}</span>
-            <span>{isTimed ? 'km' : 'Wdh'}</span>
-            <span>RPE</span>
+            <span>{isTimed ? t('Sek.') : t('kg')}</span>
+            <span>{isTimed ? t('km') : t('Wdh')}</span>
+            <span>{t("RPE")}</span>
             <span />
           </div>
 
@@ -709,7 +710,7 @@ function ExerciseCard({
               <button
                 className={`set-row__index ${set.isWarmup ? 'set-row__index--warmup' : ''}`}
                 style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
-                title="Als Aufwärmsatz markieren"
+                title={t("Als Aufwärmsatz markieren")}
                 onClick={() => patchSet(set.id, { isWarmup: !set.isWarmup })}
               >
                 {set.isWarmup ? 'W' : index + 1 - row.sets.slice(0, index).filter((item) => item.isWarmup).length}
@@ -719,31 +720,31 @@ function ExerciseCard({
                 <>
                   <NumberInput
                     value={set.durationSec}
-                    ariaLabel="Dauer in Sekunden"
+                    ariaLabel={t('Dauer in Sekunden')}
                     onChange={(value) => patchSet(set.id, { durationSec: value })}
-                    placeholder="Sek."
+                    placeholder={t("Sek.")}
                   />
                   <NumberInput
                     value={set.distanceKm}
-                    ariaLabel="Distanz in Kilometern"
+                    ariaLabel={t('Distanz in Kilometern')}
                     onChange={(value) => patchSet(set.id, { distanceKm: value })}
-                    placeholder="km"
+                    placeholder={t("km")}
                   />
                 </>
               ) : (
                 <>
                   <NumberInput
                     value={set.weightKg}
-                    ariaLabel="Gewicht in Kilogramm"
+                    ariaLabel={t('Gewicht in Kilogramm')}
                     onChange={(value) => patchSet(set.id, { weightKg: value })}
-                    placeholder="kg"
+                    placeholder={t("kg")}
                     step={2.5}
                   />
                   <NumberInput
                     value={set.reps}
-                    ariaLabel="Wiederholungen"
+                    ariaLabel={t('Wiederholungen')}
                     onChange={(value) => patchSet(set.id, { reps: value })}
-                    placeholder="Wdh"
+                    placeholder={t("Wdh")}
                   />
                 </>
               )}
@@ -761,7 +762,7 @@ function ExerciseCard({
                 <button
                   className={`check ${set.done ? 'check--on' : ''}`}
                   onClick={() => onToggleSet(set.id)}
-                  aria-label={set.done ? 'Satz zurücksetzen' : 'Satz abhaken'}
+                  aria-label={set.done ? t('Satz zurücksetzen') : t('Satz abhaken')}
                 >
                   <IconCheck />
                 </button>
@@ -770,28 +771,28 @@ function ExerciseCard({
           ))}
 
           <div className="row row--wrap" style={{ marginTop: 10, gap: 7 }}>
-            <button className="btn btn--sm" onClick={onAddSet}><IconPlus /> Satz</button>
+            <button className="btn btn--sm" onClick={onAddSet}><IconPlus /> {t("Satz")}</button>
             {!isTimed && !row.sets.some((set) => set.isWarmup) && (
-              <button className="btn btn--sm" onClick={addWarmup} title="Aufwärmsätze davorstellen">
-                Aufwärmen
+              <button className="btn btn--sm" onClick={addWarmup} title={t("Aufwärmsätze davorstellen")}>
+                {t('Aufwärmen')}
               </button>
             )}
             <button className="btn btn--sm" onClick={() => onStartRest(row.planExercise?.restSec ?? state.settings.restTimerSec)}>
-              <IconClock /> Pause
+              <IconClock /> {t('Pause')}
             </button>
-            <button className="btn btn--sm" onClick={onOpenDetail}><IconChart /> Fortschritt</button>
+            <button className="btn btn--sm" onClick={onOpenDetail}><IconChart /> {t("Fortschritt")}</button>
             <span className="spacer" />
             {row.sets.length > 1 && (
               <button
                 className="btn btn--sm btn--ghost"
                 onClick={() => removeSet(row.sets[row.sets.length - 1].id)}
-                aria-label="Letzten Satz entfernen"
+                aria-label={t("Letzten Satz entfernen")}
               >
-                <IconX /> Satz
+                <IconX /> {t('Satz')}
               </button>
             )}
             {row.logged && !row.fromPlan && (
-              <button className="btn btn--sm btn--ghost" onClick={onRemove} aria-label="Übung entfernen">
+              <button className="btn btn--sm btn--ghost" onClick={onRemove} aria-label={t("Übung entfernen")}>
                 <IconTrash />
               </button>
             )}
@@ -801,7 +802,7 @@ function ExerciseCard({
             <input
               className="input"
               style={{ marginTop: 9 }}
-              placeholder="Notiz zur Übung…"
+              placeholder={t("Notiz zur Übung…")}
               value={row.logged.note ?? ''}
               onChange={(event) => onUpdate(row, (logged) => ({ ...logged, note: event.target.value }))}
             />
@@ -881,7 +882,7 @@ function RestTimer({
       <button className="btn btn--sm" style={{ background: 'rgba(255,255,255,0.18)', borderColor: 'transparent', color: '#fff' }} onClick={onExtend}>
         +30 s
       </button>
-      <button className="btn btn--sm btn--ghost" style={{ color: '#fff' }} onClick={onClose} aria-label="Pause beenden">
+      <button className="btn btn--sm btn--ghost" style={{ color: '#fff' }} onClick={onClose} aria-label={t("Pause beenden")}>
         <IconX />
       </button>
       <span className="rest-timer__bar" style={{ width: `${barWidth}%` }} />
@@ -921,17 +922,17 @@ function SessionBar({
           <span className="chip chip--success" style={{ fontVariantNumeric: 'tabular-nums' }}>
             <IconClock style={{ width: 13, height: 13 }} /> {formatClock(elapsed)}
           </span>
-          <button className="btn btn--sm" onClick={onStop}>Training beenden</button>
+          <button className="btn btn--sm" onClick={onStop}>{t("Training beenden")}</button>
         </>
       ) : (
         <button className="btn btn--sm" onClick={onStart}>
-          <IconClock /> {workout?.endedAt ? 'Neu starten' : 'Zeit messen'}
+          <IconClock /> {workout?.endedAt ? t('Neu starten') : t('Zeit messen')}
         </button>
       )}
 
       <span className="spacer" />
       <button className={`btn btn--sm ${sortMode ? 'btn--primary' : ''}`} onClick={onToggleSort}>
-        {sortMode ? 'Fertig' : 'Sortieren'}
+        {sortMode ? t('Fertig') : t('Sortieren')}
       </button>
     </div>
   );
@@ -959,7 +960,7 @@ function RecordBanner({
         <div className="bold small">{record.label}</div>
         <div className="tiny" style={{ opacity: 0.85 }}>{name} · {record.value}</div>
       </div>
-      <button className="btn btn--ghost btn--icon btn--sm" onClick={onClose} aria-label="Schließen">
+      <button className="btn btn--ghost btn--icon btn--sm" onClick={onClose} aria-label={t("Schließen")}>
         <IconX />
       </button>
     </div>

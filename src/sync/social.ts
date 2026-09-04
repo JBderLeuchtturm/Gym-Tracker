@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   ActivityComment, ActivityReaction, Challenge, ChallengeMetric, Group, RemoteProfile,
@@ -102,7 +103,7 @@ export async function createGroup(
       members: [],
     };
   }
-  throw new Error('Es konnte kein freier Beitrittscode vergeben werden');
+  throw new Error(t('Es konnte kein freier Beitrittscode vergeben werden'));
 }
 
 export async function joinGroup(
@@ -113,13 +114,13 @@ export async function joinGroup(
   const found = await client.rpc('find_group_by_code', { p_code: code.trim().toLowerCase() });
   if (found.error) throw new Error(found.error.message);
   const group = (found.data ?? [])[0] as { id: string; name: string } | undefined;
-  if (!group) throw new Error(`Keine Gruppe mit dem Code „${code.trim()}" gefunden`);
+  if (!group) throw new Error(t('Keine Gruppe mit dem Code „{code}“ gefunden', { code: code.trim() }));
 
   const joined = await client
     .from('group_members')
     .insert({ group_id: group.id, user_id: userId, role: 'member' });
   if (joined.error) {
-    if (joined.error.code === '23505') throw new Error('Du bist schon in dieser Gruppe');
+    if (joined.error.code === '23505') throw new Error(t('Du bist schon in dieser Gruppe'));
     throw new Error(joined.error.message);
   }
   return group.name;

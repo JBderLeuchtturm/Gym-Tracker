@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import React, { useEffect, useState } from 'react';
 import { useStore } from './storage/store';
 import { TodayPage } from './pages/Today';
@@ -23,7 +24,7 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
   { id: 'profile', label: 'Profil', icon: <IconUser /> },
 ];
 
-const TITLES: Record<Tab, string> = {
+const TITLE_KEYS: Record<Tab, string> = {
   today: 'Training',
   plans: 'Wochenpläne',
   progress: 'Fortschritt',
@@ -31,6 +32,8 @@ const TITLES: Record<Tab, string> = {
   friends: 'Freunde',
   profile: 'Profil',
 };
+
+const title = (tab: Tab): string => t(TITLE_KEYS[tab]);
 
 export function App() {
   const { state } = useStore();
@@ -60,27 +63,27 @@ export function App() {
   }, [state.settings.theme]);
 
   const activePlan = state.plans.find((plan) => plan.id === state.activePlanId);
-  const greeting = state.profile.name ? `Hallo ${state.profile.name}` : 'Gym Tracker';
+  const greeting = state.profile.name ? t('Hallo {name}', { name: state.profile.name }) : 'Gym Tracker';
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="topbar__title">
-          <h1>{tab === 'today' ? greeting : TITLES[tab]}</h1>
+          <h1>{tab === 'today' ? greeting : title(tab)}</h1>
           <div className="topbar__sub">
             {tab === 'today'
               ? formatDateLong(todayISO())
               : tab === 'plans'
-                ? activePlan ? `Aktiv: ${activePlan.name}` : 'Kein Plan aktiv'
-                : TITLES[tab]}
+                ? activePlan ? t('Aktiv: {name}', { name: activePlan.name }) : 'Kein Plan aktiv'
+                : title(tab)}
           </div>
         </div>
         {(tab === 'today' || tab === 'progress') && (
-          <button className="btn btn--sm" onClick={() => setHistoryOpen(true)}>Verlauf</button>
+          <button className="btn btn--sm" onClick={() => setHistoryOpen(true)}>{t("Verlauf")}</button>
         )}
       </header>
 
-      <nav className="nav" aria-label="Hauptnavigation">
+      <nav className="nav" aria-label={t("Hauptnavigation")}>
         {TABS.map((item) => (
           <button
             key={item.id}
@@ -91,12 +94,12 @@ export function App() {
             <span className="nav__icon">
               {item.icon}
               {item.id === 'friends' && pendingRequests > 0 && (
-                <span className="nav__badge" aria-label={`${pendingRequests} offene Anfragen`}>
+                <span className="nav__badge" aria-label={t('{count} offene Anfragen', { count: pendingRequests })}>
                   {pendingRequests}
                 </span>
               )}
             </span>
-            <span>{item.label}</span>
+            <span>{t(item.label)}</span>
           </button>
         ))}
       </nav>

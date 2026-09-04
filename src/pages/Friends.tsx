@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useMemo, useState } from 'react';
 import { useStore } from '../storage/store';
 import { useSync } from '../sync/SyncProvider';
@@ -26,7 +27,7 @@ export function FriendsPage() {
   const sync = useSync();
 
   if (sync.status === 'loading') {
-    return <div className="empty">Verbindung wird geprüft…</div>;
+    return <div className="empty">{t("Verbindung wird geprüft…")}</div>;
   }
   if (sync.status === 'disabled') {
     return <SetupNotice />;
@@ -47,7 +48,7 @@ function SetupNotice() {
   return (
     <>
       <div className="card">
-        <div className="card__title" style={{ marginBottom: 8 }}><IconUser /> Freunde & Synchronisierung</div>
+        <div className="card__title" style={{ marginBottom: 8 }}><IconUser /> {t("Freunde & Synchronisierung")}</div>
         <p className="small muted">
           Damit du Trainings mit Freunden teilen kannst, braucht die App einen gemeinsamen
           Speicherort. Dafür ist ein kostenloses Supabase-Projekt vorgesehen – ohne Kreditkarte,
@@ -55,15 +56,15 @@ function SetupNotice() {
         </p>
         <ol className="small muted" style={{ paddingLeft: 18, margin: '10px 0 0' }}>
           <li style={{ marginBottom: 6 }}>
-            Auf <strong>supabase.com</strong> anmelden und ein neues Projekt anlegen.
+            Auf <strong>{t("supabase.com")}</strong> anmelden und ein neues Projekt anlegen.
           </li>
           <li style={{ marginBottom: 6 }}>
-            Im Projekt den <strong>SQL Editor</strong> öffnen, den Inhalt von
+            Im Projekt den <strong>{t("SQL Editor")}</strong> öffnen, den Inhalt von
             {' '}<code>supabase/schema.sql</code> aus diesem Repository einfügen und ausführen.
           </li>
           <li style={{ marginBottom: 6 }}>
-            Unter <strong>Project Settings → API</strong> die <em>Project URL</em> und den
-            {' '}<em>anon public</em>-Schlüssel kopieren.
+            Unter <strong>{t("Project Settings → API")}</strong> {t("die")} <em>{t("Project URL")}</em> und den
+            {' '}<em>{t("anon public")}</em>-Schlüssel kopieren.
           </li>
           <li>
             Beides in die Datei <code>public/sync-config.json</code> eintragen und
@@ -73,29 +74,29 @@ function SetupNotice() {
       </div>
 
       <div className="card">
-        <div className="card__title" style={{ marginBottom: 4 }}>Nur zum Ausprobieren</div>
+        <div className="card__title" style={{ marginBottom: 4 }}>{t("Nur zum Ausprobieren")}</div>
         <div className="tiny dim" style={{ marginBottom: 10 }}>
-          Die Werte hier bleiben nur in diesem Browser. Für Freunde muss es die Datei sein.
+          {t('Die Werte hier bleiben nur in diesem Browser. Für Freunde muss es die Datei sein.')}
         </div>
         <div className="list">
           <div className="field">
-            <label className="field__label">Project URL</label>
-            <input className="input" value={url} placeholder="https://abcdef.supabase.co" onChange={(event) => setUrl(event.target.value)} />
+            <label className="field__label">{t("Project URL")}</label>
+            <input className="input" value={url} placeholder={t("https://abcdef.supabase.co")} onChange={(event) => setUrl(event.target.value)} />
           </div>
           <div className="field">
-            <label className="field__label">anon public key</label>
-            <input className="input" value={key} placeholder="eyJhbGciOi…" onChange={(event) => setKey(event.target.value)} />
+            <label className="field__label">{t("anon public key")}</label>
+            <input className="input" value={key} placeholder={t("eyJhbGciOi…")} onChange={(event) => setKey(event.target.value)} />
           </div>
           <button
             className="btn btn--primary btn--block"
             disabled={!url.trim() || key.trim().length < 20}
             onClick={() => {
               saveOverride({ url: url.trim(), anonKey: key.trim() });
-              toast.show('Gespeichert – App wird neu geladen');
+              toast.show(t("Gespeichert – App wird neu geladen"));
               setTimeout(() => window.location.reload(), 600);
             }}
           >
-            Speichern und neu laden
+            {t('Speichern und neu laden')}
           </button>
           {hasOverride() && (
             <button
@@ -131,11 +132,11 @@ function AuthPanel() {
         if (needsConfirmation) {
           setMessage('Fast fertig: Bestätige den Link in der E-Mail, dann kannst du dich anmelden.');
         } else {
-          toast.show('Konto angelegt');
+          toast.show(t("Konto angelegt"));
         }
       } else {
         await sync.signIn(email.trim(), password);
-        toast.show('Angemeldet');
+        toast.show(t("Angemeldet"));
       }
     } catch (caught) {
       setFailure(caught instanceof Error ? caught.message : 'Es hat nicht geklappt');
@@ -163,7 +164,7 @@ function AuthPanel() {
       )}
 
       <div className="card__title" style={{ marginBottom: 4 }}>
-        {mode === 'in' ? 'Anmelden' : 'Konto anlegen'}
+        {mode === 'in' ? t('Anmelden') : t('Konto anlegen')}
       </div>
       <div className="tiny dim" style={{ marginBottom: 12 }}>
         Dein Konto verbindet deine Geräte und macht das Teilen mit Freunden möglich.
@@ -172,21 +173,21 @@ function AuthPanel() {
 
       <div className="list">
         <div className="field">
-          <label className="field__label">E-Mail</label>
+          <label className="field__label">{t("E-Mail")}</label>
           <input
             className="input" type="email" autoComplete="email" value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
         </div>
         <div className="field">
-          <label className="field__label">Passwort</label>
+          <label className="field__label">{t("Passwort")}</label>
           <input
             className="input" type="password" value={password}
             autoComplete={mode === 'up' ? 'new-password' : 'current-password'}
             onChange={(event) => setPassword(event.target.value)}
             onKeyDown={(event) => { if (event.key === 'Enter') void submit(); }}
           />
-          {mode === 'up' && <span className="field__hint">Mindestens 6 Zeichen</span>}
+          {mode === 'up' && <span className="field__hint">{t("Mindestens 6 Zeichen")}</span>}
         </div>
 
         {failure && <div className="small" style={{ color: 'var(--danger)' }}>{failure}</div>}
@@ -197,13 +198,13 @@ function AuthPanel() {
           disabled={sync.busy || !email.trim() || password.length < 6}
           onClick={submit}
         >
-          {sync.busy ? 'Einen Moment…' : mode === 'in' ? 'Anmelden' : 'Konto anlegen'}
+          {sync.busy ? t('Einen Moment…') : mode === 'in' ? t('Anmelden') : t('Konto anlegen')}
         </button>
         <button
           className="btn btn--ghost btn--block"
           onClick={() => { setMode(mode === 'in' ? 'up' : 'in'); setFailure(null); setMessage(null); }}
         >
-          {mode === 'in' ? 'Noch kein Konto? Jetzt anlegen' : 'Ich habe schon ein Konto'}
+          {mode === 'in' ? t('Noch kein Konto? Jetzt anlegen') : t('Ich habe schon ein Konto')}
         </button>
       </div>
     </div>
@@ -256,7 +257,7 @@ function FriendsHome() {
             <div className="bold">{sync.profile?.display_name || 'Ohne Namen'}</div>
             <div className="tiny dim">@{sync.profile?.handle ?? '…'}</div>
           </div>
-          <button className="btn btn--sm" onClick={() => setEditing(true)}>Ändern</button>
+          <button className="btn btn--sm" onClick={() => setEditing(true)}>{t("Ändern")}</button>
         </div>
 
         <div className="divider" style={{ margin: '11px 0' }} />
@@ -266,7 +267,7 @@ function FriendsHome() {
             className="btn btn--sm"
             onClick={() => {
               void navigator.clipboard?.writeText(inviteLink);
-              toast.show('Einladungslink kopiert');
+              toast.show(t("Einladungslink kopiert"));
             }}
           >
             <IconCopy /> Link kopieren
@@ -276,16 +277,16 @@ function FriendsHome() {
             onClick={() => {
               const text = `Trainier mit mir im Gym Tracker – Konto anlegen, fertig:\n${inviteLink}`;
               if (navigator.share) void navigator.share({ text }).catch(() => undefined);
-              else { void navigator.clipboard?.writeText(text); toast.show('Einladungslink kopiert'); }
+              else { void navigator.clipboard?.writeText(text); toast.show(t("Einladungslink kopiert")); }
             }}
           >
             Einladung teilen
           </button>
           <button className="btn btn--sm" disabled={sync.busy} onClick={() => void sync.syncNow()}>
-            <IconRefresh /> Abgleichen
+            <IconRefresh /> {t('Abgleichen')}
           </button>
           <span className="spacer" />
-          <button className="btn btn--sm btn--ghost" onClick={() => void sync.signOut()}>Abmelden</button>
+          <button className="btn btn--sm btn--ghost" onClick={() => void sync.signOut()}>{t("Abmelden")}</button>
         </div>
 
         {notificationPermission() === 'default' && accepted.length > 0 && (
@@ -325,11 +326,11 @@ function FriendsHome() {
 
       {/* ------------------------------------------------- Freund hinzufügen */}
       <div className="card">
-        <div className="card__title" style={{ marginBottom: 9 }}><IconPlus /> Freund hinzufügen</div>
+        <div className="card__title" style={{ marginBottom: 9 }}><IconPlus /> {t("Freund hinzufügen")}</div>
         <div className="row" style={{ gap: 8 }}>
           <input
             className="input"
-            placeholder="Benutzername, z. B. jan-4f2a"
+            placeholder={t("Benutzername, z. B. jan-4f2a")}
             value={handleInput}
             onChange={(event) => setHandleInput(event.target.value)}
             onKeyDown={(event) => { if (event.key === 'Enter') void submitAdd(); }}
@@ -348,7 +349,7 @@ function FriendsHome() {
       {/* ------------------------------------------------------- Anfragen */}
       {incoming.length > 0 && (
         <div className="card">
-          <div className="card__title" style={{ marginBottom: 9 }}>Offene Anfragen an dich</div>
+          <div className="card__title" style={{ marginBottom: 9 }}>{t("Offene Anfragen an dich")}</div>
           <div className="list">
             {incoming.map((friend) => (
               <div key={friend.linkId} className="row row--between">
@@ -361,9 +362,9 @@ function FriendsHome() {
                 </div>
                 <div className="row" style={{ gap: 5 }}>
                   <button className="btn btn--sm btn--success" onClick={() => void sync.acceptFriend(friend.linkId)}>
-                    <IconCheck /> Annehmen
+                    <IconCheck /> {t('Annehmen')}
                   </button>
-                  <button className="btn btn--sm btn--ghost" onClick={() => void sync.removeFriend(friend.linkId)} aria-label="Ablehnen">
+                  <button className="btn btn--sm btn--ghost" onClick={() => void sync.removeFriend(friend.linkId)} aria-label={t("Ablehnen")}>
                     <IconX />
                   </button>
                 </div>
@@ -375,11 +376,11 @@ function FriendsHome() {
 
       {outgoing.length > 0 && (
         <div className="card">
-          <div className="card__title" style={{ marginBottom: 9 }}>Von dir verschickt</div>
+          <div className="card__title" style={{ marginBottom: 9 }}>{t("Von dir verschickt")}</div>
           <div className="list">
             {outgoing.map((friend) => (
               <div key={friend.linkId} className="row row--between">
-                <div className="small">@{friend.handle} <span className="dim">wartet auf Antwort</span></div>
+                <div className="small">@{friend.handle} <span className="dim">{t("wartet auf Antwort")}</span></div>
                 <button className="btn btn--sm btn--ghost" onClick={() => void sync.removeFriend(friend.linkId)}>
                   Zurückziehen
                 </button>
@@ -412,8 +413,8 @@ function FriendsHome() {
       {section === 'friends' && (accepted.length === 0 ? (
         <EmptyState
           icon="🤝"
-          title="Noch keine Freunde verbunden"
-          hint="Sobald ihr verbunden seid, seht ihr gegenseitig euren Fortschritt."
+          title={t("Noch keine Freunde verbunden")}
+          hint={t("Sobald ihr verbunden seid, seht ihr gegenseitig euren Fortschritt.")}
         />
       ) : (
         <>
@@ -435,7 +436,7 @@ function FriendsHome() {
                           ? 'teilt gerade nichts mit dir'
                           : last
                             ? `zuletzt trainiert: ${relativeDayLabel(last)}`
-                            : 'noch kein Training'
+                            : t('noch kein Training')
                         : 'wird geladen…'}
                     </span>
                   </span>
@@ -458,7 +459,7 @@ function FriendsHome() {
           data={friendData[open.userId]}
           mine={myProgress}
           onClose={() => setOpen(null)}
-          onRemove={() => { void sync.removeFriend(open.linkId); setOpen(null); toast.show('Freund entfernt'); }}
+          onRemove={() => { void sync.removeFriend(open.linkId); setOpen(null); toast.show(t("Freund entfernt")); }}
         />
       )}
 
@@ -480,21 +481,21 @@ function ProfileEditor({ onClose }: { onClose: () => void }) {
   const EMOJIS = ['💪', '🏋️', '🔥', '🦍', '🐺', '⚡', '🎯', '🚀', '🥇', '🧗', '🏃', '🥊'];
 
   return (
-    <Modal title="Wie sollen dich Freunde sehen?" onClose={onClose}>
+    <Modal title={t("Wie sollen dich Freunde sehen?")} onClose={onClose}>
       <div className="list">
         <div className="field">
-          <label className="field__label">Anzeigename</label>
+          <label className="field__label">{t("Anzeigename")}</label>
           <input className="input" value={name} onChange={(event) => setName(event.target.value)} />
         </div>
         <div className="field">
-          <label className="field__label">Benutzername</label>
+          <label className="field__label">{t("Benutzername")}</label>
           <input className="input" value={handle} onChange={(event) => setHandle(event.target.value)} />
           <span className="field__hint">
             Darüber finden dich Freunde. Kleinbuchstaben, Ziffern, Bindestrich – 3 bis 24 Zeichen.
           </span>
         </div>
         <div className="field">
-          <label className="field__label">Symbol</label>
+          <label className="field__label">{t("Symbol")}</label>
           <div className="row row--wrap" style={{ gap: 6 }}>
             {EMOJIS.map((item) => (
               <button
@@ -512,14 +513,14 @@ function ProfileEditor({ onClose }: { onClose: () => void }) {
         {failure && <div className="small" style={{ color: 'var(--danger)' }}>{failure}</div>}
 
         <div className="row" style={{ justifyContent: 'flex-end' }}>
-          <button className="btn" onClick={onClose}>Abbrechen</button>
+          <button className="btn" onClick={onClose}>{t("Abbrechen")}</button>
           <button
             className="btn btn--primary"
             onClick={async () => {
               setFailure(null);
               try {
                 await sync.saveProfile({ display_name: name, handle, emoji });
-                toast.show('Gespeichert');
+                toast.show(t("Gespeichert"));
                 onClose();
               } catch (caught) {
                 setFailure(caught instanceof Error ? caught.message : 'Hat nicht geklappt');
@@ -573,7 +574,7 @@ function FriendDetail({
         {tab === 'sharing' && (
           <div className="card" style={{ background: 'var(--surface-2)' }}>
             <div className="tiny dim" style={{ marginBottom: 10 }}>
-              Das hier bestimmt, was <strong>{friend.displayName}</strong> von <strong>dir</strong> sieht.
+              Das hier bestimmt, was <strong>{friend.displayName}</strong> {t("von")} <strong>{t("dir")}</strong> sieht.
               Änderungen gelten sofort.
             </div>
             <div className="list">
@@ -588,15 +589,15 @@ function FriendDetail({
                       onChange={(event) => void sync.setGrant(friend.userId, scope, event.target.checked)}
                     />
                     <span>
-                      <span className="small bold">{SCOPE_LABELS[scope]}</span>
-                      <span className="tiny dim" style={{ display: 'block' }}>{SCOPE_HINTS[scope]}</span>
+                      <span className="small bold">{t(SCOPE_LABELS[scope])}</span>
+                      <span className="tiny dim" style={{ display: 'block' }}>{t(SCOPE_HINTS[scope])}</span>
                     </span>
                   </label>
                 );
               })}
             </div>
             <button className="btn btn--danger btn--sm btn--block" style={{ marginTop: 14 }} onClick={onRemove}>
-              <IconTrash /> Freundschaft beenden
+              <IconTrash /> {t('Freundschaft beenden')}
             </button>
           </div>
         )}
@@ -607,22 +608,22 @@ function FriendDetail({
               <EmptyState
                 icon="🔒"
                 title={`${friend.displayName} teilt gerade nichts mit dir`}
-                hint="Jede Seite entscheidet selbst, was sichtbar ist."
+                hint={t("Jede Seite entscheidet selbst, was sichtbar ist.")}
               />
             ) : (
               <>
                 {progress && progress.totals.workouts === 0 && (
-                  <div className="tiny dim">Fortschritt ist freigegeben, aber es wurde noch nichts aufgezeichnet.</div>
+                  <div className="tiny dim">{t("Fortschritt ist freigegeben, aber es wurde noch nichts aufgezeichnet.")}</div>
                 )}
 
                 {progress ? (
                   <>
                     <div className="grid-2">
-                      <Stat label="Trainings" value={progress.totals.workouts} tone="accent" />
-                      <Stat label="Sätze" value={progress.totals.sets} />
-                      <Stat label="Volumen" value={fmt(progress.totals.volume)} unit="kg" />
+                      <Stat label={t("Trainings")} value={progress.totals.workouts} tone="accent" />
+                      <Stat label={t("Sätze")} value={progress.totals.sets} />
+                      <Stat label={t("Volumen")} value={fmt(progress.totals.volume)} unit={t("kg")} />
                       <Stat
-                        label="Wochen-Serie"
+                        label={t("Wochen-Serie")}
                         value={progress.totals.streakWeeks}
                         sub={`Rekord: ${progress.totals.longestStreak}`}
                         tone="success"
@@ -631,20 +632,20 @@ function FriendDetail({
 
                     {progress.weekly.length > 0 && (
                       <div className="card">
-                        <div className="card__header"><div className="card__title">Volumen je Woche</div></div>
+                        <div className="card__header"><div className="card__title">{t("Volumen je Woche")}</div></div>
                         <BarChart
                           points={progress.weekly.map((week) => ({
                             label: week.key.replace(/^\d{4}-/, ''),
                             value: week.volume,
                             detail: `${week.key} · ${week.workouts} Einheiten`,
                           }))}
-                          unit="kg"
+                          unit={t("kg")}
                         />
                       </div>
                     )}
 
                     <div className="card card--flush">
-                      <div className="section-label" style={{ padding: '12px 14px 4px' }}>Übungen</div>
+                      <div className="section-label" style={{ padding: '12px 14px 4px' }}>{t("Übungen")}</div>
                       {progress.exercises.slice(0, 25).map((exercise) => (
                         <div key={exercise.id} className="search-result" style={{ cursor: 'default' }}>
                           <span
@@ -670,13 +671,13 @@ function FriendDetail({
                     </div>
                   </>
                 ) : (
-                  <div className="tiny dim">Fortschritt ist nicht freigegeben.</div>
+                  <div className="tiny dim">{t("Fortschritt ist nicht freigegeben.")}</div>
                 )}
 
                 {weight && (
                   <div className="card">
                     <div className="card__header">
-                      <div className="card__title">Körpergewicht</div>
+                      <div className="card__title">{t("Körpergewicht")}</div>
                       {weight.entries.length > 0 && (
                         <span className="tiny dim">{fmt(weight.entries[weight.entries.length - 1].kg, 1)} kg</span>
                       )}
@@ -686,7 +687,7 @@ function FriendDetail({
                         points={weight.entries.map((entry) => ({
                           label: formatDateTiny(entry.date), value: entry.kg, detail: formatDateShort(entry.date),
                         }))}
-                        unit="kg" color="var(--success)" formatValue={(value) => fmt(value, 1)}
+                        unit={t("kg")} color="var(--success)" formatValue={(value) => fmt(value, 1)}
                       />
                     ) : (
                       <div className="tiny dim">
@@ -700,16 +701,16 @@ function FriendDetail({
 
                 {nutrition && (
                   <div className="card">
-                    <div className="card__header"><div className="card__title">Kalorien</div></div>
+                    <div className="card__header"><div className="card__title">{t("Kalorien")}</div></div>
                     {nutrition.days.length > 1 ? (
                       <LineChart
                         points={nutrition.days.map((day) => ({
                           label: formatDateTiny(day.date), value: day.burn, detail: `${formatDateShort(day.date)} · Verbrauch`,
                         }))}
-                        unit="kcal" color="var(--warn)"
+                        unit={t("kcal")} color="var(--warn)"
                       />
                     ) : (
-                      <div className="tiny dim">Freigegeben, aber noch keine Tage erfasst.</div>
+                      <div className="tiny dim">{t("Freigegeben, aber noch keine Tage erfasst.")}</div>
                     )}
                   </div>
                 )}
@@ -757,13 +758,13 @@ function Comparison({
   }, [mine, theirs]);
 
   if (!theirs) {
-    return <div className="tiny dim">Für einen Vergleich muss der Fortschritt freigegeben sein.</div>;
+    return <div className="tiny dim">{t("Für einen Vergleich muss der Fortschritt freigegeben sein.")}</div>;
   }
   if (rows.length === 0) {
     return (
       <EmptyState
         icon="🔍"
-        title="Noch keine gemeinsamen Übungen"
+        title={t("Noch keine gemeinsamen Übungen")}
         hint={`Sobald ihr beide dieselbe Übung trainiert, wird hier verglichen.`}
       />
     );
@@ -783,8 +784,8 @@ function Comparison({
         <table className="data">
           <thead>
             <tr>
-              <th>Übung</th>
-              <th className="right">Du</th>
+              <th>{t("Übung")}</th>
+              <th className="right">{t("Du")}</th>
               <th className="right">{theirName.split(' ')[0]}</th>
             </tr>
           </thead>
@@ -861,7 +862,7 @@ function Leaderboard({
   return (
     <div className="card">
       <div className="card__header">
-        <div className="card__title"><IconTrophy style={{ color: 'var(--warn)' }} /> Bestenliste</div>
+        <div className="card__title"><IconTrophy style={{ color: 'var(--warn)' }} /> {t("Bestenliste")}</div>
         <span className="tiny dim">{boards.length} Übungen</span>
       </div>
 

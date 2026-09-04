@@ -1,3 +1,4 @@
+import { LANGUAGE_LABELS, t, useI18n, type Language } from '../i18n';
 import { useMemo, useRef, useState } from 'react';
 import type { ActivityLevel, Goal, Sex } from '../types';
 import { ACTIVITY_LABELS, GOAL_LABELS, calcBMR, calcTDEE, proteinTarget } from '../lib/calories';
@@ -18,6 +19,7 @@ export function ProfilePage() {
     addExercise, updateExercise, deleteExercise, replaceState,
   } = useStore();
   const toast = useToast();
+  const { language, setLanguage } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [weightOpen, setWeightOpen] = useState(false);
@@ -40,31 +42,31 @@ export function ProfilePage() {
   const importBackup = async (file: File) => {
     try {
       replaceState(importState(await file.text()));
-      toast.show('Backup eingespielt');
+      toast.show(t("Backup eingespielt"));
     } catch {
-      toast.show('Datei konnte nicht gelesen werden');
+      toast.show(t("Datei konnte nicht gelesen werden"));
     }
   };
 
   return (
     <>
       <div className="card">
-        <div className="card__title" style={{ marginBottom: 12 }}><IconUser /> Persönliche Daten</div>
+        <div className="card__title" style={{ marginBottom: 12 }}><IconUser /> {t("Persönliche Daten")}</div>
 
         <div className="list">
           <div className="field">
-            <label className="field__label">Name</label>
+            <label className="field__label">{t("Name")}</label>
             <input
               className="input"
               value={profile.name}
-              placeholder="Wie sollen wir dich nennen?"
+              placeholder={t("Wie sollen wir dich nennen?")}
               onChange={(event) => updateProfile({ name: event.target.value })}
             />
           </div>
 
           <div className="grid-2">
             <div className="field">
-              <label className="field__label">Geburtsdatum</label>
+              <label className="field__label">{t("Geburtsdatum")}</label>
               <input
                 className="input"
                 type="date"
@@ -75,57 +77,57 @@ export function ProfilePage() {
               {age != null && <span className="field__hint">{age} Jahre</span>}
             </div>
             <div className="field">
-              <label className="field__label">Geschlecht</label>
+              <label className="field__label">{t("Geschlecht")}</label>
               <select
                 className="select"
                 value={profile.sex}
                 onChange={(event) => updateProfile({ sex: event.target.value as Sex })}
               >
-                <option value="male">männlich</option>
-                <option value="female">weiblich</option>
-                <option value="diverse">divers</option>
+                <option value="male">{t("männlich")}</option>
+                <option value="female">{t("weiblich")}</option>
+                <option value="diverse">{t("divers")}</option>
               </select>
             </div>
           </div>
 
           <div className="grid-3">
             <div className="field">
-              <label className="field__label">Größe (cm)</label>
+              <label className="field__label">{t("Größe (cm)")}</label>
               <NumberInput value={profile.heightCm} min={80} max={260} onChange={(value) => updateProfile({ heightCm: value ?? 0 })} />
             </div>
             <div className="field">
-              <label className="field__label">Gewicht (kg)</label>
+              <label className="field__label">{t("Gewicht (kg)")}</label>
               <NumberInput value={profile.weightKg} min={25} max={350} onChange={(value) => updateProfile({ weightKg: value ?? 0 })} />
             </div>
             <div className="field">
-              <label className="field__label">KFA (%)</label>
-              <NumberInput value={profile.bodyFatPct} min={3} max={60} onChange={(value) => updateProfile({ bodyFatPct: value })} placeholder="optional" />
+              <label className="field__label">{t("KFA (%)")}</label>
+              <NumberInput value={profile.bodyFatPct} min={3} max={60} onChange={(value) => updateProfile({ bodyFatPct: value })} placeholder={t("optional")} />
             </div>
           </div>
 
           <div className="field">
-            <label className="field__label">Alltagsaktivität (ohne Training)</label>
+            <label className="field__label">{t("Alltagsaktivität (ohne Training)")}</label>
             <select
               className="select"
               value={profile.activityLevel}
               onChange={(event) => updateProfile({ activityLevel: event.target.value as ActivityLevel })}
             >
               {(Object.keys(ACTIVITY_LABELS) as ActivityLevel[]).map((key) => (
-                <option key={key} value={key}>{ACTIVITY_LABELS[key]}</option>
+                <option key={key} value={key}>{t(ACTIVITY_LABELS[key])}</option>
               ))}
             </select>
-            <span className="field__hint">Das Training wird separat dazugerechnet – hier nicht mit einplanen.</span>
+            <span className="field__hint">{t("Das Training wird separat dazugerechnet – hier nicht mit einplanen.")}</span>
           </div>
 
           <div className="field">
-            <label className="field__label">Ziel</label>
+            <label className="field__label">{t("Ziel")}</label>
             <select
               className="select"
               value={profile.goal}
               onChange={(event) => updateProfile({ goal: event.target.value as Goal })}
             >
               {(Object.keys(GOAL_LABELS) as Goal[]).map((key) => (
-                <option key={key} value={key}>{GOAL_LABELS[key]}</option>
+                <option key={key} value={key}>{t(GOAL_LABELS[key])}</option>
               ))}
             </select>
           </div>
@@ -133,22 +135,22 @@ export function ProfilePage() {
       </div>
 
       <div className="grid-auto">
-        <Stat label="Grundumsatz" value={fmt(bmr)} unit="kcal" />
-        <Stat label="Alltagsumsatz" value={fmt(tdee)} unit="kcal" tone="accent" />
-        <Stat label="BMI" value={fmt(bmi, 1)} sub={bmiLabel(bmi)} />
-        <Stat label="Protein-Ziel" value={proteinTarget(profile.weightKg)} unit="g" />
-        <Stat label="Trainings" value={totalWorkouts} sub={`${streak.current} Wochen in Folge`} tone="success" />
+        <Stat label={t("Grundumsatz")} value={fmt(bmr)} unit={t("kcal")} />
+        <Stat label={t("Alltagsumsatz")} value={fmt(tdee)} unit={t("kcal")} tone="accent" />
+        <Stat label={t("BMI")} value={fmt(bmi, 1)} sub={bmiLabel(bmi)} />
+        <Stat label={t("Protein-Ziel")} value={proteinTarget(profile.weightKg)} unit="g" />
+        <Stat label={t("Trainings")} value={totalWorkouts} sub={t('{count} Wochen in Folge', { count: streak.current })} tone="success" />
       </div>
 
       <div className="card">
         <div className="card__header">
-          <div className="card__title"><IconScale /> Gewichtsverlauf</div>
+          <div className="card__title"><IconScale /> {t("Gewichtsverlauf")}</div>
           <button className="btn btn--sm btn--primary" onClick={() => setWeightOpen(true)}>
-            <IconPlus /> Eintrag
+            <IconPlus /> {t('Eintrag')}
           </button>
         </div>
         {state.weightLog.length === 0 ? (
-          <div className="tiny dim">Noch keine Einträge. Trag dein Gewicht regelmäßig ein, dann siehst du den Verlauf unter „Fortschritt“.</div>
+          <div className="tiny dim">{t("Noch keine Einträge. Trag dein Gewicht regelmäßig ein, dann siehst du den Verlauf unter „Fortschritt“.")}</div>
         ) : (
           <table className="data">
             <tbody>
@@ -157,7 +159,7 @@ export function ProfilePage() {
                   <td>{formatDateShort(item.date)}</td>
                   <td className="right mono">{fmt(item.kg, 1)} kg</td>
                   <td className="right" style={{ width: 36 }}>
-                    <button className="btn btn--ghost btn--icon btn--sm" onClick={() => removeBodyWeight(item.date)} aria-label="Eintrag löschen">
+                    <button className="btn btn--ghost btn--icon btn--sm" onClick={() => removeBodyWeight(item.date)} aria-label={t("Eintrag löschen")}>
                       <IconTrash />
                     </button>
                   </td>
@@ -169,10 +171,10 @@ export function ProfilePage() {
       </div>
 
       <div className="card">
-        <div className="card__title" style={{ marginBottom: 12 }}>Einstellungen</div>
+        <div className="card__title" style={{ marginBottom: 12 }}>{t("Einstellungen")}</div>
         <div className="list">
           <div className="field">
-            <label className="field__label">Standard-Pause zwischen Sätzen (Sekunden)</label>
+            <label className="field__label">{t("Standard-Pause zwischen Sätzen (Sekunden)")}</label>
             <NumberInput
               value={settings.restTimerSec}
               min={0}
@@ -196,15 +198,31 @@ export function ProfilePage() {
           </label>
 
           <div className="field">
-            <label className="field__label">Erscheinungsbild</label>
+            <label className="field__label">{t("Sprache")}</label>
+            <select
+              className="select"
+              value={language}
+              onChange={(event) => setLanguage(event.target.value as Language)}
+            >
+              {(Object.keys(LANGUAGE_LABELS) as Language[]).map((key) => (
+                <option key={key} value={key}>{LANGUAGE_LABELS[key]}</option>
+              ))}
+            </select>
+            <span className="field__hint">
+              {t("Übungsnamen aus dem Katalog erscheinen auf Englisch, wo eine englische Bezeichnung hinterlegt ist.")}
+            </span>
+          </div>
+
+          <div className="field">
+            <label className="field__label">{t("Erscheinungsbild")}</label>
             <select
               className="select"
               value={settings.theme}
               onChange={(event) => updateSettings({ theme: event.target.value as 'dark' | 'light' | 'system' })}
             >
-              <option value="dark">Dunkel</option>
-              <option value="light">Hell</option>
-              <option value="system">Wie das Gerät</option>
+              <option value="dark">{t("Dunkel")}</option>
+              <option value="light">{t("Hell")}</option>
+              <option value="system">{t("Wie das Gerät")}</option>
             </select>
           </div>
 
@@ -215,7 +233,7 @@ export function ProfilePage() {
       </div>
 
       <div className="card">
-        <div className="card__title" style={{ marginBottom: 6 }}>Daten</div>
+        <div className="card__title" style={{ marginBottom: 6 }}>{t("Daten")}</div>
         <div className="tiny dim" style={{ marginBottom: 11 }}>
           Alles wird direkt auf diesem Gerät gespeichert und bleibt nach dem Schließen erhalten.
           Für den Wechsel auf ein anderes Gerät nutzt du Export und Import.
@@ -232,22 +250,22 @@ export function ProfilePage() {
           }}
         />
         <div className="grid-2">
-          <button className="btn" onClick={() => { downloadBackup(state); toast.show('Backup gespeichert'); }}>
-            <IconDownload /> Exportieren
+          <button className="btn" onClick={() => { downloadBackup(state); toast.show(t("Backup gespeichert")); }}>
+            <IconDownload /> {t('Exportieren')}
           </button>
           <button className="btn" onClick={() => fileRef.current?.click()}>
-            <IconUpload /> Importieren
+            <IconUpload /> {t('Importieren')}
           </button>
         </div>
         <button className="btn btn--danger btn--block" style={{ marginTop: 9 }} onClick={() => setResetOpen(true)}>
-          <IconTrash /> Alle Daten löschen
+          <IconTrash /> {t('Alle Daten löschen')}
         </button>
       </div>
 
       {weightOpen && (
         <WeightDialog
           onClose={() => setWeightOpen(false)}
-          onSave={(date, kg) => { logBodyWeight(date, kg); setWeightOpen(false); toast.show('Gewicht gespeichert'); }}
+          onSave={(date, kg) => { logBodyWeight(date, kg); setWeightOpen(false); toast.show(t("Gewicht gespeichert")); }}
           defaultWeight={profile.weightKg}
         />
       )}
@@ -267,16 +285,16 @@ export function ProfilePage() {
           onCreate={(exercise) => {
             addExercise(exercise);
             setNewExerciseOpen(false);
-            toast.show(`„${exercise.name}“ angelegt`);
+            toast.show(t('„{name}“ angelegt', { name: exercise.name }));
           }}
         />
       )}
 
       {resetOpen && (
         <ConfirmDialog
-          title="Wirklich alles löschen?"
-          message="Profil, Pläne und sämtliche Trainings werden entfernt. Exportiere vorher ein Backup, wenn du die Daten behalten willst."
-          confirmLabel="Alles löschen"
+          title={t("Wirklich alles löschen?")}
+          message={t('Profil, Pläne und sämtliche Trainings werden entfernt. Exportiere vorher ein Backup, wenn du die Daten behalten willst.')}
+          confirmLabel={t('Alles löschen')}
           onCancel={() => setResetOpen(false)}
           onConfirm={() => {
             localStorage.clear();
@@ -290,10 +308,10 @@ export function ProfilePage() {
 
 function bmiLabel(bmi: number): string {
   if (bmi <= 0) return '';
-  if (bmi < 18.5) return 'Untergewicht';
-  if (bmi < 25) return 'Normalgewicht';
-  if (bmi < 30) return 'Übergewicht';
-  return 'Adipositas';
+  if (bmi < 18.5) return t('Untergewicht');
+  if (bmi < 25) return t('Normalgewicht');
+  if (bmi < 30) return t('Übergewicht');
+  return t('Adipositas');
 }
 
 /* ------------------------------------------------------------- Gewicht */
@@ -309,21 +327,21 @@ function WeightDialog({
   const [kg, setKg] = useState<number | null>(defaultWeight);
 
   return (
-    <Modal title="Gewicht eintragen" onClose={onClose}>
+    <Modal title={t("Gewicht eintragen")} onClose={onClose}>
       <div className="list">
         <div className="grid-2">
           <div className="field">
-            <label className="field__label">Datum</label>
+            <label className="field__label">{t("Datum")}</label>
             <input className="input" type="date" value={date} max={todayISO()} onChange={(event) => setDate(event.target.value)} />
           </div>
           <div className="field">
-            <label className="field__label">Gewicht (kg)</label>
+            <label className="field__label">{t("Gewicht (kg)")}</label>
             <NumberInput value={kg} min={25} max={350} onChange={setKg} />
           </div>
         </div>
         <div className="row" style={{ justifyContent: 'flex-end' }}>
-          <button className="btn" onClick={onClose}>Abbrechen</button>
-          <button className="btn btn--primary" disabled={!kg} onClick={() => kg && onSave(date, kg)}>Speichern</button>
+          <button className="btn" onClick={onClose}>{t("Abbrechen")}</button>
+          <button className="btn btn--primary" disabled={!kg} onClick={() => kg && onSave(date, kg)}>{t("Speichern")}</button>
         </div>
       </div>
     </Modal>
@@ -345,10 +363,10 @@ function CustomExerciseManager({
   const [detail, setDetail] = useState<import('../types').Exercise | null>(null);
 
   return (
-    <Modal title="Eigene & importierte Übungen" onClose={onClose}>
+    <Modal title={t("Eigene & importierte Übungen")} onClose={onClose}>
       <div className="list">
         <button className="btn btn--primary btn--block" onClick={onCreate}>
-          <IconPlus /> Neue eigene Übung
+          <IconPlus /> {t('Neue eigene Übung')}
         </button>
 
         {state.exercises.length === 0 && (
@@ -366,15 +384,15 @@ function CustomExerciseManager({
             >
               <div className="bold small">{exercise.name}</div>
               <div className="tiny dim">
-                {exercise.source === 'custom' ? 'selbst angelegt' : 'aus wger'}
+                {exercise.source === 'custom' ? t('selbst angelegt') : t('aus wger')}
                 {exercise.equipment.length > 0 && ` · ${exercise.equipment.join(', ')}`}
               </div>
             </button>
             <div className="row" style={{ gap: 3 }}>
-              <button className="btn btn--ghost btn--icon btn--sm" onClick={() => setEditing(exercise)} aria-label="Bearbeiten">
+              <button className="btn btn--ghost btn--icon btn--sm" onClick={() => setEditing(exercise)} aria-label={t("Bearbeiten")}>
                 <IconEdit />
               </button>
-              <button className="btn btn--ghost btn--icon btn--sm" onClick={() => onDelete(exercise.id)} aria-label="Löschen">
+              <button className="btn btn--ghost btn--icon btn--sm" onClick={() => onDelete(exercise.id)} aria-label={t("Löschen")}>
                 <IconTrash />
               </button>
             </div>

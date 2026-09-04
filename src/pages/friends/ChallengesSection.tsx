@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import { useMemo, useState } from 'react';
 import { useStore } from '../../storage/store';
 import { useSync } from '../../sync/SyncProvider';
@@ -70,8 +71,8 @@ export function ChallengesSection({ friends }: { friends: Friend[] }) {
       {boards.length === 0 ? (
         <EmptyState
           icon="🏁"
-          title="Noch keine Challenge"
-          hint="Setzt euch ein gemeinsames Ziel für ein paar Wochen."
+          title={t("Noch keine Challenge")}
+          hint={t("Setzt euch ein gemeinsames Ziel für ein paar Wochen.")}
         />
       ) : (
         <div className="list">
@@ -85,13 +86,13 @@ export function ChallengesSection({ friends }: { friends: Friend[] }) {
                     <div className="row" style={{ gap: 7 }}>
                       <span className="bold">{challenge.title}</span>
                       {running(challenge)
-                        ? <span className="chip chip--success">läuft</span>
+                        ? <span className="chip chip--success">{t("läuft")}</span>
                         : challenge.endsOn < todayISO()
-                          ? <span className="chip">beendet</span>
-                          : <span className="chip chip--accent">geplant</span>}
+                          ? <span className="chip">{t("beendet")}</span>
+                          : <span className="chip chip--accent">{t("geplant")}</span>}
                     </div>
                     <div className="tiny dim" style={{ marginTop: 2 }}>
-                      {METRIC_LABELS[challenge.metric]} · {formatDateShort(challenge.startsOn)} bis {formatDateShort(challenge.endsOn)}
+                      {t(METRIC_LABELS[challenge.metric])} · {formatDateShort(challenge.startsOn)} bis {formatDateShort(challenge.endsOn)}
                     </div>
                   </div>
                 </div>
@@ -136,8 +137,8 @@ export function ChallengesSection({ friends }: { friends: Friend[] }) {
                   {challenge.ownerId === sync.user?.id && (
                     <button
                       className="btn btn--sm btn--ghost"
-                      onClick={() => { void sync.deleteChallenge(challenge.id); toast.show('Challenge gelöscht'); }}
-                      aria-label="Challenge löschen"
+                      onClick={() => { void sync.deleteChallenge(challenge.id); toast.show(t("Challenge gelöscht")); }}
+                      aria-label={t("Challenge löschen")}
                     >
                       <IconTrash />
                     </button>
@@ -150,7 +151,7 @@ export function ChallengesSection({ friends }: { friends: Friend[] }) {
       )}
 
       <button className="btn btn--block" onClick={() => setCreateOpen(true)}>
-        <IconPlus /> Neue Challenge
+        <IconPlus /> {t('Neue Challenge')}
       </button>
 
       <div className="tiny dim center">
@@ -174,44 +175,44 @@ function ChallengeDialog({ onClose }: { onClose: () => void }) {
   const [failure, setFailure] = useState<string | null>(null);
 
   return (
-    <Modal title="Neue Challenge" onClose={onClose}>
+    <Modal title={t("Neue Challenge")} onClose={onClose}>
       <div className="list">
         <div className="field">
-          <label className="field__label">Worum geht es?</label>
+          <label className="field__label">{t("Worum geht es?")}</label>
           <input
-            className="input" value={title} autoFocus placeholder="z. B. 4 Wochen durchziehen"
+            className="input" value={title} autoFocus placeholder={t("z. B. 4 Wochen durchziehen")}
             onChange={(event) => setTitle(event.target.value)}
           />
         </div>
 
         <div className="field">
-          <label className="field__label">Gewertet wird</label>
+          <label className="field__label">{t("Gewertet wird")}</label>
           <select
             className="select" value={metric}
             onChange={(event) => setMetric(event.target.value as ChallengeMetric)}
           >
-            <option value="workouts">Anzahl Trainings</option>
-            <option value="sets">Anzahl Sätze</option>
-            <option value="volume">Bewegtes Gewicht</option>
+            <option value="workouts">{t("Anzahl Trainings")}</option>
+            <option value="sets">{t("Anzahl Sätze")}</option>
+            <option value="volume">{t("Bewegtes Gewicht")}</option>
           </select>
         </div>
 
         <div className="grid-2">
           <div className="field">
-            <label className="field__label">Von</label>
+            <label className="field__label">{t("Von")}</label>
             <input className="input" type="date" value={startsOn} onChange={(event) => setStartsOn(event.target.value)} />
           </div>
           <div className="field">
-            <label className="field__label">Bis</label>
+            <label className="field__label">{t("Bis")}</label>
             <input className="input" type="date" value={endsOn} onChange={(event) => setEndsOn(event.target.value)} />
           </div>
         </div>
 
         {sync.groups.length > 0 && (
           <div className="field">
-            <label className="field__label">Für eine Gruppe (optional)</label>
+            <label className="field__label">{t("Für eine Gruppe (optional)")}</label>
             <select className="select" value={groupId} onChange={(event) => setGroupId(event.target.value)}>
-              <option value="">Nur für Eingeladene</option>
+              <option value="">{t("Nur für Eingeladene")}</option>
               {sync.groups.map((group) => (
                 <option key={group.id} value={group.id}>{group.emoji} {group.name}</option>
               ))}
@@ -222,7 +223,7 @@ function ChallengeDialog({ onClose }: { onClose: () => void }) {
         {failure && <div className="small" style={{ color: 'var(--danger)' }}>{failure}</div>}
 
         <div className="row" style={{ justifyContent: 'flex-end' }}>
-          <button className="btn" onClick={onClose}>Abbrechen</button>
+          <button className="btn" onClick={onClose}>{t("Abbrechen")}</button>
           <button
             className="btn btn--primary"
             disabled={title.trim().length < 2 || endsOn < startsOn}
@@ -232,7 +233,7 @@ function ChallengeDialog({ onClose }: { onClose: () => void }) {
                 await sync.createChallenge({
                   title, metric, startsOn, endsOn, groupId: groupId || null,
                 });
-                toast.show('Challenge angelegt');
+                toast.show(t("Challenge angelegt"));
                 onClose();
               } catch (caught) {
                 setFailure(caught instanceof Error ? caught.message : 'Anlegen fehlgeschlagen');

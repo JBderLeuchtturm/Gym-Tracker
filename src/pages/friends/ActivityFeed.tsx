@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import { useMemo, useState } from 'react';
 import { useSync } from '../../sync/SyncProvider';
 import type { Friend } from '../../sync/types';
@@ -49,8 +50,8 @@ export function ActivityFeed({ friends }: { friends: Friend[] }) {
     return (
       <EmptyState
         icon="📭"
-        title="Noch nichts passiert"
-        hint="Sobald deine Freunde trainieren und ihren Fortschritt teilen, steht es hier."
+        title={t("Noch nichts passiert")}
+        hint={t("Sobald deine Freunde trainieren und ihren Fortschritt teilen, steht es hier.")}
       />
     );
   }
@@ -118,7 +119,7 @@ export function ActivityFeed({ friends }: { friends: Friend[] }) {
                       <button
                         className="btn btn--ghost btn--icon btn--sm"
                         onClick={() => void sync.removeComment(note.id)}
-                        aria-label="Kommentar löschen"
+                        aria-label={t("Kommentar löschen")}
                       >
                         <IconTrash />
                       </button>
@@ -132,14 +133,14 @@ export function ActivityFeed({ friends }: { friends: Friend[] }) {
               <div className="row" style={{ gap: 7, marginTop: 9 }}>
                 <input
                   className="input"
-                  placeholder="Etwas dazu sagen…"
+                  placeholder={t("Etwas dazu sagen…")}
                   value={draft}
                   autoFocus
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' && draft.trim()) {
                       void sync.comment(item.friend.userId, item.date, draft);
-                      setDraft(''); setOpenComment(null); toast.show('Kommentar gesendet');
+                      setDraft(''); setOpenComment(null); toast.show(t("Kommentar gesendet"));
                     }
                   }}
                 />
@@ -148,7 +149,7 @@ export function ActivityFeed({ friends }: { friends: Friend[] }) {
                   disabled={!draft.trim()}
                   onClick={() => {
                     void sync.comment(item.friend.userId, item.date, draft);
-                    setDraft(''); setOpenComment(null); toast.show('Kommentar gesendet');
+                    setDraft(''); setOpenComment(null); toast.show(t("Kommentar gesendet"));
                   }}
                 >
                   Senden

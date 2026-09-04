@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 /**
  * Benachrichtigungen, wenn ein Freund trainiert hat.
  *
@@ -71,8 +72,9 @@ export function announceNewActivity(activities: FriendActivity[]): FriendActivit
   if (fresh.length > 0 && notificationPermission() === 'granted') {
     for (const activity of fresh.slice(0, 3)) {
       try {
-        new Notification(`${activity.emoji} ${activity.name} hat trainiert`, {
-          body: `${activity.title} · ${activity.sets} Sätze`,
+        new Notification(
+          `${activity.emoji} ${t('{name} hat trainiert', { name: activity.name })}`, {
+          body: `${activity.title} · ${t('{count} Sätze', { count: activity.sets })}`,
           tag: `gym-${activity.userId}-${activity.date}`,
         });
       } catch {

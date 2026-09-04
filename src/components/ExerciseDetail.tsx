@@ -1,3 +1,4 @@
+import { exerciseName, t } from '../i18n';
 import { useMemo, useState } from 'react';
 import type { Exercise } from '../types';
 import { CATEGORY_LABELS, KIND_LABELS } from '../data/catalog';
@@ -60,24 +61,24 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
     : ['1rm', 'weight', 'volume', 'reps'];
 
   return (
-    <Modal title={exercise.name} onClose={onClose}>
+    <Modal title={exerciseName(exercise)} onClose={onClose}>
       <div className="list">
         <div className="row row--wrap" style={{ gap: 6 }}>
           <span
             className="chip chip--cat"
             style={{ '--cat': categoryColor(exercise.category), '--cat-tint': categoryTint(exercise.category, 0.18) } as React.CSSProperties}
           >
-            {CATEGORY_LABELS[exercise.category]}
+            {t(CATEGORY_LABELS[exercise.category])}
           </span>
-          <span className="chip">{KIND_LABELS[exercise.kind]}</span>
+          <span className="chip">{t(KIND_LABELS[exercise.kind])}</span>
           {exercise.equipment.map((item) => <span key={item} className="chip">{item}</span>)}
         </div>
 
         {exercise.primaryMuscles.length > 0 && (
           <div className="tiny dim">
-            <strong style={{ color: 'var(--text-muted)' }}>Primär:</strong> {exercise.primaryMuscles.join(', ')}
+            <strong style={{ color: 'var(--text-muted)' }}>{t("Primär:")}</strong> {exercise.primaryMuscles.join(', ')}
             {exercise.secondaryMuscles.length > 0 && (
-              <> · <strong style={{ color: 'var(--text-muted)' }}>Sekundär:</strong> {exercise.secondaryMuscles.join(', ')}</>
+              <> · <strong style={{ color: 'var(--text-muted)' }}>{t("Sekundär:")}</strong> {exercise.secondaryMuscles.join(', ')}</>
             )}
           </div>
         )}
@@ -87,7 +88,7 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
         {history.length === 0 ? (
           <div className="empty">
             <div className="empty__icon">📊</div>
-            <div>Noch keine Daten zu dieser Übung</div>
+            <div>{t("Noch keine Daten zu dieser Übung")}</div>
             <div className="tiny" style={{ marginTop: 5 }}>
               Sobald du sie ein paar Mal trainiert hast, erscheint hier dein Verlauf.
             </div>
@@ -96,25 +97,25 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
           <>
             <div className="grid-2">
               <Stat
-                label="Bestes Gewicht"
+                label={t("Bestes Gewicht")}
                 value={records.maxWeight ? fmt(records.maxWeight.value, 1) : '–'}
                 unit={records.maxWeight ? 'kg' : ''}
                 sub={records.maxWeight ? `${records.maxWeight.reps} Wdh · ${formatDateShort(records.maxWeight.date)}` : undefined}
                 tone="accent"
               />
               <Stat
-                label="Bestes 1RM (gesch.)"
+                label={t("Bestes 1RM (gesch.)")}
                 value={records.best1RM ? fmt(records.best1RM.value, 1) : '–'}
                 unit={records.best1RM ? 'kg' : ''}
                 sub={records.best1RM ? formatDateShort(records.best1RM.date) : undefined}
               />
-              <Stat label="Einheiten" value={records.totalSessions} sub={`${records.totalSets} Sätze gesamt`} />
-              <Stat label="Gesamtvolumen" value={fmt(records.totalVolume)} unit="kg" />
+              <Stat label={t("Einheiten")} value={records.totalSessions} sub={`${records.totalSets} Sätze gesamt`} />
+              <Stat label={t("Gesamtvolumen")} value={fmt(records.totalVolume)} unit={t("kg")} />
             </div>
 
             <div className="card">
               <div className="card__header">
-                <div className="card__title">Verlauf</div>
+                <div className="card__title">{t("Verlauf")}</div>
                 {trend != null && (
                   <span className={`chip ${trend >= 0 ? 'chip--success' : 'chip--danger'}`}>
                     {trend >= 0 ? '▲' : '▼'} {fmt(Math.abs(trend), 1)} %
@@ -129,7 +130,7 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
                     className={`chip chip--button ${metric === key ? 'chip--accent' : ''}`}
                     onClick={() => setMetric(key)}
                   >
-                    {METRIC_LABELS[key]}
+                    {t(METRIC_LABELS[key])}
                   </button>
                 ))}
               </div>
@@ -142,14 +143,14 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
             </div>
 
             <div className="card card--flush">
-              <div className="section-label" style={{ padding: '12px 14px 4px' }}>Letzte Einheiten</div>
+              <div className="section-label" style={{ padding: '12px 14px 4px' }}>{t("Letzte Einheiten")}</div>
               <table className="data">
                 <thead>
                   <tr>
-                    <th>Datum</th>
-                    <th>Sätze</th>
-                    <th className="right">Bester Satz</th>
-                    <th className="right">Volumen</th>
+                    <th>{t("Datum")}</th>
+                    <th>{t("Sätze")}</th>
+                    <th className="right">{t("Bester Satz")}</th>
+                    <th className="right">{t("Volumen")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -175,16 +176,16 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
               </div>
               <div className="list">
                 {records.maxWeight && (
-                  <RecordRow label="Schwerster Satz" value={`${fmt(records.maxWeight.value, 1)} kg × ${records.maxWeight.reps}`} date={records.maxWeight.date} />
+                  <RecordRow label={t("Schwerster Satz")} value={`${fmt(records.maxWeight.value, 1)} kg × ${records.maxWeight.reps}`} date={records.maxWeight.date} />
                 )}
                 {records.maxReps && (
-                  <RecordRow label="Meiste Wiederholungen" value={`${records.maxReps.value} Wdh`} date={records.maxReps.date} />
+                  <RecordRow label={t("Meiste Wiederholungen")} value={`${records.maxReps.value} Wdh`} date={records.maxReps.date} />
                 )}
                 {records.maxVolume && (
-                  <RecordRow label="Höchstes Volumen" value={`${fmt(records.maxVolume.value)} kg`} date={records.maxVolume.date} />
+                  <RecordRow label={t("Höchstes Volumen")} value={`${fmt(records.maxVolume.value)} kg`} date={records.maxVolume.date} />
                 )}
                 {records.maxDurationSec && (
-                  <RecordRow label="Längste Dauer" value={formatClock(records.maxDurationSec.value)} date={records.maxDurationSec.date} />
+                  <RecordRow label={t("Längste Dauer")} value={formatClock(records.maxDurationSec.value)} date={records.maxDurationSec.date} />
                 )}
               </div>
             </div>

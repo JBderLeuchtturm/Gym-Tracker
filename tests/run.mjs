@@ -17,6 +17,7 @@ const SUITES = [
   ['training', () => import('./training.mjs')],
   ['offline', () => import('./offline.mjs')],
   ['layout', () => import('./layout.mjs')],
+  ['language', () => import('./language.mjs')],
   ['friends', () => import('./friends.mjs')],
   ['social', () => import('./social.mjs')],
   ['invite', () => import('./invite.mjs')],

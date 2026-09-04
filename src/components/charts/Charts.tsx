@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 /** Misst die verfuegbare Breite, damit die Charts auf jedem Bildschirm passen. */
@@ -79,7 +80,7 @@ export function LineChart({
   const gradientId = useMemo(() => `grad_${Math.random().toString(36).slice(2, 8)}`, []);
 
   if (points.length === 0) {
-    return <div ref={ref} className="empty tiny">Noch keine Daten</div>;
+    return <div ref={ref} className="empty tiny">{t("Noch keine Daten")}</div>;
   }
 
   const xOf = (index: number) =>
@@ -194,7 +195,7 @@ export function BarChart({
   const [hover, setHover] = useState<number | null>(null);
 
   if (points.length === 0) {
-    return <div ref={ref} className="empty tiny">Noch keine Daten</div>;
+    return <div ref={ref} className="empty tiny">{t("Noch keine Daten")}</div>;
   }
 
   const padding = { top: 12, right: 8, bottom: 22, left: 38 };
@@ -339,7 +340,7 @@ export function StackedBarChart({
   const top = Math.max(max, ticks[ticks.length - 1]);
 
   if (points.length === 0) {
-    return <div ref={ref} className="empty tiny">Noch keine Daten</div>;
+    return <div ref={ref} className="empty tiny">{t("Noch keine Daten")}</div>;
   }
 
   const slot = innerWidth / points.length;

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import React, {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
 } from 'react';
@@ -195,7 +196,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
     }
-    setError('Es konnte kein freier Benutzername vergeben werden.');
+    setError(t('Es konnte kein freier Benutzername vergeben werden.'));
     return null;
   }, [client, user]);
 
@@ -249,7 +250,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       replaceState(remote);
       stateRef.current = remote;
       pushedStamp.current = remote.updatedAt;
-      setLastMergeNote('Stand vom Konto übernommen');
+      setLastMergeNote(t('Stand vom Konto übernommen'));
       setLastSyncAt(Date.now());
       return;
     }
@@ -341,26 +342,26 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { if (status === 'signed-in') void refreshFriends(); }, [status, refreshFriends]);
 
   const addFriend = useCallback(async (handleInput: string): Promise<string> => {
-    if (!client || !user) throw new Error('Nicht angemeldet');
+    if (!client || !user) throw new Error(t('Nicht angemeldet'));
     const handle = handleInput.trim().toLowerCase().replace(/^@/, '');
-    if (!handle) throw new Error('Bitte einen Benutzernamen eingeben');
-    if (handle === profile?.handle) throw new Error('Das bist du selbst');
+    if (!handle) throw new Error(t('Bitte einen Benutzernamen eingeben'));
+    if (handle === profile?.handle) throw new Error(t('Das bist du selbst'));
 
     const found = await client.rpc('find_profile_by_handle', { p_handle: handle });
     if (found.error) throw new Error(found.error.message);
     const target = (found.data ?? [])[0] as RemoteProfile | undefined;
-    if (!target) throw new Error(`Niemand mit dem Namen „${handle}" gefunden`);
+    if (!target) throw new Error(t('Niemand mit dem Namen „{handle}“ gefunden', { handle }));
 
     const inserted = await client
       .from('friendships')
       .insert({ requester_id: user.id, addressee_id: target.id, status: 'pending' });
 
     if (inserted.error) {
-      if (inserted.error.code === '23505') throw new Error('Mit diesem Konto besteht schon eine Verbindung');
+      if (inserted.error.code === '23505') throw new Error(t('Mit diesem Konto besteht schon eine Verbindung'));
       throw new Error(inserted.error.message);
     }
     await refreshFriends();
-    return `Anfrage an ${target.display_name || target.handle} geschickt`;
+    return t('Anfrage an {name} geschickt', { name: target.display_name || target.handle });
   }, [client, user, profile?.handle, refreshFriends]);
 
   const acceptFriend = useCallback(async (linkId: string) => {
@@ -489,7 +490,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   }, [client, user, refreshSocial]);
 
   const doJoinGroup = useCallback(async (code: string) => {
-    if (!client || !user) throw new Error('Nicht angemeldet');
+    if (!client || !user) throw new Error(t('Nicht angemeldet'));
     const name = await joinGroup(client, user.id, code);
     await refreshSocial();
     await refreshFriends();
@@ -591,7 +592,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   }, [status, profile, addFriend]);
 
   const signUp = useCallback(async (email: string, password: string) => {
-    if (!client) throw new Error('Synchronisierung ist nicht eingerichtet');
+    if (!client) throw new Error(t('Synchronisierung ist nicht eingerichtet'));
     setBusy(true);
     try {
       const { data, error: signUpError } = await client.auth.signUp({ email, password });
@@ -603,7 +604,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   }, [client]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    if (!client) throw new Error('Synchronisierung ist nicht eingerichtet');
+    if (!client) throw new Error(t('Synchronisierung ist nicht eingerichtet'));
     setBusy(true);
     try {
       const { error: signInError } = await client.auth.signInWithPassword({ email, password });
@@ -633,9 +634,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       .single();
 
     if (updated.error) {
-      if (updated.error.code === '23505') throw new Error('Dieser Benutzername ist schon vergeben');
+      if (updated.error.code === '23505') throw new Error(t('Dieser Benutzername ist schon vergeben'));
       if (updated.error.code === '23514') {
-        throw new Error('Nur Kleinbuchstaben, Ziffern, Bindestrich und Unterstrich, 3 bis 24 Zeichen');
+        throw new Error(t('Nur Kleinbuchstaben, Ziffern, Bindestrich und Unterstrich, 3 bis 24 Zeichen'));
       }
       throw new Error(updated.error.message);
     }
@@ -690,14 +691,13 @@ export function useSync(): SyncValue {
 function translateAuthError(message: string): string {
   const lower = message.toLowerCase();
   if (lower.includes('failed to fetch') || lower.includes('networkerror') || lower.includes('load failed')) {
-    return 'Der Server ist gerade nicht erreichbar. Prüfe die Internetverbindung – '
-      + 'oder das Supabase-Projekt schläft und muss im Dashboard geweckt werden.';
+    return t('Der Server ist gerade nicht erreichbar. Prüfe die Internetverbindung – oder das Supabase-Projekt schläft und muss im Dashboard geweckt werden.');
   }
-  if (lower.includes('invalid login')) return 'E-Mail oder Passwort stimmt nicht';
-  if (lower.includes('already registered')) return 'Für diese E-Mail gibt es schon ein Konto';
-  if (lower.includes('password should be')) return 'Das Passwort ist zu kurz (mindestens 6 Zeichen)';
-  if (lower.includes('unable to validate email')) return 'Die E-Mail-Adresse sieht nicht gültig aus';
-  if (lower.includes('email not confirmed')) return 'Bitte zuerst die E-Mail-Adresse bestätigen';
-  if (lower.includes('rate limit')) return 'Zu viele Versuche – bitte kurz warten';
+  if (lower.includes('invalid login')) return t('E-Mail oder Passwort stimmt nicht');
+  if (lower.includes('already registered')) return t('Für diese E-Mail gibt es schon ein Konto');
+  if (lower.includes('password should be')) return t('Das Passwort ist zu kurz (mindestens 6 Zeichen)');
+  if (lower.includes('unable to validate email')) return t('Die E-Mail-Adresse sieht nicht gültig aus');
+  if (lower.includes('email not confirmed')) return t('Bitte zuerst die E-Mail-Adresse bestätigen');
+  if (lower.includes('rate limit')) return t('Zu viele Versuche – bitte kurz warten');
   return message;
 }

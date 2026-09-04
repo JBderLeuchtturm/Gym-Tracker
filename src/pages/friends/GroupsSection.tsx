@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import { useState } from 'react';
 import { useSync } from '../../sync/SyncProvider';
 import { EmptyState, Modal, useToast } from '../../components/ui';
@@ -24,7 +25,7 @@ export function GroupsSection() {
     try {
       const groupName = await sync.joinGroup(joinCode);
       setJoinCode('');
-      toast.show(`„${groupName}" beigetreten`);
+      toast.show(t('„{name}“ beigetreten', { name: groupName }));
     } catch (caught) {
       setFailure(caught instanceof Error ? caught.message : 'Beitritt fehlgeschlagen');
     }
@@ -33,11 +34,11 @@ export function GroupsSection() {
   return (
     <>
       <div className="card">
-        <div className="card__title" style={{ marginBottom: 9 }}>Gruppe beitreten</div>
+        <div className="card__title" style={{ marginBottom: 9 }}>{t("Gruppe beitreten")}</div>
         <div className="row" style={{ gap: 8 }}>
           <input
             className="input"
-            placeholder="Beitrittscode, z. B. k7mq2xr"
+            placeholder={t("Beitrittscode, z. B. k7mq2xr")}
             value={joinCode}
             onChange={(event) => setJoinCode(event.target.value)}
             onKeyDown={(event) => { if (event.key === 'Enter') void join(); }}
@@ -54,7 +55,7 @@ export function GroupsSection() {
       </div>
 
       {sync.groups.length === 0 ? (
-        <EmptyState icon="👥" title="Noch in keiner Gruppe" hint="Leg eine an oder tritt mit einem Code bei." />
+        <EmptyState icon="👥" title={t("Noch in keiner Gruppe")} hint={t("Leg eine an oder tritt mit einem Code bei.")} />
       ) : (
         <div className="list">
           {sync.groups.map((group) => (
@@ -64,7 +65,7 @@ export function GroupsSection() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="bold">{group.name}</div>
                   <div className="tiny dim">
-                    {group.memberCount} {group.memberCount === 1 ? 'Mitglied' : 'Mitglieder'}
+                    {group.memberCount} {group.memberCount === 1 ? t('Mitglied') : t('Mitglieder')}
                     {group.ownerId === sync.user?.id && ' · von dir'}
                   </div>
                 </div>
@@ -83,7 +84,7 @@ export function GroupsSection() {
                   className="btn btn--sm"
                   onClick={() => {
                     void navigator.clipboard?.writeText(group.joinCode);
-                    toast.show('Beitrittscode kopiert');
+                    toast.show(t("Beitrittscode kopiert"));
                   }}
                 >
                   <IconCopy /> Code: {group.joinCode}
@@ -91,9 +92,9 @@ export function GroupsSection() {
                 <span className="spacer" />
                 <button
                   className="btn btn--sm btn--ghost"
-                  onClick={() => { void sync.leaveGroup(group.id); toast.show('Gruppe verlassen'); }}
+                  onClick={() => { void sync.leaveGroup(group.id); toast.show(t("Gruppe verlassen")); }}
                 >
-                  <IconTrash /> Verlassen
+                  <IconTrash /> {t('Verlassen')}
                 </button>
               </div>
             </div>
@@ -102,21 +103,21 @@ export function GroupsSection() {
       )}
 
       <button className="btn btn--block" onClick={() => setCreateOpen(true)}>
-        <IconPlus /> Neue Gruppe
+        <IconPlus /> {t('Neue Gruppe')}
       </button>
 
       {createOpen && (
-        <Modal title="Neue Gruppe" onClose={() => setCreateOpen(false)}>
+        <Modal title={t("Neue Gruppe")} onClose={() => setCreateOpen(false)}>
           <div className="list">
             <div className="field">
-              <label className="field__label">Name</label>
+              <label className="field__label">{t("Name")}</label>
               <input
-                className="input" value={name} autoFocus placeholder="z. B. Montagscrew"
+                className="input" value={name} autoFocus placeholder={t("z. B. Montagscrew")}
                 onChange={(event) => setName(event.target.value)}
               />
             </div>
             <div className="field">
-              <label className="field__label">Symbol</label>
+              <label className="field__label">{t("Symbol")}</label>
               <div className="row row--wrap" style={{ gap: 6 }}>
                 {GROUP_EMOJIS.map((item) => (
                   <button
@@ -131,14 +132,14 @@ export function GroupsSection() {
               </div>
             </div>
             <div className="row" style={{ justifyContent: 'flex-end' }}>
-              <button className="btn" onClick={() => setCreateOpen(false)}>Abbrechen</button>
+              <button className="btn" onClick={() => setCreateOpen(false)}>{t("Abbrechen")}</button>
               <button
                 className="btn btn--primary"
                 disabled={name.trim().length < 2}
                 onClick={async () => {
                   await sync.createGroup(name, emoji);
                   setName(''); setCreateOpen(false);
-                  toast.show('Gruppe angelegt');
+                  toast.show(t("Gruppe angelegt"));
                 }}
               >
                 Anlegen

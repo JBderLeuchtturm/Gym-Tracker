@@ -1,3 +1,4 @@
+import { exerciseName, t } from '../i18n';
 import { useMemo, useState } from 'react';
 import type { Exercise } from '../types';
 import { CATEGORY_LABELS } from '../data/catalog';
@@ -22,7 +23,7 @@ const RANGE_LABELS: Record<Range, string> = {
 
 /** Deutscher Name einer Muskelgruppe, mit Rueckfall auf den Schluessel. */
 const labelOf = (key: string): string =>
-  CATEGORY_LABELS[key as keyof typeof CATEGORY_LABELS] ?? key;
+  t(CATEGORY_LABELS[key as keyof typeof CATEGORY_LABELS]) ?? key;
 
 /** Waehlt den passenden Bestwert: Zeit bei Halte-/Cardio-Uebungen, sonst Gewicht. */
 function bestLabel(exercise: Exercise, records: ReturnType<typeof personalRecords>): string {
@@ -152,14 +153,14 @@ export function ProgressPage() {
       </div>
 
       <div className="grid-auto">
-        <Stat label="Einheiten" value={totals.count} sub={`${RANGE_LABELS[range]}`} tone="accent" />
-        <Stat label="Sätze" value={totals.sets} />
-        <Stat label="Volumen" value={fmt(totals.volume)} unit="kg" />
+        <Stat label={t("Einheiten")} value={totals.count} sub={`${RANGE_LABELS[range]}`} tone="accent" />
+        <Stat label={t("Sätze")} value={totals.sets} />
+        <Stat label={t("Volumen")} value={fmt(totals.volume)} unit={t("kg")} />
         <Stat
-          label="Wochen-Serie"
+          label={t("Wochen-Serie")}
           value={streak.current}
-          unit={streak.current === 1 ? 'Woche' : 'Wochen'}
-          sub={`Rekord: ${streak.longest}`}
+          unit={streak.current === 1 ? t('Woche') : t('Wochen')}
+          sub={t('Rekord: {value}', { value: streak.longest })}
           tone="success"
         />
       </div>
@@ -167,8 +168,8 @@ export function ProgressPage() {
       {totals.count === 0 ? (
         <EmptyState
           icon="📈"
-          title="Noch keine Trainings im Zeitraum"
-          hint="Sobald du Sätze abhakst, entstehen hier automatisch Auswertungen."
+          title={t("Noch keine Trainings im Zeitraum")}
+          hint={t("Sobald du Sätze abhakst, entstehen hier automatisch Auswertungen.")}
         />
       ) : (
         <>
@@ -176,16 +177,16 @@ export function ProgressPage() {
 
           <div className="card">
             <div className="card__header">
-              <div className="card__title">Volumen je Woche</div>
-              <span className="tiny dim">kg gesamt</span>
+              <div className="card__title">{t("Volumen je Woche")}</div>
+              <span className="tiny dim">{t("kg gesamt")}</span>
             </div>
-            <BarChart points={weeklyVolumePoints} unit="kg" />
+            <BarChart points={weeklyVolumePoints} unit={t("kg")} />
           </div>
 
           <div className="card">
             <div className="card__header">
-              <div className="card__title">Sätze je Woche</div>
-              <span className="tiny dim">abgehakte Arbeitssätze</span>
+              <div className="card__title">{t("Sätze je Woche")}</div>
+              <span className="tiny dim">{t("abgehakte Arbeitssätze")}</span>
             </div>
             <BarChart points={weeklySetPoints} color="var(--violet)" />
           </div>
@@ -193,8 +194,8 @@ export function ProgressPage() {
           {trend.length > 1 && trendSeries.length > 0 && (
             <div className="card">
               <div className="card__header">
-                <div className="card__title">Muskelgruppen über die Wochen</div>
-                <span className="tiny dim">Sätze</span>
+                <div className="card__title">{t("Muskelgruppen über die Wochen")}</div>
+                <span className="tiny dim">{t("Sätze")}</span>
               </div>
               <StackedBarChart
                 points={trend.map((point) => ({
@@ -208,7 +209,7 @@ export function ProgressPage() {
                 colors={Object.fromEntries(
                   trendSeries.map((key) => [labelOf(key), categoryColor(key as never)]),
                 )}
-                unit="Sätze"
+                unit={t("Sätze")}
               />
               <div className="row row--wrap tiny" style={{ gap: 9, marginTop: 10 }}>
                 {trendSeries.map((key) => (
@@ -224,7 +225,7 @@ export function ProgressPage() {
           {byCategory.length > 0 && (
             <div className="card">
               <div className="card__header">
-                <div className="card__title">Verteilung nach Muskelgruppe</div>
+                <div className="card__title">{t("Verteilung nach Muskelgruppe")}</div>
                 <span className="tiny dim">{RANGE_LABELS[range]}</span>
               </div>
               <div className="list">
@@ -238,7 +239,7 @@ export function ProgressPage() {
                             className="cat-dot"
                             style={{ '--cat': categoryColor(entry.category as never) } as React.CSSProperties}
                           />
-                          {CATEGORY_LABELS[entry.category as keyof typeof CATEGORY_LABELS] ?? entry.category}
+                          {t(CATEGORY_LABELS[entry.category as keyof typeof CATEGORY_LABELS]) ?? entry.category}
                         </span>
                         <span className="dim">{entry.sets} Sätze · {fmt(entry.volume)} kg</span>
                       </div>
@@ -263,32 +264,32 @@ export function ProgressPage() {
       {weightPoints.length > 1 && (
         <div className="card">
           <div className="card__header">
-            <div className="card__title">Körpergewicht</div>
+            <div className="card__title">{t("Körpergewicht")}</div>
             <span className="tiny dim">
               {fmt(weightPoints[weightPoints.length - 1].value, 1)} kg aktuell
             </span>
           </div>
-          <LineChart points={weightPoints} unit="kg" color="var(--success)" formatValue={(value) => fmt(value, 1)} />
+          <LineChart points={weightPoints} unit={t("kg")} color="var(--success)" formatValue={(value) => fmt(value, 1)} />
         </div>
       )}
 
       <div className="card card--flush">
         <div className="row" style={{ padding: '12px 14px 8px', gap: 8 }}>
-          <div className="card__title" style={{ flex: 1 }}>Fortschritt je Übung</div>
+          <div className="card__title" style={{ flex: 1 }}>{t("Fortschritt je Übung")}</div>
         </div>
         <div style={{ padding: '0 14px 10px', position: 'relative' }}>
           <IconSearch style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: 'var(--text-dim)' }} />
           <input
             className="input"
             style={{ paddingLeft: 34 }}
-            placeholder="Übung filtern…"
+            placeholder={t("Übung filtern…")}
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
           />
         </div>
 
         {visibleExercises.length === 0 && (
-          <div className="empty tiny">Keine passenden Übungen mit Daten.</div>
+          <div className="empty tiny">{t("Keine passenden Übungen mit Daten.")}</div>
         )}
 
         {visibleExercises.map((item) => (
@@ -298,7 +299,7 @@ export function ProgressPage() {
             onClick={() => setDetail(item.exercise!)}
           >
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span className="search-result__name">{item.exercise!.name}</span>
+              <span className="search-result__name">{exerciseName(item.exercise!)}</span>
               <span className="search-result__meta" style={{ display: 'block' }}>
                 {item.sessions} Einheiten{bestLabel(item.exercise!, item.records)}
               </span>
@@ -355,7 +356,7 @@ function ReviewCard({ review, label }: { review: ReturnType<typeof buildReview>;
   return (
     <div className="card">
       <div className="card__header">
-        <div className="card__title">Rückblick</div>
+        <div className="card__title">{t("Rückblick")}</div>
         <span className="tiny dim">{label} gegen den Zeitraum davor</span>
       </div>
 

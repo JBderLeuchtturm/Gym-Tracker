@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { IconX } from './icons';
 
@@ -29,7 +30,7 @@ export function Modal({
         <div className="modal__head">
           <h2 style={{ flex: 1, minWidth: 0 }}>{title}</h2>
           {actions}
-          <button className="btn btn--ghost btn--icon" onClick={onClose} aria-label="Schließen">
+          <button className="btn btn--ghost btn--icon" onClick={onClose} aria-label={t("Schließen")}>
             <IconX />
           </button>
         </div>
@@ -42,7 +43,7 @@ export function Modal({
 /* -------------------------------------------------------------- Bestätigung */
 
 export function ConfirmDialog({
-  title, message, confirmLabel = 'Löschen', onConfirm, onCancel,
+  title, message, confirmLabel = t('Löschen'), onConfirm, onCancel,
 }: {
   title: string;
   message: string;
@@ -54,7 +55,7 @@ export function ConfirmDialog({
     <Modal title={title} onClose={onCancel}>
       <p className="muted">{message}</p>
       <div className="row" style={{ justifyContent: 'flex-end', marginTop: 14 }}>
-        <button className="btn" onClick={onCancel}>Abbrechen</button>
+        <button className="btn" onClick={onCancel}>{t("Abbrechen")}</button>
         <button className="btn btn--danger" onClick={onConfirm}>{confirmLabel}</button>
       </div>
     </Modal>

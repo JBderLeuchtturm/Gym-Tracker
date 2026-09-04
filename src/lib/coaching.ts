@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { AppState, Exercise, ID, PlanExercise, SetLog } from '../types';
 import { estimate1RM, exerciseHistory, personalRecords } from './stats';
 
@@ -60,7 +61,7 @@ export function suggestWeight(
     if (allHitTop && atWeight.length >= Math.max(1, (target?.targetSets ?? atWeight.length) - 1)) {
       return {
         weightKg: roundToPlate(weight + step, step),
-        reason: `letztes Mal ${upper}+ Wdh in allen Sätzen`,
+        reason: t('letztes Mal {reps}+ Wdh in allen Sätzen', { reps: upper }),
         direction: 'up',
       };
     }
@@ -71,13 +72,13 @@ export function suggestWeight(
     if (missed >= 2) {
       return {
         weightKg: roundToPlate(weight - step, step),
-        reason: `letztes Mal ${missed}× unter ${lower} Wdh`,
+        reason: t('letztes Mal {count}× unter {reps} Wdh', { count: missed, reps: lower }),
         direction: 'down',
       };
     }
   }
 
-  return { weightKg: weight, reason: 'wie beim letzten Mal', direction: 'hold' };
+  return { weightKg: weight, reason: t('wie beim letzten Mal'), direction: 'hold' };
 }
 
 /**
@@ -131,20 +132,20 @@ export function detectRecord(
   const duration = set.durationSec ?? 0;
 
   if (weight > 0 && weight > (before.maxWeight?.value ?? 0)) {
-    return { kind: 'weight', label: 'Neues Bestgewicht', value: `${fmtKg(weight)} × ${reps}` };
+    return { kind: 'weight', label: t('Neues Bestgewicht'), value: `${fmtKg(weight)} × ${reps}` };
   }
 
   const oneRm = estimate1RM(weight, reps);
   if (oneRm > 0 && oneRm > (before.best1RM?.value ?? 0) + 0.05) {
-    return { kind: 'oneRm', label: 'Stärkster Satz bisher', value: `1RM ≈ ${fmtKg(oneRm)}` };
+    return { kind: 'oneRm', label: t('Stärkster Satz bisher'), value: `1RM ≈ ${fmtKg(oneRm)}` };
   }
 
   if (duration > 0 && duration > (before.maxDurationSec?.value ?? 0)) {
-    return { kind: 'duration', label: 'Längste Zeit bisher', value: `${Math.round(duration)} s` };
+    return { kind: 'duration', label: t('Längste Zeit bisher'), value: `${Math.round(duration)} s` };
   }
 
   if (weight === 0 && reps > 0 && reps > (before.maxReps?.value ?? 0)) {
-    return { kind: 'reps', label: 'Meiste Wiederholungen', value: `${reps} Wdh` };
+    return { kind: 'reps', label: t('Meiste Wiederholungen'), value: `${reps} Wdh` };
   }
 
   return null;
