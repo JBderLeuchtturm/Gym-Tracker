@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Exercise, ExerciseCategory, ExerciseKind } from '../types';
 import { ALL_EQUIPMENT, CATEGORY_LABELS, KIND_LABELS, slugify } from '../data/catalog';
 import { normalize, searchExercises } from '../lib/search';
+import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { enrichWgerExercise, isWgerUnavailable, searchWger } from '../api/wger';
 import { useStore } from '../storage/store';
 import { Modal, useToast } from './ui';
@@ -122,10 +123,12 @@ export function ExercisePicker({
           {(Object.keys(CATEGORY_LABELS) as ExerciseCategory[]).map((key) => (
             <button
               key={key}
-              className={`chip chip--button ${category === key ? 'chip--accent' : ''}`}
+              className={`chip chip--button ${category === key ? 'chip--cat' : ''}`}
+              style={{ '--cat': categoryColor(key), '--cat-tint': categoryTint(key, 0.18) } as React.CSSProperties}
               onClick={() => setCategory(category === key ? 'all' : key)}
             >
-              {CATEGORY_ICONS[key]} {CATEGORY_LABELS[key]}
+              <span className="cat-dot" style={{ '--cat': categoryColor(key) } as React.CSSProperties} />
+              {CATEGORY_LABELS[key]}
             </button>
           ))}
         </div>
@@ -153,7 +156,12 @@ export function ExercisePicker({
             style={excluded.has(exercise.id) ? { opacity: 0.4 } : undefined}
             onClick={() => pick(exercise, false)}
           >
-            <span className="search-result__thumb">{CATEGORY_ICONS[exercise.category]}</span>
+            <span
+              className="search-result__thumb search-result__thumb--cat"
+              style={{ '--cat': categoryColor(exercise.category), '--cat-tint': categoryTint(exercise.category) } as React.CSSProperties}
+            >
+              {CATEGORY_ICONS[exercise.category]}
+            </span>
             <span style={{ flex: 1, minWidth: 0 }}>
               <span className="search-result__name">{exercise.name}</span>
               <span className="search-result__meta" style={{ display: 'block' }}>
@@ -178,7 +186,10 @@ export function ExercisePicker({
             className="search-result"
             onClick={() => pick(exercise, true)}
           >
-            <span className="search-result__thumb">
+            <span
+              className="search-result__thumb search-result__thumb--cat"
+              style={{ '--cat': categoryColor(exercise.category), '--cat-tint': categoryTint(exercise.category) } as React.CSSProperties}
+            >
               {exercise.imageUrl
                 ? <img src={exercise.imageUrl} alt="" loading="lazy" />
                 : CATEGORY_ICONS[exercise.category]}

@@ -6,6 +6,7 @@ import {
   SCOPE_HINTS, SCOPE_LABELS, buildProgressShare, type ProgressShare, type ShareScope,
 } from '../sync/sharePayload';
 import { hasOverride, saveOverride } from '../sync/config';
+import { categoryColor } from '../lib/categoryColors';
 import { buildInviteLink } from '../sync/invite';
 import { formatClock, formatDateShort, formatDateTiny, relativeDayLabel } from '../lib/date';
 import { BarChart, LineChart, Sparkline } from '../components/charts/Charts';
@@ -623,6 +624,10 @@ function FriendDetail({
                       <div className="section-label" style={{ padding: '12px 14px 4px' }}>Übungen</div>
                       {progress.exercises.slice(0, 25).map((exercise) => (
                         <div key={exercise.id} className="search-result" style={{ cursor: 'default' }}>
+                          <span
+                            className="cat-dot"
+                            style={{ '--cat': categoryColor(exercise.category as never) } as React.CSSProperties}
+                          />
                           <span style={{ flex: 1, minWidth: 0 }}>
                             <span className="search-result__name">{exercise.name}</span>
                             <span className="search-result__meta" style={{ display: 'block' }}>

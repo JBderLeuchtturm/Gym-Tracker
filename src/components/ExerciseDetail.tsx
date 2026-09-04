@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Exercise } from '../types';
 import { CATEGORY_LABELS, KIND_LABELS } from '../data/catalog';
+import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { formatClock, formatDateShort, formatDateTiny } from '../lib/date';
 import { exerciseHistory, personalRecords } from '../lib/stats';
 import { useStore } from '../storage/store';
@@ -62,7 +63,12 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
     <Modal title={exercise.name} onClose={onClose}>
       <div className="list">
         <div className="row row--wrap" style={{ gap: 6 }}>
-          <span className="chip chip--accent">{CATEGORY_LABELS[exercise.category]}</span>
+          <span
+            className="chip chip--cat"
+            style={{ '--cat': categoryColor(exercise.category), '--cat-tint': categoryTint(exercise.category, 0.18) } as React.CSSProperties}
+          >
+            {CATEGORY_LABELS[exercise.category]}
+          </span>
           <span className="chip">{KIND_LABELS[exercise.kind]}</span>
           {exercise.equipment.map((item) => <span key={item} className="chip">{item}</span>)}
         </div>
