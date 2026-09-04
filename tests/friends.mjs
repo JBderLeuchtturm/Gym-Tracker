@@ -42,6 +42,12 @@ export async function run() {
     await page.waitForTimeout(500);
   };
 
+  /** Wechselt auf den Unterabschnitt "Freunde". */
+  const openFriendList = async (page) => {
+    const tab = page.locator('.chip--button').filter({ hasText: /^Freunde/ }).first();
+    if (await tab.count() > 0) { await tab.click(); await page.waitForTimeout(400); }
+  };
+
   const signUp = async (page, email) => {
     await openFriends(page);
     await page.getByRole('button', { name: 'Noch kein Konto? Jetzt anlegen' }).click();
@@ -129,7 +135,9 @@ export async function run() {
   
   await guarded('A: Freund erscheint in der Liste', async () => {
     await a.page.waitForTimeout(800);
-    if (await a.page.locator('text=Freunde (1)').count() === 0) throw new Error('Liste leer');
+    await openFriendList(a.page);
+    if (await a.page.locator('text=FREUNDE (1)').count() === 0
+      && await a.page.locator('text=Freunde (1)').count() === 0) throw new Error('Liste leer');
   });
   
   /* ------------------------------------------------------- Sichtbarkeit */
@@ -137,6 +145,7 @@ export async function run() {
   await guarded('B: sieht As Fortschritt, aber nicht Gewicht/Kalorien', async () => {
     await b.page.getByRole('button', { name: 'Abgleichen' }).click();
     await b.page.waitForTimeout(1500);
+    await openFriendList(b.page);
     await b.page.locator('.search-result').first().click();
     await b.page.waitForTimeout(900);
     const text = await b.page.locator('.modal').innerText();
@@ -158,6 +167,7 @@ export async function run() {
   });
   
   await guarded('A: gibt zusätzlich Gewicht frei', async () => {
+    await openFriendList(a.page);
     await a.page.locator('.search-result').first().click();
     await a.page.waitForTimeout(700);
     await a.page.getByRole('button', { name: 'Was ich zeige' }).click();
@@ -177,6 +187,7 @@ export async function run() {
   await guarded('B: sieht jetzt auch das Gewicht', async () => {
     await b.page.getByRole('button', { name: 'Abgleichen' }).click();
     await b.page.waitForTimeout(1500);
+    await openFriendList(b.page);
     await b.page.locator('.search-result').first().click();
     await b.page.waitForTimeout(900);
     const text = await b.page.locator('.modal').innerText();
@@ -237,6 +248,7 @@ export async function run() {
   await guarded('B: Freundschaft beenden räumt Freigaben ab', async () => {
     await b.page.locator('.nav__item').nth(4).click();
     await b.page.waitForTimeout(600);
+    await openFriendList(b.page);
     await b.page.locator('.search-result').first().click();
     await b.page.waitForTimeout(700);
     await b.page.getByRole('button', { name: 'Was ich zeige' }).click();

@@ -18,6 +18,7 @@ const SUITES = [
   ['offline', () => import('./offline.mjs')],
   ['layout', () => import('./layout.mjs')],
   ['friends', () => import('./friends.mjs')],
+  ['social', () => import('./social.mjs')],
   ['invite', () => import('./invite.mjs')],
 ];
 

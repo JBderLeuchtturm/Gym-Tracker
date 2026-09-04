@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useStore } from '../storage/store';
 import { useSync } from '../sync/SyncProvider';
 import type { Friend, FriendData } from '../sync/types';
@@ -7,6 +7,10 @@ import {
 } from '../sync/sharePayload';
 import { hasOverride, saveOverride } from '../sync/config';
 import { categoryColor } from '../lib/categoryColors';
+import { ActivityFeed } from './friends/ActivityFeed';
+import { GroupsSection } from './friends/GroupsSection';
+import { ChallengesSection } from './friends/ChallengesSection';
+import { notificationPermission, requestNotifications } from '../sync/notify';
 import { buildInviteLink } from '../sync/invite';
 import { formatClock, formatDateShort, formatDateTiny, relativeDayLabel } from '../lib/date';
 import { BarChart, LineChart, Sparkline } from '../components/charts/Charts';
@@ -217,27 +221,12 @@ function FriendsHome() {
   const [addError, setAddError] = useState<string | null>(null);
   const [open, setOpen] = useState<Friend | null>(null);
   const [editing, setEditing] = useState(false);
-  const [friendData, setFriendData] = useState<Record<string, FriendData>>({});
+  const [section, setSection] = useState<'feed' | 'friends' | 'groups' | 'challenges'>('feed');
+  const friendData = sync.friendData;
 
   const accepted = useMemo(() => sync.friends.filter((f) => f.state === 'accepted'), [sync.friends]);
   const incoming = useMemo(() => sync.friends.filter((f) => f.state === 'incoming'), [sync.friends]);
   const outgoing = useMemo(() => sync.friends.filter((f) => f.state === 'outgoing'), [sync.friends]);
-
-  // Die Auswertungen aller Freunde laden, sobald die Liste steht.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const entries = await Promise.all(accepted.map(async (friend) => {
-        try {
-          return [friend.userId, await sync.loadFriendData(friend.userId)] as const;
-        } catch {
-          return [friend.userId, { scopes: [], updatedAt: null } as FriendData] as const;
-        }
-      }));
-      if (!cancelled) setFriendData(Object.fromEntries(entries));
-    })();
-    return () => { cancelled = true; };
-  }, [accepted, sync]);
 
   const myProgress = useMemo(
     () => buildProgressShare(state, getExercise),
@@ -298,6 +287,21 @@ function FriendsHome() {
           <span className="spacer" />
           <button className="btn btn--sm btn--ghost" onClick={() => void sync.signOut()}>Abmelden</button>
         </div>
+
+        {notificationPermission() === 'default' && accepted.length > 0 && (
+          <button
+            className="btn btn--sm btn--block"
+            style={{ marginTop: 9 }}
+            onClick={async () => {
+              const result = await requestNotifications();
+              toast.show(result === 'granted'
+                ? 'Du wirst benachrichtigt, wenn Freunde trainiert haben'
+                : 'Benachrichtigungen bleiben aus');
+            }}
+          >
+            🔔 Bescheid geben, wenn Freunde trainiert haben
+          </button>
+        )}
 
         <div className="tiny dim" style={{ marginTop: 9 }}>
           {sync.busy
@@ -385,8 +389,27 @@ function FriendsHome() {
         </div>
       )}
 
+      <div className="chip-scroll">
+        {([
+          ['feed', 'Aktivität'], ['friends', `Freunde${accepted.length ? ` (${accepted.length})` : ''}`],
+          ['groups', 'Gruppen'], ['challenges', 'Challenges'],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            className={`chip chip--button ${section === key ? 'chip--accent' : ''}`}
+            onClick={() => setSection(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {section === 'feed' && <ActivityFeed friends={accepted} />}
+      {section === 'groups' && <GroupsSection />}
+      {section === 'challenges' && <ChallengesSection friends={accepted} />}
+
       {/* -------------------------------------------------------- Freunde */}
-      {accepted.length === 0 ? (
+      {section === 'friends' && (accepted.length === 0 ? (
         <EmptyState
           icon="🤝"
           title="Noch keine Freunde verbunden"
@@ -427,7 +450,7 @@ function FriendsHome() {
 
           <Leaderboard mine={myProgress} friends={accepted} data={friendData} myName="Du" />
         </>
-      )}
+      ))}
 
       {open && (
         <FriendDetail

@@ -9,7 +9,15 @@ import { describeMerge, isPristine, mergeStates } from './merge';
 import {
   buildNutritionShare, buildProgressShare, buildWeightShare, type ShareScope,
 } from './sharePayload';
-import type { Friend, FriendData, RemoteProfile, SyncStatus } from './types';
+import type {
+  ActivityComment, ActivityReaction, Challenge, ChallengeMetric, Friend, FriendData, Group,
+  RemoteProfile, SyncStatus,
+} from './types';
+import {
+  addComment, createChallenge, createGroup, deleteChallenge, deleteComment, joinChallenge,
+  joinGroup, leaveChallenge, leaveGroup, loadChallenges, loadFeedback, loadGroups, toggleReaction,
+} from './social';
+import { announceNewActivity, type FriendActivity } from './notify';
 import { migrate } from '../storage/db';
 import { captureInviteFromUrl, clearPendingInvite, readPendingInvite } from './invite';
 
@@ -45,7 +53,29 @@ interface SyncValue {
   setGrant: (viewerId: string, scope: ShareScope, enabled: boolean) => Promise<void>;
 
   loadFriendData: (friendId: string) => Promise<FriendData>;
+  /** Geteilte Daten aller angenommenen Freunde, zentral geladen. */
+  friendData: Record<string, FriendData>;
   syncNow: () => Promise<void>;
+
+  groups: Group[];
+  challenges: Challenge[];
+  reactions: ActivityReaction[];
+  comments: ActivityComment[];
+  refreshSocial: () => Promise<void>;
+  createGroup: (name: string, emoji: string) => Promise<void>;
+  joinGroup: (code: string) => Promise<string>;
+  leaveGroup: (groupId: string) => Promise<void>;
+  createChallenge: (input: {
+    title: string; metric: ChallengeMetric; startsOn: string; endsOn: string; groupId: string | null;
+  }) => Promise<void>;
+  joinChallenge: (id: string) => Promise<void>;
+  leaveChallenge: (id: string) => Promise<void>;
+  deleteChallenge: (id: string) => Promise<void>;
+  react: (ownerId: string, date: string, emoji: string) => Promise<void>;
+  comment: (ownerId: string, date: string, body: string) => Promise<void>;
+  removeComment: (id: string) => Promise<void>;
+  /** Neue Trainings von Freunden seit dem letzten Blick. */
+  freshActivity: FriendActivity[];
 }
 
 const SyncContext = createContext<SyncValue | null>(null);
@@ -64,6 +94,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const [lastMergeNote, setLastMergeNote] = useState<string | null>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [reactions, setReactions] = useState<ActivityReaction[]>([]);
+  const [comments, setComments] = useState<ActivityComment[]>([]);
+  const [freshActivity, setFreshActivity] = useState<FriendActivity[]>([]);
+  const [friendData, setFriendData] = useState<Record<string, FriendData>>({});
   const [pendingInvite, setPendingInvite] = useState<string | null>(() => captureInviteFromUrl());
   const [inviteNote, setInviteNote] = useState<string | null>(null);
 
@@ -250,15 +286,6 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     return () => { if (pushTimer.current) window.clearTimeout(pushTimer.current); };
   }, [state.updatedAt, status, pushState]);
 
-  // Beim Zurueckkehren zur App und regelmaessig nachsehen, ob anderswo etwas passiert ist.
-  useEffect(() => {
-    if (status !== 'signed-in') return;
-    const check = () => { if (document.visibilityState === 'visible') void pullAndMerge(); };
-    document.addEventListener('visibilitychange', check);
-    const timer = window.setInterval(check, POLL_INTERVAL_MS);
-    return () => { document.removeEventListener('visibilitychange', check); window.clearInterval(timer); };
-  }, [status, pullAndMerge]);
-
   /* -------------------------------------------------------------- Freunde */
 
   const refreshFriends = useCallback(async () => {
@@ -392,6 +419,153 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     return data;
   }, [client]);
 
+  /**
+   * Laedt die geteilten Auswertungen aller Freunde und meldet neue Trainings.
+   * Das laeuft zentral, damit die Meldung auch kommt, wenn gerade ein anderer
+   * Reiter offen ist.
+   */
+  const refreshFriendData = useCallback(async (list: Friend[]) => {
+    const accepted = list.filter((friend) => friend.state === 'accepted');
+    if (accepted.length === 0) { setFriendData({}); return; }
+
+    const entries = await Promise.all(accepted.map(async (friend) => {
+      try {
+        return [friend.userId, await loadFriendData(friend.userId)] as const;
+      } catch {
+        return [friend.userId, { scopes: [], updatedAt: null } as FriendData] as const;
+      }
+    }));
+
+    const map = Object.fromEntries(entries);
+    setFriendData(map);
+
+    const activities: FriendActivity[] = accepted
+      .map((friend) => {
+        const recent = map[friend.userId]?.progress?.recent?.[0];
+        if (!recent) return null;
+        return {
+          userId: friend.userId,
+          name: friend.displayName,
+          emoji: friend.emoji,
+          date: recent.date,
+          title: recent.title,
+          sets: recent.sets,
+        };
+      })
+      .filter((item): item is FriendActivity => item !== null);
+
+    const fresh = announceNewActivity(activities);
+    if (fresh.length > 0) setFreshActivity((previous) => [...fresh, ...previous].slice(0, 10));
+  }, [loadFriendData]);
+
+  useEffect(() => {
+    if (status !== 'signed-in') return;
+    void refreshFriendData(friends);
+  }, [status, friends, refreshFriendData]);
+
+  /* -------------------------------------------------- Gruppen und Challenges */
+
+  const refreshSocial = useCallback(async () => {
+    if (!client || !user) return;
+    try {
+      const [loadedGroups, loadedChallenges, feedback] = await Promise.all([
+        loadGroups(client, user.id),
+        loadChallenges(client),
+        loadFeedback(client),
+      ]);
+      setGroups(loadedGroups);
+      setChallenges(loadedChallenges);
+      setReactions(feedback.reactions);
+      setComments(feedback.comments);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Gruppen konnten nicht geladen werden');
+    }
+  }, [client, user]);
+
+  const doCreateGroup = useCallback(async (name: string, emoji: string) => {
+    if (!client || !user) return;
+    await createGroup(client, user.id, name, emoji);
+    await refreshSocial();
+  }, [client, user, refreshSocial]);
+
+  const doJoinGroup = useCallback(async (code: string) => {
+    if (!client || !user) throw new Error('Nicht angemeldet');
+    const name = await joinGroup(client, user.id, code);
+    await refreshSocial();
+    await refreshFriends();
+    return name;
+  }, [client, user, refreshSocial, refreshFriends]);
+
+  const doLeaveGroup = useCallback(async (groupId: string) => {
+    if (!client || !user) return;
+    await leaveGroup(client, user.id, groupId);
+    await refreshSocial();
+    await refreshFriends();
+  }, [client, user, refreshSocial, refreshFriends]);
+
+  const doCreateChallenge = useCallback(async (input: {
+    title: string; metric: ChallengeMetric; startsOn: string; endsOn: string; groupId: string | null;
+  }) => {
+    if (!client || !user) return;
+    await createChallenge(client, user.id, input);
+    await refreshSocial();
+  }, [client, user, refreshSocial]);
+
+  const doJoinChallenge = useCallback(async (id: string) => {
+    if (!client || !user) return;
+    await joinChallenge(client, user.id, id);
+    await refreshSocial();
+  }, [client, user, refreshSocial]);
+
+  const doLeaveChallenge = useCallback(async (id: string) => {
+    if (!client || !user) return;
+    await leaveChallenge(client, user.id, id);
+    await refreshSocial();
+  }, [client, user, refreshSocial]);
+
+  const doDeleteChallenge = useCallback(async (id: string) => {
+    if (!client) return;
+    await deleteChallenge(client, id);
+    await refreshSocial();
+  }, [client, refreshSocial]);
+
+  const react = useCallback(async (ownerId: string, date: string, emoji: string) => {
+    if (!client || !user) return;
+    const existing = reactions.find((item) =>
+      item.ownerId === ownerId && item.activityDate === date
+      && item.authorId === user.id && item.emoji === emoji);
+    await toggleReaction(client, user.id, ownerId, date, emoji, existing);
+    await refreshSocial();
+  }, [client, user, reactions, refreshSocial]);
+
+  const comment = useCallback(async (ownerId: string, date: string, body: string) => {
+    if (!client || !user || !body.trim()) return;
+    await addComment(client, user.id, ownerId, date, body);
+    await refreshSocial();
+  }, [client, user, refreshSocial]);
+
+  const removeComment = useCallback(async (id: string) => {
+    if (!client) return;
+    await deleteComment(client, id);
+    await refreshSocial();
+  }, [client, refreshSocial]);
+
+  // Beim Zurueckkehren zur App und regelmaessig nachsehen, ob anderswo etwas passiert ist.
+  useEffect(() => {
+    if (status !== 'signed-in') return;
+    const check = () => {
+      if (document.visibilityState !== 'visible') return;
+      void pullAndMerge();
+      void refreshSocial();
+    };
+    document.addEventListener('visibilitychange', check);
+    const timer = window.setInterval(check, POLL_INTERVAL_MS);
+    return () => { document.removeEventListener('visibilitychange', check); window.clearInterval(timer); };
+  }, [status, pullAndMerge, refreshSocial]);
+
+  // Gruppen und Challenges nach dem Anmelden und nach Aenderungen laden.
+  useEffect(() => { if (status === 'signed-in') void refreshSocial(); }, [status, refreshSocial]);
+
   /* ----------------------------------------------------------- Anmeldung */
 
   // Sobald das Profil steht, eine gemerkte Einladung automatisch einloesen.
@@ -473,21 +647,31 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     try {
       await pullAndMerge();
       await refreshFriends();
+      await refreshSocial();
     } finally {
       setBusy(false);
     }
-  }, [pullAndMerge, refreshFriends]);
+  }, [pullAndMerge, refreshFriends, refreshSocial]);
 
   const value = useMemo<SyncValue>(() => ({
     status, user, profile, error, busy, lastSyncAt, lastMergeNote, pendingInvite, inviteNote,
     signUp, signIn, signOut, saveProfile,
     friends, refreshFriends, addFriend, acceptFriend, removeFriend,
-    grants, setGrant, loadFriendData, syncNow,
+    grants, setGrant, loadFriendData, friendData, syncNow,
+    groups, challenges, reactions, comments, refreshSocial,
+    createGroup: doCreateGroup, joinGroup: doJoinGroup, leaveGroup: doLeaveGroup,
+    createChallenge: doCreateChallenge, joinChallenge: doJoinChallenge,
+    leaveChallenge: doLeaveChallenge, deleteChallenge: doDeleteChallenge,
+    react, comment, removeComment, freshActivity,
   }), [
     status, user, profile, error, busy, lastSyncAt, lastMergeNote, pendingInvite, inviteNote,
     signUp, signIn, signOut, saveProfile,
     friends, refreshFriends, addFriend, acceptFriend, removeFriend,
-    grants, setGrant, loadFriendData, syncNow,
+    grants, setGrant, loadFriendData, friendData, syncNow,
+    groups, challenges, reactions, comments, refreshSocial,
+    doCreateGroup, doJoinGroup, doLeaveGroup,
+    doCreateChallenge, doJoinChallenge, doLeaveChallenge, doDeleteChallenge,
+    react, comment, removeComment, freshActivity,
   ]);
 
   // config wird nur zum Aufbau gebraucht, taucht aber in der Oberflaeche als Hinweis auf.

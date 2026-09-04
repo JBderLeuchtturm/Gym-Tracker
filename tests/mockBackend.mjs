@@ -11,6 +11,12 @@ export function createMockBackend({ log = () => {} } = {}) {
     friendships: [],
     share_payloads: [],
     share_grants: [],
+    groups: [],
+    group_members: [],
+    challenges: [],
+    challenge_members: [],
+    activity_reactions: [],
+    activity_comments: [],
   };
   const unknown = [];
 
@@ -42,6 +48,14 @@ export function createMockBackend({ log = () => {} } = {}) {
   const hasLink = (a, b) => db.friendships.some((f) =>
     (f.requester_id === a && f.addressee_id === b) || (f.requester_id === b && f.addressee_id === a));
 
+  // Zwei Konten teilen eine Gruppe?
+  const shareGroup = (a, b) => a !== b && db.group_members.some((ma) =>
+    ma.user_id === a && db.group_members.some((mb) => mb.group_id === ma.group_id && mb.user_id === b));
+
+  const areConnected = (a, b) => areFriends(a, b) || shareGroup(a, b);
+
+  const myGroupIds = (me) => db.group_members.filter((m) => m.user_id === me).map((m) => m.group_id);
+
   /** Wertet die PostgREST-Filter aus, die die App verwendet. */
   const matches = (row, params) => {
     for (const [key, raw] of params) {
@@ -60,7 +74,8 @@ export function createMockBackend({ log = () => {} } = {}) {
 
   const rowsFor = (table, me) => {
     if (table === 'profiles') {
-      return [...db.profiles.values()].filter((row) => row.id === me || hasLink(me, row.id));
+      return [...db.profiles.values()].filter(
+        (row) => row.id === me || hasLink(me, row.id) || shareGroup(me, row.id));
     }
     if (table === 'user_state') {
       return [...db.user_state.values()].filter((row) => row.user_id === me);
@@ -74,8 +89,34 @@ export function createMockBackend({ log = () => {} } = {}) {
     if (table === 'share_payloads') {
       return db.share_payloads.filter((row) =>
         row.owner_id === me ||
-        (areFriends(row.owner_id, me) &&
+        (areConnected(row.owner_id, me) &&
           db.share_grants.some((g) => g.owner_id === row.owner_id && g.viewer_id === me && g.scope === row.scope)));
+    }
+    if (table === 'groups') {
+      const mine = myGroupIds(me);
+      return db.groups.filter((row) => mine.includes(row.id));
+    }
+    if (table === 'group_members') {
+      return db.group_members.filter((row) => row.user_id === me || shareGroup(me, row.user_id));
+    }
+    if (table === 'challenges') {
+      const mine = myGroupIds(me);
+      return db.challenges.filter((row) =>
+        row.owner_id === me
+        || areConnected(me, row.owner_id)
+        || db.challenge_members.some((m) => m.challenge_id === row.id && m.user_id === me)
+        || (row.group_id && mine.includes(row.group_id)));
+    }
+    if (table === 'challenge_members') {
+      return db.challenge_members.filter((row) => row.user_id === me || areConnected(me, row.user_id));
+    }
+    if (table === 'activity_reactions') {
+      return db.activity_reactions.filter((row) =>
+        row.owner_id === me || row.author_id === me || areConnected(me, row.owner_id));
+    }
+    if (table === 'activity_comments') {
+      return db.activity_comments.filter((row) =>
+        row.owner_id === me || row.author_id === me || areConnected(me, row.owner_id));
     }
     return [];
   };
@@ -162,6 +203,15 @@ export function createMockBackend({ log = () => {} } = {}) {
       return json(hit ? [{ id: hit.id, handle: hit.handle, display_name: hit.display_name, emoji: hit.emoji }] : []);
     }
 
+    if (path === '/rest/v1/rpc/find_group_by_code') {
+      const wanted = String(body?.p_code ?? '').trim().toLowerCase();
+      const hit = db.groups.find((g) => g.join_code === wanted);
+      return json(hit ? [{
+        id: hit.id, name: hit.name, emoji: hit.emoji,
+        member_count: db.group_members.filter((m) => m.group_id === hit.id).length,
+      }] : []);
+    }
+
     /* ------------------------------------------------------------- REST */
     const table = path.startsWith('/rest/v1/') ? path.slice('/rest/v1/'.length) : null;
     if (table) {
@@ -218,6 +268,58 @@ export function createMockBackend({ log = () => {} } = {}) {
             }
             const row = { id: uuid(), status: 'pending', created_at: new Date().toISOString(), ...item };
             db.friendships.push(row);
+            written.push(row);
+          } else if (table === 'groups') {
+            if (item.owner_id !== me) return json({ message: 'row-level security' }, 403);
+            if (db.groups.some((g) => g.join_code === item.join_code)) {
+              return json({ code: '23505', message: 'duplicate key' }, 409);
+            }
+            const row = { id: uuid(), emoji: '👥', created_at: new Date().toISOString(), ...item };
+            db.groups.push(row);
+            written.push(row);
+          } else if (table === 'group_members') {
+            if (item.user_id !== me) return json({ message: 'row-level security' }, 403);
+            if (db.group_members.some((m) => m.group_id === item.group_id && m.user_id === item.user_id)) {
+              return json({ code: '23505', message: 'duplicate key' }, 409);
+            }
+            // Trigger: alle Mitglieder geben sich gegenseitig den Fortschritt frei.
+            for (const other of db.group_members.filter((m) => m.group_id === item.group_id)) {
+              for (const [owner, viewer] of [[item.user_id, other.user_id], [other.user_id, item.user_id]]) {
+                if (!db.share_grants.some((g) => g.owner_id === owner && g.viewer_id === viewer && g.scope === 'progress')) {
+                  db.share_grants.push({ owner_id: owner, viewer_id: viewer, scope: 'progress' });
+                }
+              }
+            }
+            const row = { role: 'member', joined_at: new Date().toISOString(), ...item };
+            db.group_members.push(row);
+            written.push(row);
+          } else if (table === 'challenges') {
+            if (item.owner_id !== me) return json({ message: 'row-level security' }, 403);
+            const row = { id: uuid(), group_id: null, created_at: new Date().toISOString(), ...item };
+            db.challenges.push(row);
+            written.push(row);
+          } else if (table === 'challenge_members') {
+            if (item.user_id !== me) return json({ message: 'row-level security' }, 403);
+            if (db.challenge_members.some((m) => m.challenge_id === item.challenge_id && m.user_id === item.user_id)) {
+              return json({ code: '23505', message: 'duplicate key' }, 409);
+            }
+            db.challenge_members.push({ ...item });
+            written.push({ ...item });
+          } else if (table === 'activity_reactions') {
+            if (item.author_id !== me) return json({ message: 'row-level security' }, 403);
+            if (!areConnected(me, item.owner_id)) return json({ message: 'row-level security' }, 403);
+            if (db.activity_reactions.some((r) => r.owner_id === item.owner_id
+              && r.activity_date === item.activity_date && r.author_id === item.author_id && r.emoji === item.emoji)) {
+              return json({ code: '23505', message: 'duplicate key' }, 409);
+            }
+            const row = { id: uuid(), created_at: new Date().toISOString(), ...item };
+            db.activity_reactions.push(row);
+            written.push(row);
+          } else if (table === 'activity_comments') {
+            if (item.author_id !== me) return json({ message: 'row-level security' }, 403);
+            if (!areConnected(me, item.owner_id)) return json({ message: 'row-level security' }, 403);
+            const row = { id: uuid(), created_at: new Date().toISOString(), ...item };
+            db.activity_comments.push(row);
             written.push(row);
           } else {
             unknown.push(`POST ${table}`);
@@ -280,6 +382,31 @@ export function createMockBackend({ log = () => {} } = {}) {
           }
         } else if (table === 'share_grants') {
           db.share_grants = db.share_grants.filter((row) => !(row.owner_id === me && matches(row, filters)));
+        } else if (table === 'group_members') {
+          const doomed = db.group_members.filter((row) => matches(row, filters) && row.user_id === me);
+          for (const row of doomed) {
+            db.group_members = db.group_members.filter((m) => m !== row);
+            // Trigger: Freigaben zurueckziehen, sofern nicht anders begruendet.
+            const others = db.group_members.filter((m) => m.group_id === row.group_id).map((m) => m.user_id);
+            db.share_grants = db.share_grants.filter((g) => {
+              const touched = g.scope === 'progress'
+                && ((g.owner_id === row.user_id && others.includes(g.viewer_id))
+                  || (g.viewer_id === row.user_id && others.includes(g.owner_id)));
+              if (!touched) return true;
+              return areFriends(g.owner_id, g.viewer_id) || shareGroup(g.owner_id, g.viewer_id);
+            });
+          }
+        } else if (table === 'challenges') {
+          db.challenges = db.challenges.filter((row) => !(matches(row, filters) && row.owner_id === me));
+        } else if (table === 'challenge_members') {
+          db.challenge_members = db.challenge_members.filter(
+            (row) => !(matches(row, filters) && row.user_id === me));
+        } else if (table === 'activity_reactions') {
+          db.activity_reactions = db.activity_reactions.filter(
+            (row) => !(matches(row, filters) && row.author_id === me));
+        } else if (table === 'activity_comments') {
+          db.activity_comments = db.activity_comments.filter(
+            (row) => !(matches(row, filters) && (row.author_id === me || row.owner_id === me)));
         } else {
           unknown.push(`DELETE ${table}`);
         }
