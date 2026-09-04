@@ -85,8 +85,7 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
 
         {history.length === 0 ? (
           <div className="empty">
-            <div className="empty__icon">📊</div>
-            <div>{t("Noch keine Daten zu dieser Übung")}</div>
+                        <div>{t("Noch keine Daten zu dieser Übung")}</div>
             <div className="tiny" style={{ marginTop: 5 }}>
               Sobald du sie ein paar Mal trainiert hast, erscheint hier dein Verlauf.
             </div>

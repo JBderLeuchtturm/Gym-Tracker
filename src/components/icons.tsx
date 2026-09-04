@@ -130,3 +130,8 @@ export const IconPrinter = (p: IconProps) => (
     <path d="M5 9h14v7h-3v4H8v-4H5z" />
   </Base>
 );
+export const IconMessage = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M20.5 12.5c0 3.6-3.8 6.5-8.5 6.5-.9 0-1.8-.1-2.6-.3L4 20.5l1.4-3.6C4 15.7 3.5 14.2 3.5 12.5c0-3.6 3.8-6.5 8.5-6.5s8.5 2.9 8.5 6.5z" />
+  </Base>
+);

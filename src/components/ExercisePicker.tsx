@@ -13,17 +13,15 @@ import {
   REGION_LABELS, fitsEquipment, regionRole, suggestForRegion, type MuscleRegion,
 } from '../lib/muscles';
 
-const CATEGORY_ICONS: Record<ExerciseCategory, string> = {
-  chest: '🫁', back: '🔙', legs: '🦵', shoulders: '🏋️', arms: '💪',
-  core: '🎯', glutes: '🍑', cardio: '🏃', fullbody: '🔥', mobility: '🧘', other: '⚙️',
-};
-
-/** Erzeugt eine Kurzbeschreibung fuer die Trefferliste. */
-function describe(exercise: Exercise): string {
-  const parts: string[] = [t(CATEGORY_LABELS[exercise.category])];
+/**
+ * Kurzbeschreibung fuer die Trefferliste - ohne die Kategorie, die davor
+ * schon in ihrer Farbe steht.
+ */
+function describeRest(exercise: Exercise): string {
+  const parts: string[] = [];
   if (exercise.primaryMuscles.length > 0) parts.push(exercise.primaryMuscles.slice(0, 2).join(', '));
   if (exercise.equipment.length > 0) parts.push(exercise.equipment.slice(0, 2).join(', '));
-  return parts.join(' · ');
+  return parts.length > 0 ? ` · ${parts.join(' · ')}` : '';
 }
 
 export function ExercisePicker({
@@ -218,16 +216,13 @@ export function ExercisePicker({
             style={excluded.has(exercise.id) ? { opacity: 0.4 } : undefined}
             onClick={() => pick(exercise, false)}
           >
-            <span
-              className="search-result__thumb search-result__thumb--cat"
-              style={{ '--cat': categoryColor(exercise.category), '--cat-tint': categoryTint(exercise.category) } as React.CSSProperties}
-            >
-              {CATEGORY_ICONS[exercise.category]}
-            </span>
             <span style={{ flex: 1, minWidth: 0 }}>
               <span className="search-result__name">{exerciseName(exercise)}</span>
               <span className="search-result__meta" style={{ display: 'block' }}>
-                {describe(exercise)}{reason ? ` · ${reason}` : ''}
+                <span style={{ color: categoryColor(exercise.category), fontWeight: 600 }}>
+                  {t(CATEGORY_LABELS[exercise.category])}
+                </span>
+                {describeRest(exercise)}{reason ? ` · ${reason}` : ''}
               </span>
             </span>
             {exercise.source === 'custom' && <span className="chip chip--warn">{t("eigen")}</span>}
@@ -248,18 +243,18 @@ export function ExercisePicker({
             className="search-result"
             onClick={() => pick(exercise, true)}
           >
-            <span
-              className="search-result__thumb search-result__thumb--cat"
-              style={{ '--cat': categoryColor(exercise.category), '--cat-tint': categoryTint(exercise.category) } as React.CSSProperties}
-            >
-              {exercise.imageUrl
-                ? <img src={exercise.imageUrl} alt="" loading="lazy" />
-                : CATEGORY_ICONS[exercise.category]}
-            </span>
+            {exercise.imageUrl && (
+              <span className="search-result__thumb">
+                <img src={exercise.imageUrl} alt="" loading="lazy" />
+              </span>
+            )}
             <span style={{ flex: 1, minWidth: 0 }}>
               <span className="search-result__name">{exerciseName(exercise)}</span>
               <span className="search-result__meta" style={{ display: 'block' }}>
-                {t(CATEGORY_LABELS[exercise.category])} · online
+                <span style={{ color: categoryColor(exercise.category), fontWeight: 600 }}>
+                  {t(CATEGORY_LABELS[exercise.category])}
+                </span>
+                {` · ${t('online')}`}
               </span>
             </span>
             <IconPlus style={{ width: 17, height: 17, color: 'var(--text-dim)', flexShrink: 0 }} />
@@ -270,8 +265,7 @@ export function ExercisePicker({
 
         {totalCount === 0 && !loading && (
           <div className="empty">
-            <div className="empty__icon">🔍</div>
-            <div>Nichts gefunden für „{query}“</div>
+                        <div>Nichts gefunden für „{query}“</div>
             <div className="tiny" style={{ marginTop: 6 }}>
               Lege die Übung einfach selbst an – sie steht dann dauerhaft zur Verfügung.
             </div>

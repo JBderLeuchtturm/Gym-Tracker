@@ -19,7 +19,9 @@ import { ALL_REGIONS, REGION_LABELS, suggestForRegion, type MuscleRegion } from 
 import { daysSince, loadStatus, regionLoad, targetFor } from '../lib/muscleLoad';
 import { EmptyState, Stat, fmt, useToast } from '../components/ui';
 import { formatClock } from '../lib/date';
-import { IconChevronRight, IconDownload, IconPrinter, IconSearch } from '../components/icons';
+import {
+  IconChevronRight, IconDownload, IconPrinter, IconSearch, IconTrophy,
+} from '../components/icons';
 import {
   bodyToCsv, downloadText, printReport, summaryToCsv, workoutsToCsv,
 } from '../lib/exportData';
@@ -229,7 +231,6 @@ export function ProgressPage() {
 
       {totals.count === 0 ? (
         <EmptyState
-          icon="📈"
           title={t("Noch keine Trainings im Zeitraum")}
           hint={t("Sobald du Sätze abhakst, entstehen hier automatisch Auswertungen.")}
         />
@@ -250,7 +251,7 @@ export function ProgressPage() {
               <div className="card__title">{t("Sätze je Woche")}</div>
               <span className="tiny dim">{t("abgehakte Arbeitssätze")}</span>
             </div>
-            <BarChart points={weeklySetPoints} color="var(--violet)" />
+            <BarChart points={weeklySetPoints} color="var(--text-muted)" />
           </div>
 
           {trend.length > 1 && trendSeries.length > 0 && (
@@ -522,7 +523,7 @@ function ReviewCard({ review, label }: { review: ReturnType<typeof buildReview>;
           <div className="list">
             {review.records.map((record) => (
               <div key={`${record.name}-${record.date}`} className="row row--between">
-                <span className="small">🏆 {record.name}</span>
+                <span className="small row" style={{ gap: 6 }}><IconTrophy style={{ width: 14, height: 14, color: 'var(--warn)' }} /> {record.name}</span>
                 <span className="row" style={{ gap: 8 }}>
                   <span className="bold mono tiny">{record.value}</span>
                   <span className="tiny dim">{formatDateShort(record.date)}</span>

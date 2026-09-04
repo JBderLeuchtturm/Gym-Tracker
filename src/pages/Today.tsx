@@ -21,11 +21,11 @@ import {
   REGION_LABELS, fitsEquipment, regionsOf, suggestForRegion, type MuscleRegion,
 } from '../lib/muscles';
 import { ConfirmDialog, EmptyState, Modal, NumberInput, fmt, useToast } from '../components/ui';
-import { ProgressRing } from '../components/ProgressRing';
-import { CATEGORY_ICONS, categoryColor, categoryTint } from '../lib/categoryColors';
+import { categoryColor, categoryTint } from '../lib/categoryColors';
+import { CATEGORY_LABELS } from '../data/catalog';
 import {
   IconCheck, IconChart, IconChevronDown, IconChevronLeft, IconChevronRight, IconClock,
-  IconPlay, IconPlus, IconSwap, IconTrash, IconX,
+  IconPlay, IconPlus, IconSwap, IconTrash, IconTrophy, IconX,
 } from '../components/icons';
 import { beep } from '../lib/beep';
 
@@ -395,40 +395,40 @@ export function TodayPage() {
       )}
 
       {(stats.sets > 0 || rows.length > 0) && (
-        <div className="hero">
-          <ProgressRing value={stats.sets} max={plannedSets || stats.sets || 1} size={92}>
-            <div className="hero__ring-value">
-              {plannedSets > 0 ? `${Math.round(progress)}%` : stats.sets}
-            </div>
-            <div className="hero__ring-unit">{plannedSets > 0 ? t('geschafft') : t('Sätze')}</div>
-          </ProgressRing>
-
-          <div className="hero__facts">
-            <div className="hero__fact">
-              <span className="hero__fact-label">{t("Sätze")}</span>
-              <span className="hero__fact-value">
+        <div className="tally">
+          <div className="tally__row">
+            <div className="tally__item">
+              <span className="tally__label">{t("Sätze")}</span>
+              <span className="tally__value">
                 {stats.sets}
-                {plannedSets > 0 && <span className="hero__fact-unit">{t('von {count}', { count: plannedSets })}</span>}
+                {plannedSets > 0 && <span className="tally__unit">{t('von {count}', { count: plannedSets })}</span>}
               </span>
             </div>
-            <div className="hero__fact">
-              <span className="hero__fact-label">{t("Volumen")}</span>
-              <span className="hero__fact-value">
-                {fmt(stats.volume)}<span className="hero__fact-unit">{t("kg")}</span>
+            <div className="tally__item">
+              <span className="tally__label">{t("Volumen")}</span>
+              <span className="tally__value">
+                {fmt(stats.volume)}<span className="tally__unit">{t("kg")}</span>
               </span>
             </div>
-            <div className="hero__fact">
-              <span className="hero__fact-label">{t("Verbrauch")}</span>
-              <span className="hero__fact-value" style={{ color: 'var(--warn)' }}>
-                {fmt(stats.kcal)}<span className="hero__fact-unit">{t("kcal")}</span>
+            <div className="tally__item">
+              <span className="tally__label">{t("Verbrauch")}</span>
+              <span className="tally__value">
+                {fmt(stats.kcal)}<span className="tally__unit">{t("kcal")}</span>
               </span>
-              {stats.minutes > 0 && (
-                <span className="hero__fact-sub">
-                  {t('{minutes} min gerechnet', { minutes: Math.round(stats.minutes) })}
-                </span>
-              )}
             </div>
           </div>
+
+          {plannedSets > 0 && (
+            <div className="tally__meter" role="img" aria-label={t('{done} von {count} Sätzen', { done: stats.sets, count: plannedSets })}>
+              <div className="tally__meter-fill" style={{ width: `${Math.min(100, progress)}%` }} />
+            </div>
+          )}
+
+          {stats.minutes > 0 && (
+            <div className="tally__note">
+              {t('{minutes} min gerechnet', { minutes: Math.round(stats.minutes) })}
+            </div>
+          )}
         </div>
       )}
 
@@ -444,7 +444,6 @@ export function TodayPage() {
 
       {rows.length === 0 && (
         <EmptyState
-          icon={planDay?.isRestDay ? '😴' : '🏋️'}
           title={planDay?.isRestDay ? t('Heute ist Ruhetag') : t('Für heute ist nichts geplant')}
           hint={t('Du kannst trotzdem jederzeit eine Übung hinzufügen.')}
         />
@@ -640,6 +639,7 @@ function ExerciseCard({
   const [open, setOpen] = useState(doneSets === 0);
   /** Welcher Satz zeigt gerade seine Zusatzzeile (Notiz, Partner)? */
   const [openSet, setOpenSet] = useState<string | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
   const partnerName = state.settings.partnerName.trim();
   const isTimed = row.exercise?.kind === 'time' || row.exercise?.kind === 'cardio';
 
@@ -726,31 +726,28 @@ function ExerciseCard({
       )}
 
       <div className="exercise__head" onClick={() => setOpen(!open)}>
-        <span className="exercise__tile" aria-hidden="true">
-          {row.exercise ? CATEGORY_ICONS[row.exercise.category] : '⚙️'}
-        </span>
-
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="exercise__name">{exerciseName(row.exercise)}</div>
           <div className="exercise__meta">
-            {targetText}
+            {/* Die Muskelgruppe traegt ihre Farbe - das ordnet ein, ohne ein Symbol zu erfinden. */}
+            <span style={{ color: accent, fontWeight: 600 }}>
+              {t(CATEGORY_LABELS[row.exercise?.category ?? 'other'])}
+            </span>
+            {` · ${targetText}`}
             {previous
               ? ` · ${t('zuletzt')} ${formatDateShort(previous.date)}: ${summarizeSets(previous.sets, isTimed)}`
               : ` · ${t('noch keine Vorleistung')}`}
           </div>
         </div>
 
-        <div className="row" style={{ gap: 8, flexShrink: 0, alignItems: 'center' }}>
+        <div className="row" style={{ gap: 9, flexShrink: 0, alignItems: 'center' }}>
           {doneSets > 0 && (
-            <ProgressRing
-              value={doneSets}
-              max={totalTarget || doneSets}
-              size={34}
-              stroke={3.5}
-              color={accent}
+            <span
+              className={`exercise__count ${doneSets >= totalTarget ? 'exercise__count--done' : ''}`}
+              aria-label={t('{done} von {count} Sätzen', { done: doneSets, count: totalTarget || doneSets })}
             >
-              <span className="exercise__count">{doneSets}</span>
-            </ProgressRing>
+              {doneSets}<span className="exercise__count-sep">/</span>{totalTarget || doneSets}
+            </span>
           )}
           <IconChevronDown
             style={{ width: 18, height: 18, color: 'var(--text-dim)', transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.18s' }}
@@ -869,7 +866,7 @@ function ExerciseCard({
                 <button
                   className={`set-more ${openSet === set.id ? 'set-more--on' : ''}`}
                   onClick={() => setOpenSet(openSet === set.id ? null : set.id)}
-                  aria-label={t('Mehr zu diesem Satz')}
+                  aria-label={t('Notiz und Partner für diesen Satz')}
                   aria-expanded={openSet === set.id}
                 >
                   ⋯
@@ -899,45 +896,66 @@ function ExerciseCard({
           </Fragment>
           ))}
 
-          <div className="row row--wrap" style={{ marginTop: 10, gap: 7 }}>
+          {/*
+            * Nur die zwei Handgriffe, die man zwischen den Saetzen wirklich
+            * braucht, stehen als Knopf da. Der Rest liegt hinter "Mehr" -
+            * sichtbar, wenn man ihn sucht, und still, wenn nicht.
+            */}
+          <div className="exercise__actions">
             <button className="btn btn--sm" onClick={onAddSet}><IconPlus /> {t("Satz")}</button>
-            {!isTimed && !row.sets.some((set) => set.isWarmup) && (
-              <button className="btn btn--sm" onClick={addWarmup} title={t("Aufwärmsätze davorstellen")}>
-                {t('Aufwärmen')}
-              </button>
-            )}
-            <button className="btn btn--sm" onClick={() => onStartRest(row.planExercise?.restSec ?? state.settings.restTimerSec)}>
+            <button
+              className="btn btn--sm"
+              onClick={() => onStartRest(row.planExercise?.restSec ?? state.settings.restTimerSec)}
+            >
               <IconClock /> {t('Pause')}
             </button>
-            <button className="btn btn--sm" onClick={onOpenDetail}><IconChart /> {t("Fortschritt")}</button>
-            <button className="btn btn--sm" onClick={onSwap} title={t("Gerät besetzt? Ersatz suchen")}>
-              <IconSwap /> {t('Ersatz')}
-            </button>
             <span className="spacer" />
-            {row.sets.length > 1 && (
-              <button
-                className="btn btn--sm btn--ghost"
-                onClick={() => removeSet(row.sets[row.sets.length - 1].id)}
-                aria-label={t("Letzten Satz entfernen")}
-              >
-                <IconX /> {t('Satz')}
-              </button>
-            )}
-            {row.logged && !row.fromPlan && (
-              <button className="btn btn--sm btn--ghost" onClick={onRemove} aria-label={t("Übung entfernen")}>
-                <IconTrash />
-              </button>
-            )}
+            <button
+              className={`btn btn--sm btn--ghost ${moreOpen ? 'btn--on' : ''}`}
+              onClick={() => setMoreOpen(!moreOpen)}
+              aria-expanded={moreOpen}
+            >
+              {t('Mehr')}
+            </button>
           </div>
 
-          {row.logged && (
-            <input
-              className="input"
-              style={{ marginTop: 9 }}
-              placeholder={t("Notiz zur Übung…")}
-              value={row.logged.note ?? ''}
-              onChange={(event) => onUpdate(row, (logged) => ({ ...logged, note: event.target.value }))}
-            />
+          {moreOpen && (
+            <div className="exercise__more">
+              <div className="row row--wrap" style={{ gap: 7 }}>
+                {!isTimed && !row.sets.some((set) => set.isWarmup) && (
+                  <button className="btn btn--sm" onClick={addWarmup} title={t("Aufwärmsätze davorstellen")}>
+                    {t('Aufwärmen')}
+                  </button>
+                )}
+                <button className="btn btn--sm" onClick={onOpenDetail}><IconChart /> {t("Fortschritt")}</button>
+                <button className="btn btn--sm" onClick={onSwap} title={t("Gerät besetzt? Ersatz suchen")}>
+                  <IconSwap /> {t('Ersatz')}
+                </button>
+                {row.sets.length > 1 && (
+                  <button
+                    className="btn btn--sm btn--ghost"
+                    onClick={() => removeSet(row.sets[row.sets.length - 1].id)}
+                  >
+                    <IconX /> {t('Satz entfernen')}
+                  </button>
+                )}
+                {row.logged && !row.fromPlan && (
+                  <button className="btn btn--sm btn--ghost" onClick={onRemove} aria-label={t("Übung entfernen")}>
+                    <IconTrash /> {t('Übung')}
+                  </button>
+                )}
+              </div>
+
+              {row.logged && (
+                <input
+                  className="input input--sm"
+                  style={{ marginTop: 9 }}
+                  placeholder={t("Notiz zur Übung…")}
+                  value={row.logged.note ?? ''}
+                  onChange={(event) => onUpdate(row, (logged) => ({ ...logged, note: event.target.value }))}
+                />
+              )}
+            </div>
           )}
 
           {row.logged && exerciseVolume(row.logged) > 0 && (
@@ -1087,7 +1105,7 @@ function RecordBanner({
 
   return (
     <div className="record-banner" role="status">
-      <span className="record-banner__icon">🏆</span>
+      <span className="record-banner__icon"><IconTrophy /></span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="bold small">{record.label}</div>
         <div className="tiny" style={{ opacity: 0.85 }}>{name} · {record.value}</div>
@@ -1208,19 +1226,13 @@ function SwapDialog({
         )}
         {candidates.map(({ exercise, fits }) => (
           <button key={exercise.id} className="search-result" onClick={() => onPick(exercise)}>
-            <span
-              className="search-result__thumb search-result__thumb--cat"
-              style={{
-                '--cat': categoryColor(exercise.category),
-                '--cat-tint': categoryTint(exercise.category),
-              } as React.CSSProperties}
-            >
-              {CATEGORY_ICONS[exercise.category]}
-            </span>
             <span style={{ flex: 1, minWidth: 0 }}>
               <span className="search-result__name">{exerciseName(exercise)}</span>
               <span className="search-result__meta" style={{ display: 'block' }}>
-                {exercise.equipment.length > 0 ? exercise.equipment.join(', ') : t('ohne Gerät')}
+                <span style={{ color: categoryColor(exercise.category), fontWeight: 600 }}>
+                  {t(CATEGORY_LABELS[exercise.category])}
+                </span>
+                {` · ${exercise.equipment.length > 0 ? exercise.equipment.join(', ') : t('ohne Gerät')}`}
               </span>
             </span>
             {!fits && available.length > 0 && <span className="chip chip--warn">{t("fehlt dir")}</span>}

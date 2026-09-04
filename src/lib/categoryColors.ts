@@ -3,26 +3,28 @@ import type { ExerciseCategory } from '../types';
 /**
  * Eine feste Farbe je Muskelgruppe.
  *
- * Die Farben ziehen sich durch die ganze App - Uebungskarten, Suchergebnisse,
- * Planuebersicht und Auswertungen. Dadurch erkennt man eine Gruppe am Farbton,
- * bevor man den Text gelesen hat.
+ * Die Farben ziehen sich durch die ganze App - Uebungsnamen, Suchergebnisse,
+ * Auswertungen. Dadurch erkennt man eine Gruppe am Farbton, bevor man den Text
+ * gelesen hat.
  *
- * Die Toene sind ueber den Farbkreis verteilt, damit benachbarte Gruppen gut
- * unterscheidbar bleiben, und liegen in einer Helligkeit, die sowohl auf dem
- * dunklen als auch auf dem hellen Hintergrund lesbar ist.
+ * Bewusst gedaempft: Ein voll gesaettigter Regenbogen zieht mehr Aufmerksamkeit
+ * auf sich als der Inhalt, den er einordnen soll. Diese Toene sind im Farbkreis
+ * verteilt, aber alle in aehnlicher Saettigung und Helligkeit gehalten - so
+ * bleiben sie unterscheidbar, ohne zu schreien, und sind auf dunklem wie auf
+ * hellem Grund lesbar.
  */
 export const CATEGORY_COLORS: Record<ExerciseCategory, string> = {
-  chest: '#ff6b6b',      // Koralle
-  shoulders: '#ff922b',  // Orange
-  core: '#fcc419',       // Gelb
-  fullbody: '#51cf66',   // Gruen
-  arms: '#20c997',       // Minze
-  cardio: '#22b8cf',     // Cyan
-  back: '#4dabf7',       // Blau
-  legs: '#9775fa',       // Violett
-  mobility: '#cc5de8',   // Magenta
-  glutes: '#f06595',     // Pink
-  other: '#868e96',      // Neutral
+  chest: '#c4695c',      // Terrakotta
+  shoulders: '#c08a3e',  // Ocker
+  core: '#a2903f',       // Oliv
+  fullbody: '#6f9160',   // Salbei
+  arms: '#4f9184',       // Petrol
+  cardio: '#4d87a0',     // Stahlblau
+  back: '#5b7fa8',       // Graublau
+  legs: '#7d76ab',       // Staubviolett
+  mobility: '#9a6f9e',   // Malve
+  glutes: '#b06a86',     // Altrosa
+  other: '#7d7a74',      // Neutral
 };
 
 export const categoryColor = (category: ExerciseCategory): string =>
@@ -37,17 +39,3 @@ export const categoryTint = (category: ExerciseCategory, alpha = 0.15): string =
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-/** Ein Symbol je Muskelgruppe - wird als Kachel an der Uebung gezeigt. */
-export const CATEGORY_ICONS: Record<ExerciseCategory, string> = {
-  chest: '🫁',
-  back: '🔙',
-  legs: '🦵',
-  shoulders: '🏋️',
-  arms: '💪',
-  core: '🎯',
-  glutes: '🍑',
-  cardio: '🏃',
-  fullbody: '🔥',
-  mobility: '🧘',
-  other: '⚙️',
-};

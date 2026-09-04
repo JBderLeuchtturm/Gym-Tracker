@@ -6,7 +6,7 @@ import { formatDateShort, relativeDayLabel, todayISO, weekKey } from '../../lib/
 import { EmptyState, fmt, useToast } from '../../components/ui';
 import { useStore } from '../../storage/store';
 import { weeklySummaries } from '../../lib/stats';
-import { IconTrash } from '../../components/icons';
+import { IconMessage, IconTrash } from '../../components/icons';
 
 const EMOJIS = ['💪', '🔥', '👏', '🤯', '🫡'];
 
@@ -51,7 +51,6 @@ export function ActivityFeed({ friends }: { friends: Friend[] }) {
   if (items.length === 0) {
     return (
       <EmptyState
-        icon="📭"
         title={t("Noch nichts passiert")}
         hint={t("Sobald deine Freunde trainieren und ihren Fortschritt teilen, steht es hier.")}
       />
@@ -106,7 +105,7 @@ export function ActivityFeed({ friends }: { friends: Friend[] }) {
                 className="chip chip--button"
                 onClick={() => { setOpenComment(openComment === key ? null : key); setDraft(''); }}
               >
-                💬 {notes.length > 0 ? notes.length : 'Kommentar'}
+                <IconMessage style={{ width: 13, height: 13 }} /> {notes.length > 0 ? notes.length : t('Kommentar')}
               </button>
             </div>
 
@@ -231,7 +230,7 @@ function WeeklyRecap({ friends }: { friends: Friend[] }) {
             <div className="row row--between tiny" style={{ marginBottom: 4 }}>
               <span className="bold">
                 {row.friend.displayName || `@${row.friend.handle}`}
-                {row.friend.userId === best.friend.userId && rows.length > 1 && ' 🏅'}
+                
               </span>
               <span className="dim">
                 {row.workouts} × · {row.sets} {t('Sätze')} · {fmt(row.volume)} kg

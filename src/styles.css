@@ -1,60 +1,81 @@
 /* ---------------------------------------------------------------- Tokens */
 
+/*
+ * Leitbild: ein Trainingsbuch, keine Software-Oberflaeche.
+ *
+ * Was zaehlt, sind Namen und Zahlen. Alles andere tritt zurueck - deshalb
+ * warme Graustufen statt kuehlem Blau, ein einziger Akzent statt einer Palette,
+ * Haarlinien statt Schatten und kleine Radien statt runder Kacheln. Farbe
+ * bedeutet hier etwas (erledigt, Warnung, aktiv) und ist nie Dekoration.
+ */
+
 :root {
   color-scheme: dark;
 
-  /* Flaechen: von tief nach hoch, damit Karten sichtbar ueber dem Grund liegen */
-  --bg: #080b10;
-  --bg-soft: #0e131b;
-  --surface: #141a24;
-  --surface-2: #1b2230;
-  --surface-3: #242d3d;
-  --border: #2a3547;
-  --border-soft: #1e2634;
+  --bg: #0c0d0f;
+  --bg-soft: #101215;
+  --surface: #14161a;
+  --surface-2: #1a1d22;
+  --surface-3: #23272d;
+  --border: #313640;
+  --border-soft: #21252b;
 
-  --text: #eaf0f8;
-  --text-muted: #9aa8bd;
-  --text-dim: #6d7d94;
+  /* Warmes Weiss - blaustichiges Weiss auf dunklem Grund wirkt technisch. */
+  --text: #e9e6e1;
+  --text-muted: #9d9890;
+  --text-dim: #6e6a64;
 
-  --accent: #4b9dff;
-  --accent-soft: rgba(75, 157, 255, 0.16);
-  --accent-strong: #2b7ee6;
-  --accent-glow: rgba(75, 157, 255, 0.35);
-  --success: #35c98a;
-  --success-soft: rgba(53, 201, 138, 0.15);
-  --warn: #f0a93b;
-  --warn-soft: rgba(240, 169, 59, 0.15);
-  --danger: #ef5b5b;
-  --danger-soft: rgba(239, 91, 91, 0.15);
-  --violet: #a179f5;
+  /* Messing. Ein Akzent, sparsam eingesetzt: aktiv, primaer, ausgewaehlt. */
+  --accent: #c8813c;
+  --accent-soft: rgba(200, 129, 60, 0.15);
+  --accent-strong: #b06f2e;
+  --accent-ink: #1a1206;
 
-  --radius: 16px;
-  --radius-sm: 10px;
-  --radius-lg: 22px;
-  --shadow: 0 12px 34px rgba(0, 0, 0, 0.42);
-  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.22);
+  --success: #5f9e63;
+  --success-soft: rgba(95, 158, 99, 0.15);
+  --warn: #c4993c;
+  --warn-soft: rgba(196, 153, 60, 0.15);
+  --danger: #c2564c;
+  --danger-soft: rgba(194, 86, 76, 0.15);
+  --violet: #8a7bb8;
 
-  --nav-height: 64px;
+  --radius: 8px;
+  --radius-sm: 5px;
+  --radius-lg: 12px;
+  --shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.22);
+
+  --nav-height: 60px;
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --ease: cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
+/* Helles Thema: Papier, nicht Weiss. */
 :root[data-theme='light'] {
   color-scheme: light;
-  --bg: #eef1f6;
-  --bg-soft: #ffffff;
-  --surface: #ffffff;
-  --surface-2: #f2f5f9;
-  --surface-3: #e5eaf2;
-  --border: #d7dfea;
-  --border-soft: #e8edf4;
-  --text: #101823;
-  --text-muted: #4e5a6c;
-  --text-dim: #78849a;
-  --accent-soft: rgba(43, 126, 230, 0.11);
-  --accent-glow: rgba(43, 126, 230, 0.22);
-  --shadow: 0 10px 30px rgba(18, 32, 55, 0.10);
-  --shadow-sm: 0 1px 4px rgba(18, 32, 55, 0.07);
+  --bg: #f4f2ee;
+  --bg-soft: #faf9f6;
+  --surface: #fffefc;
+  --surface-2: #f1efea;
+  --surface-3: #e6e3dc;
+  --border: #cfcabf;
+  --border-soft: #e2ded5;
+  --text: #17191c;
+  --text-muted: #575349;
+  --text-dim: #837e73;
+  --accent: #a4621f;
+  --accent-soft: rgba(164, 98, 31, 0.12);
+  --accent-strong: #8a5119;
+  --accent-ink: #fffaf3;
+  --success: #40794a;
+  --success-soft: rgba(64, 121, 74, 0.13);
+  --warn: #96701d;
+  --warn-soft: rgba(150, 112, 29, 0.14);
+  --danger: #a8382f;
+  --danger-soft: rgba(168, 56, 47, 0.11);
+  --violet: #6b5f96;
+  --shadow: 0 2px 5px rgba(40, 34, 24, 0.09);
+  --shadow-sm: 0 1px 2px rgba(40, 34, 24, 0.06);
 }
 
 * { box-sizing: border-box; }
@@ -64,10 +85,6 @@ html, body, #root { height: 100%; }
 body {
   margin: 0;
   background: var(--bg);
-  background-image:
-    radial-gradient(1100px 520px at 12% -8%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 62%),
-    radial-gradient(760px 420px at 108% 4%, color-mix(in srgb, var(--violet) 10%, transparent), transparent 60%);
-  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font);
   font-size: 15px;
@@ -78,10 +95,15 @@ body {
 
 button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
 
-h1, h2, h3, h4 { margin: 0; font-weight: 700; letter-spacing: -0.025em; }
-h1 { font-size: 1.6rem; line-height: 1.15; }
-h2 { font-size: 1.22rem; }
-h3 { font-size: 1.02rem; }
+/* Haken und Schieber folgen dem Akzent statt dem Browser-Blau. */
+input[type='checkbox'], input[type='radio'], input[type='range'], progress {
+  accent-color: var(--accent);
+}
+
+h1, h2, h3, h4 { margin: 0; font-weight: 640; letter-spacing: -0.015em; }
+h1 { font-size: 1.45rem; line-height: 1.18; }
+h2 { font-size: 1.1rem; }
+h3 { font-size: 0.97rem; }
 p { margin: 0 0 0.6em; }
 
 /* ---------------------------------------------------------------- Layout */
@@ -100,12 +122,10 @@ p { margin: 0 0 0.6em; }
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 15px 16px;
-  padding-top: calc(15px + env(safe-area-inset-top, 0px));
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 78%),
-    color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(20px) saturate(1.3);
+  padding: 14px 16px 12px;
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -134,10 +154,10 @@ p { margin: 0 0 0.6em; }
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 1px;
-  padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
-  background: color-mix(in srgb, var(--bg-soft) 94%, transparent);
-  backdrop-filter: blur(16px);
-  border-top: 1px solid var(--border);
+  padding: 0 4px calc(4px + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--bg-soft) 96%, transparent);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border-soft);
 }
 
 .nav__item {
@@ -146,30 +166,27 @@ p { margin: 0 0 0.6em; }
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 9px 2px 7px;
+  padding: 11px 2px 8px;
   border: 0;
-  border-radius: 12px;
   background: transparent;
   color: var(--text-dim);
-  font-size: 0.6rem;
-  font-weight: 600;
+  font-size: 0.62rem;
+  font-weight: 550;
+  letter-spacing: 0.005em;
   cursor: pointer;
-  transition: color 0.18s var(--ease), background 0.18s var(--ease);
+  transition: color 0.15s var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
-.nav__item:active { transform: scale(0.94); }
-.nav__item--active {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-/* Kleiner Streifen ueber dem aktiven Reiter */
+.nav__item--active { color: var(--text); }
+/* Der aktive Reiter traegt einen Strich, keine Kachel. */
 .nav__item--active::before {
   content: '';
   position: absolute;
   top: 0;
-  width: 22px;
-  height: 2.5px;
-  border-radius: 0 0 3px 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 26px;
+  height: 2px;
   background: var(--accent);
 }
 .nav__item svg { width: 20px; height: 20px; }
@@ -191,25 +208,17 @@ p { margin: 0 0 0.6em; }
 
 /* ----------------------------------------------------------------- Cards */
 
+/*
+ * Eine Karte ist ein abgegrenzter Gegenstand - eine Uebung, ein Plan, ein
+ * Freund. Sie schwebt nicht: duenne Kante, kein Schatten, kein Glanz.
+ */
 .card {
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
-  padding: 16px;
-  box-shadow: var(--shadow-sm);
+  padding: 15px 16px;
 }
-/* Feine Kante oben - laesst die Karte plastischer wirken. */
-.card::after {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 1px;
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07) 20%, rgba(255, 255, 255, 0.07) 80%, transparent);
-  pointer-events: none;
-}
-:root[data-theme='light'] .card::after { display: none; }
 .card--flush { padding: 0; overflow: hidden; }
 .card__header {
   display: flex;
@@ -221,16 +230,17 @@ p { margin: 0 0 0.6em; }
 .card__title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  font-size: 0.98rem;
-  letter-spacing: -0.012em;
+  gap: 7px;
+  font-weight: 640;
+  font-size: 0.95rem;
+  letter-spacing: -0.008em;
 }
 
+/* Wie eine Beschriftung auf einem Formular: klein, gesperrt, zurueckhaltend. */
 .section-label {
-  font-size: 0.7rem;
-  font-weight: 750;
-  letter-spacing: 0.1em;
+  font-size: 0.67rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--text-dim);
 }
@@ -242,13 +252,13 @@ p { margin: 0 0 0.6em; }
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 9px 14px;
+  padding: 8px 13px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   color: var(--text);
-  font-weight: 600;
-  font-size: 0.88rem;
+  font-weight: 550;
+  font-size: 0.86rem;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, transform 0.05s;
   white-space: nowrap;
@@ -259,22 +269,35 @@ p { margin: 0 0 0.6em; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn svg { width: 16px; height: 16px; }
 
+/* Eine Flaeche, kein Verlauf, kein Schein. */
 .btn--primary {
-  background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent-strong));
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 5px 18px var(--accent-glow);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 640;
 }
-.btn--primary:hover {
-  background: linear-gradient(140deg, var(--accent), var(--accent-strong));
-  border-color: transparent;
-}
+.btn--primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
 .btn--success { background: var(--success); border-color: var(--success); color: #06251a; }
 .btn--ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
 .btn--ghost:hover { background: var(--surface-2); color: var(--text); }
 .btn--danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); background: var(--danger-soft); }
 .btn--sm { padding: 6px 10px; font-size: 0.8rem; }
 .btn--block { width: 100%; }
+
+/*
+ * Ein vollflaechig eingefaerbter Knopf ueber die ganze Breite schreit.
+ * Als Umriss bleibt er klar erkennbar, ohne die Seite zu beherrschen.
+ */
+.btn--primary.btn--block {
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-style: dashed;
+  color: var(--accent);
+}
+.btn--primary.btn--block:hover {
+  background: var(--accent-soft);
+  border-style: solid;
+}
 .btn--icon { padding: 8px; border-radius: var(--radius-sm); }
 
 /* ---------------------------------------------------------------- Inputs */
@@ -313,6 +336,7 @@ p { margin: 0 0 0.6em; }
 
 /* ----------------------------------------------------------------- Chips */
 
+/* Chips markieren Zustaende und Filter - sie sind keine Verzierung. */
 .chip {
   display: inline-flex;
   align-items: center;
@@ -344,56 +368,74 @@ p { margin: 0 0 0.6em; }
 
 /* ----------------------------------------------------------------- Stats */
 
+/*
+ * Kennzahlen brauchen keinen Kasten. Beschriftung klein darueber, Zahl gross
+ * darunter, getrennt nur durch eine Linie - wie in einer Tabelle.
+ */
 .stat {
-  background: var(--surface-2);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
-  padding: 11px 12px;
+  padding: 2px 0 0;
   min-width: 0;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 9px;
 }
-.stat__label { font-size: 0.72rem; color: var(--text-dim); font-weight: 600; }
-.stat__value { font-size: 1.35rem; font-weight: 750; letter-spacing: -0.03em; margin-top: 3px; }
-.stat__unit { font-size: 0.78rem; font-weight: 600; color: var(--text-dim); margin-left: 3px; }
-.stat__sub { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
+.stat__label {
+  font-size: 0.66rem;
+  color: var(--text-dim);
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.stat__value {
+  font-size: 1.4rem;
+  font-weight: 620;
+  letter-spacing: -0.025em;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.stat__unit { font-size: 0.76rem; font-weight: 550; color: var(--text-dim); margin-left: 3px; }
+.stat__sub { font-size: 0.71rem; color: var(--text-dim); margin-top: 2px; }
 
 /* ---------------------------------------------------------------- Übung */
 
+/*
+ * Uebungen sind Eintraege auf einem Blatt, keine schwebenden Kacheln.
+ * Getrennt werden sie durch eine Linie und Luft, nicht durch Rahmen und
+ * Schatten. Erledigtes bekommt links eine gruene Markierung - so sieht man
+ * beim Durchblaettern sofort, was steht.
+ */
 .exercise {
   position: relative;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
   background: var(--surface);
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  transition: border-color 0.18s var(--ease);
 }
-/* Farbstreifen links zeigt die Muskelgruppe */
-.exercise::before {
+.exercise--done { border-color: color-mix(in srgb, var(--success) 32%, var(--border-soft)); }
+.exercise--done::before {
   content: '';
   position: absolute;
   left: 0; top: 0; bottom: 0;
-  width: 4px;
-  background: linear-gradient(180deg, var(--cat, var(--border)), color-mix(in srgb, var(--cat, var(--border)) 45%, transparent));
+  width: 2px;
+  background: var(--success);
 }
-.exercise--done { border-color: color-mix(in srgb, var(--success) 40%, var(--border-soft)); }
 .exercise__head {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 13px 14px 13px 16px;
+  gap: 11px;
+  padding: 13px 14px;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 .exercise__head:hover { background: var(--surface-2); }
-.exercise__name { font-weight: 650; line-height: 1.3; }
+.exercise__name { font-weight: 620; line-height: 1.3; }
 .exercise__meta { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
-.exercise__body { padding: 0 14px 14px 16px; border-top: 1px solid var(--border-soft); }
+.exercise__body { padding: 0 14px 14px; border-top: 1px solid var(--border-soft); }
 
 .set-row {
   display: grid;
-  grid-template-columns: 26px 1fr 1fr 44px 34px;
-  gap: 7px;
+  grid-template-columns: 22px 1fr 1fr 40px 66px;
+  gap: 6px;
   align-items: center;
   padding: 4px 6px;
   margin: 2px -6px;
@@ -411,9 +453,9 @@ p { margin: 0 0 0.6em; }
 .set-row__index--warmup { color: var(--warn); }
 .set-header {
   display: grid;
-  grid-template-columns: 26px 1fr 1fr 44px 34px;
-  gap: 7px;
-  font-size: 0.68rem;
+  grid-template-columns: 22px 1fr 1fr 40px 66px;
+  gap: 6px;
+  font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -462,6 +504,7 @@ p { margin: 0 0 0.6em; }
   color: inherit;
 }
 .search-result:hover, .search-result--active { background: var(--surface-2); }
+/* Kachel nur noch dort, wo es wirklich ein Bild gibt. */
 .search-result__thumb {
   width: 40px; height: 40px;
   border-radius: var(--radius-sm);
@@ -528,21 +571,29 @@ p { margin: 0 0 0.6em; }
 
 /* ---------------------------------------------------------------- Sonstiges */
 
+/*
+ * Leerer Zustand: ein Satz, kein Symbol. Linksbuendig, weil er sich wie ein
+ * Hinweis lesen soll und nicht wie eine Ansage.
+ */
 .empty {
-  text-align: center;
-  padding: 34px 16px;
+  padding: 22px 2px;
   color: var(--text-dim);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+  border-top: 1px solid var(--border-soft);
 }
-.empty__icon {
+.empty__title { font-weight: 600; color: var(--text-muted); }
+.empty__hint { font-size: 0.78rem; color: var(--text-dim); margin-top: 5px; max-width: 34em; }
+
+/* Platzziffer in Bestenlisten - liest sich schneller als eine Medaille. */
+.rank {
   display: inline-grid;
   place-items: center;
-  width: 68px; height: 68px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 35%, var(--surface-3), var(--surface-2));
-  border: 1px solid var(--border-soft);
+  min-width: 18px;
+  font-size: 0.72rem;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
 }
-.empty__icon { font-size: 1.9rem; margin-bottom: 6px; opacity: 0.65; }
 
 .divider { height: 1px; background: var(--border-soft); margin: 4px 0; }
 
@@ -568,26 +619,28 @@ p { margin: 0 0 0.6em; }
   gap: 2px;
   padding: 8px 2px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
   background: var(--surface);
   cursor: pointer;
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.68rem;
+  font-weight: 550;
   color: var(--text-dim);
 }
-.day-strip__item--today { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+/* Heute traegt einen Rahmen, der gewaehlte Tag eine Flaeche. */
+.day-strip__item--today { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
 .day-strip__item--active {
-  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 92%, #fff), var(--accent-strong));
-  border-color: transparent;
-  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
 }
-.day-strip__num { font-size: 0.95rem; font-weight: 700; color: var(--text); }
-.day-strip__item--active .day-strip__num { color: #fff; }
+.day-strip__num { font-size: 0.92rem; font-weight: 620; color: var(--text); }
+.day-strip__item--active .day-strip__num { color: var(--accent-ink); }
+.day-strip__item--active .day-strip__dot { background: var(--accent-ink); }
 .day-strip__dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); }
 .day-strip__dot--empty { background: transparent; }
 
-.progress-bar { height: 7px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
-.progress-bar__fill { height: 100%; border-radius: 999px; background: var(--accent); transition: width 0.3s; }
+.progress-bar { height: 4px; background: var(--surface-3); overflow: hidden; }
+.progress-bar__fill { height: 100%; background: var(--accent); transition: width 0.3s; }
 
 .rest-timer {
   position: fixed;
@@ -675,47 +728,70 @@ table.data tr:last-child td { border-bottom: 0; }
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
-/* ------------------------------------------------------ Tages-Hero-Karte */
+/* ------------------------------------------------------------ Tagesbilanz */
 
-.hero {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 18px;
-  border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border-soft));
-  background:
-    radial-gradient(130% 150% at 108% -20%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 58%),
-    linear-gradient(165deg, var(--surface-2), var(--surface));
-  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.28);
+/*
+ * Vorher stand hier ein Donut-Diagramm mit einer Prozentzahl in der Mitte.
+ * Das ist Dashboard-Sprache: viel Flaeche fuer eine Zahl, die man ohnehin
+ * ablesen kann. Jetzt stehen die drei Zahlen nebeneinander wie auf einem
+ * Kassenzettel, darunter ein duenner Balken fuer den Stand des Tages.
+ */
+.tally {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-soft);
+  padding: 13px 0 12px;
 }
 
-.hero__ring { flex-shrink: 0; position: relative; display: grid; place-items: center; }
-.hero__ring-label {
-  position: absolute;
-  inset: 14px;
+.tally__row {
   display: grid;
-  place-content: center;
-  text-align: center;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.tally__item { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+
+.tally__label {
+  font-size: 0.64rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.tally__value {
+  font-size: 1.32rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
-.hero__ring-value { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.04em; }
-.hero__ring-unit {
-  font-size: 0.54rem;
-  font-weight: 700;
+
+.tally__unit {
+  font-size: 0.7rem;
+  font-weight: 500;
   color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  margin-left: 4px;
+  letter-spacing: 0;
 }
 
-.hero__facts { flex: 1; min-width: 0; display: grid; gap: 11px; }
-.hero__fact { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.hero__fact-label { font-size: 0.76rem; color: var(--text-muted); font-weight: 600; }
-.hero__fact-value { font-size: 1.2rem; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
-.hero__fact-unit { font-size: 0.7rem; font-weight: 600; color: var(--text-dim); margin-left: 2px; }
-.hero__fact-sub { display: block; font-size: 0.66rem; color: var(--text-dim); margin-top: 1px; }
+.tally__meter {
+  margin-top: 13px;
+  height: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.tally__meter-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.35s var(--ease);
+}
+
+.tally__note {
+  margin-top: 7px;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
 
 /* --------------------------------------------------- Farbige Muskelgruppen */
 
@@ -752,8 +828,6 @@ table.data tr:last-child td { border-bottom: 0; }
   font-weight: 700;
   letter-spacing: -0.01em;
 }
-
-.empty__icon { font-size: 2.3rem; margin-bottom: 9px; opacity: 0.75; }
 
 .search-result {
   transition: background 0.15s var(--ease);
@@ -885,21 +959,11 @@ table.data tr:last-child td { border-bottom: 0; }
 
 /* ------------------------------------------------ Übungskarte, gehobene Fassung */
 
-.exercise__tile {
-  width: 38px; height: 38px;
-  display: grid; place-items: center;
-  border-radius: 11px;
-  background: var(--cat-tint, var(--surface-2));
-  border: 1px solid color-mix(in srgb, var(--cat, var(--border)) 28%, transparent);
-  font-size: 1.05rem;
-  flex-shrink: 0;
-}
-
 .exercise__name {
-  font-weight: 700;
-  font-size: 0.98rem;
-  line-height: 1.28;
-  letter-spacing: -0.012em;
+  font-weight: 620;
+  font-size: 0.96rem;
+  line-height: 1.3;
+  letter-spacing: -0.008em;
 }
 
 .exercise__meta {
@@ -909,15 +973,20 @@ table.data tr:last-child td { border-bottom: 0; }
   line-height: 1.4;
 }
 
+/*
+ * Der Zaehler war ein kleiner Donut mit einer Zahl darin. Ein Bruch sagt
+ * dasselbe in weniger Platz und ohne Ratespiel: 3/4 ist eindeutig.
+ */
 .exercise__count {
-  font-size: 0.72rem;
-  font-weight: 750;
+  font-size: 0.8rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  letter-spacing: -0.01em;
 }
+.exercise__count--done { color: var(--success); }
+.exercise__count-sep { color: var(--text-dim); margin: 0 1px; font-weight: 400; }
 
-.exercise--done .exercise__tile {
-  border-color: color-mix(in srgb, var(--success) 45%, transparent);
-}
 
 /* -------------------------------------------------------- Update-Hinweis */
 
@@ -1131,13 +1200,52 @@ table.data tr:last-child td { border-bottom: 0; }
   padding: 0;
   border: 0;
   border-radius: 2px;
-  background: var(--surface-3);
+  /* Leere Tage bleiben blass - sonst liest sich das Raster wie eine Tabelle. */
+  background: var(--surface-2);
   cursor: pointer;
 }
 
 .heatmap__cell:disabled { cursor: default; }
 .heatmap__cell--future { opacity: 0.35; }
-.heatmap__cell--1 { background: color-mix(in srgb, var(--accent) 30%, var(--surface-3)); }
-.heatmap__cell--2 { background: color-mix(in srgb, var(--accent) 55%, var(--surface-3)); }
-.heatmap__cell--3 { background: color-mix(in srgb, var(--accent) 78%, var(--surface-3)); }
+.heatmap__cell--1 { background: color-mix(in srgb, var(--accent) 32%, var(--surface-2)); }
+.heatmap__cell--2 { background: color-mix(in srgb, var(--accent) 58%, var(--surface-2)); }
+.heatmap__cell--3 { background: color-mix(in srgb, var(--accent) 80%, var(--surface-2)); }
 .heatmap__cell--4 { background: var(--accent); }
+
+/* Handgriffe unter der Satzliste: zwei sichtbar, der Rest auf Abruf. */
+.exercise__actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.exercise__more {
+  margin-top: 9px;
+  animation: rise 0.16s var(--ease) both;
+}
+
+.btn--on { color: var(--accent); background: var(--accent-soft); }
+
+.heatmap-wrap { overflow-x: auto; scrollbar-width: none; }
+.heatmap-wrap::-webkit-scrollbar { display: none; }
+.heatmap-wrap .heatmap { overflow: visible; }
+
+.heatmap--months { margin-bottom: 4px; }
+.heatmap__month {
+  width: 11px;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* Tag mit Training im Planueberblick. */
+.day-strip__item--filled {
+  background: var(--surface-3);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+.day-strip__item--filled .day-strip__num { color: var(--text); }

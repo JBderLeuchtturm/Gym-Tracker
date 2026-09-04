@@ -18,6 +18,8 @@ export async function run() {
 
   await runner.step('Beinbizeps landet im Bein, nicht im Arm', async () => {
     await addExercise(page, 'Beinbeuger');
+    await page.locator('.exercise').last().locator('.btn', { hasText: 'Mehr' }).click();
+    await page.waitForTimeout(250);
     await page.locator('.exercise').last().locator('.btn', { hasText: 'Fortschritt' }).click();
     await page.waitForSelector('.modal');
     await page.waitForTimeout(300);

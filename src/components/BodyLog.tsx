@@ -266,8 +266,7 @@ export function PhotosDialog({ onClose }: { onClose: () => void }) {
     return (
       <Modal title={t('Fortschrittsfotos')} onClose={onClose}>
         <div className="empty">
-          <div className="empty__icon">📷</div>
-          <div>{t("Dieser Browser kann keine Bilder dauerhaft speichern.")}</div>
+                    <div>{t("Dieser Browser kann keine Bilder dauerhaft speichern.")}</div>
         </div>
       </Modal>
     );
@@ -326,8 +325,7 @@ export function PhotosDialog({ onClose }: { onClose: () => void }) {
 
         {photos.length === 0 ? (
           <div className="empty">
-            <div className="empty__icon">📷</div>
-            <div>{t("Noch keine Fotos")}</div>
+                        <div>{t("Noch keine Fotos")}</div>
             <div className="tiny" style={{ marginTop: 5 }}>
               {t("Gleiche Stelle, gleiches Licht, gleiche Tageszeit – sonst vergleichst du Beleuchtung statt Fortschritt.")}
             </div>

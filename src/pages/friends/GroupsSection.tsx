@@ -55,7 +55,7 @@ export function GroupsSection() {
       </div>
 
       {sync.groups.length === 0 ? (
-        <EmptyState icon="👥" title={t("Noch in keiner Gruppe")} hint={t("Leg eine an oder tritt mit einem Code bei.")} />
+        <EmptyState title={t("Noch in keiner Gruppe")} hint={t("Leg eine an oder tritt mit einem Code bei.")} />
       ) : (
         <div className="list">
           {sync.groups.map((group) => (

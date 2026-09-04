@@ -36,8 +36,9 @@ export async function run() {
     await page.waitForTimeout(700);
     await page.locator('.day-strip__item').first().click();
     await page.waitForTimeout(500);
+    // Der Zaehler zeigt jetzt einen Bruch: "1/4" statt nur "1".
     const count = await page.locator('.exercise').first().locator('.exercise__count').first().textContent();
-    if (count?.trim() !== '1') throw new Error(`Zähler "${count}"`);
+    if (!/^1\s*\/\s*\d+$/.test(count?.trim() ?? '')) throw new Error(`Zähler "${count}"`);
   });
 
   await runner.step('Suche findet deutsch, englisch und nach Muskel', async () => {

@@ -184,12 +184,17 @@ export function Collapsible({
 
 /* --------------------------------------------------------------- Leerer Zustand */
 
-export function EmptyState({ icon, title, hint }: { icon: string; title: string; hint?: string }) {
+/**
+ * Leerer Zustand.
+ *
+ * Bewusst ohne Symbol: Ein grosses Emoji ueber jeder leeren Liste sieht auf
+ * Dauer beliebig aus und sagt nichts. Ein klarer Satz sagt mehr.
+ */
+export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   return (
     <div className="empty">
-      <div className="empty__icon">{icon}</div>
-      <div className="bold" style={{ color: 'var(--text-muted)' }}>{title}</div>
-      {hint && <div className="tiny" style={{ marginTop: 4 }}>{hint}</div>}
+      <div className="empty__title">{title}</div>
+      {hint && <div className="empty__hint">{hint}</div>}
     </div>
   );
 }

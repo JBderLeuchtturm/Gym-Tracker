@@ -45,7 +45,7 @@ export function ChallengesSection({ friends }: { friends: Friend[] }) {
     };
 
     if (challenge.memberIds.includes(sync.user?.id ?? '')) {
-      rows.push({ name: 'Du', emoji: '⭐', score: scoreFrom(myProgress.recent), joined: true });
+      rows.push({ name: 'Du', emoji: '', score: scoreFrom(myProgress.recent), joined: true });
     }
 
     for (const friend of friends) {
@@ -70,7 +70,6 @@ export function ChallengesSection({ friends }: { friends: Friend[] }) {
     <>
       {boards.length === 0 ? (
         <EmptyState
-          icon="🏁"
           title={t("Noch keine Challenge")}
           hint={t("Setzt euch ein gemeinsames Ziel für ein paar Wochen.")}
         />
@@ -103,7 +102,7 @@ export function ChallengesSection({ friends }: { friends: Friend[] }) {
                       <div key={`${row.name}-${index}`}>
                         <div className="row row--between tiny" style={{ marginBottom: 3 }}>
                           <span className="nowrap">
-                            {['🥇', '🥈', '🥉'][index] ?? '　'} {row.emoji} {row.name}
+                            <span className="rank">{index + 1}</span> {row.emoji} {row.name}
                           </span>
                           <span className="mono dim">
                             {fmt(row.score)} {METRIC_UNITS[challenge.metric]}

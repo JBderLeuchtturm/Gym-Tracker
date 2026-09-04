@@ -67,6 +67,9 @@ export async function run() {
     const input = card.locator('.set-row').first().locator('input').first();
     await input.fill('80'); await input.blur();
     await page.waitForTimeout(400);
+    // Selten gebrauchte Handgriffe liegen hinter "Mehr".
+    await card.getByRole('button', { name: 'Mehr', exact: true }).click();
+    await page.waitForTimeout(250);
     await card.getByRole('button', { name: 'Aufwärmen' }).click();
     await page.waitForTimeout(700);
     if (await card.locator('.set-row__index--warmup').count() < 2) throw new Error('Zu wenige Aufwärmsätze');
