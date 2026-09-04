@@ -36,8 +36,8 @@ export async function run() {
     await page.waitForTimeout(700);
     await page.locator('.day-strip__item').first().click();
     await page.waitForTimeout(500);
-    const chip = await page.locator('.exercise').first().locator('.chip').first().textContent();
-    if (!chip?.includes('1/')) throw new Error(`Chip "${chip}"`);
+    const count = await page.locator('.exercise').first().locator('.exercise__count').first().textContent();
+    if (count?.trim() !== '1') throw new Error(`Zähler "${count}"`);
   });
 
   await runner.step('Suche findet deutsch, englisch und nach Muskel', async () => {

@@ -13,7 +13,7 @@ import { ExercisePicker } from '../components/ExercisePicker';
 import { ExerciseDetail } from '../components/ExerciseDetail';
 import { ConfirmDialog, EmptyState, NumberInput, fmt, useToast } from '../components/ui';
 import { ProgressRing } from '../components/ProgressRing';
-import { categoryColor, categoryTint } from '../lib/categoryColors';
+import { CATEGORY_ICONS, categoryColor, categoryTint } from '../lib/categoryColors';
 import {
   IconCheck, IconChart, IconChevronDown, IconChevronLeft, IconChevronRight, IconClock,
   IconPlus, IconTrash, IconX,
@@ -641,11 +641,12 @@ function ExerciseCard({
       )}
 
       <div className="exercise__head" onClick={() => setOpen(!open)}>
+        <span className="exercise__tile" aria-hidden="true">
+          {row.exercise ? CATEGORY_ICONS[row.exercise.category] : '⚙️'}
+        </span>
+
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="row" style={{ gap: 7 }}>
-            <span className="cat-dot" />
-            <span className="exercise__name">{row.exercise?.name ?? 'Unbekannte Übung'}</span>
-          </div>
+          <div className="exercise__name">{row.exercise?.name ?? 'Unbekannte Übung'}</div>
           <div className="exercise__meta">
             {targetText}
             {previous
@@ -653,14 +654,21 @@ function ExerciseCard({
               : ' · noch keine Vorleistung'}
           </div>
         </div>
-        <div className="row" style={{ gap: 6, flexShrink: 0 }}>
+
+        <div className="row" style={{ gap: 8, flexShrink: 0, alignItems: 'center' }}>
           {doneSets > 0 && (
-            <span className={`chip ${allDone ? 'chip--success' : 'chip--accent'}`}>
-              {doneSets}/{totalTarget}
-            </span>
+            <ProgressRing
+              value={doneSets}
+              max={totalTarget || doneSets}
+              size={34}
+              stroke={3.5}
+              color={accent}
+            >
+              <span className="exercise__count">{doneSets}</span>
+            </ProgressRing>
           )}
           <IconChevronDown
-            style={{ width: 18, height: 18, color: 'var(--text-dim)', transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}
+            style={{ width: 18, height: 18, color: 'var(--text-dim)', transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.18s' }}
           />
         </div>
       </div>

@@ -20,8 +20,8 @@ export async function run() {
   await runner.step('Stoppuhr misst und beendet', async () => {
     await page.getByRole('button', { name: 'Zeit messen' }).click();
     await page.waitForTimeout(2200);
-    const chip = await page.locator('.chip--success').first().textContent();
-    if (!/0:0[12]/.test(chip ?? '')) throw new Error(`Anzeige "${chip}"`);
+    const clock = await page.locator('.chip--success').first().textContent();
+    if (!/0:0[12]/.test(clock ?? '')) throw new Error(`Anzeige "${clock}"`);
     await page.getByRole('button', { name: 'Training beenden' }).click();
     await page.waitForTimeout(700);
     const state = await readState(page);

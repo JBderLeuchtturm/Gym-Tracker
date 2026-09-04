@@ -36,3 +36,18 @@ export const categoryTint = (category: ExerciseCategory, alpha = 0.15): string =
   const b = Number.parseInt(hex.slice(5, 7), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
+
+/** Ein Symbol je Muskelgruppe - wird als Kachel an der Uebung gezeigt. */
+export const CATEGORY_ICONS: Record<ExerciseCategory, string> = {
+  chest: '🫁',
+  back: '🔙',
+  legs: '🦵',
+  shoulders: '🏋️',
+  arms: '💪',
+  core: '🎯',
+  glutes: '🍑',
+  cardio: '🏃',
+  fullbody: '🔥',
+  mobility: '🧘',
+  other: '⚙️',
+};

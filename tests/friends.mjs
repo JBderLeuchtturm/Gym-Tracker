@@ -230,9 +230,10 @@ export async function run() {
     await a.page.waitForTimeout(400);
     await a.page.locator('.day-strip__item').first().click();
     await a.page.waitForTimeout(600);
-    const chip = await a.page.locator('.exercise').first().locator('.chip').first().textContent().catch(() => '');
-    console.log('    Gerät 1 nach Abgleich, erste Übung:', chip);
-    if (!chip || !chip.includes('/')) throw new Error('Training vom zweiten Gerät kam nicht an');
+    const count = await a.page.locator('.exercise').first().locator('.exercise__count').first()
+      .textContent().catch(() => '');
+    console.log('    Gerät 1 nach Abgleich, abgehakte Sätze:', count);
+    if (!count || Number(count) < 1) throw new Error('Training vom zweiten Gerät kam nicht an');
   
     // Der Startplan darf sich beim Zusammenfuehren nicht verdoppeln.
     await a.page.locator('.nav__item').nth(1).click();
