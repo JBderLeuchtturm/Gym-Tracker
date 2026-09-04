@@ -8,10 +8,14 @@ import { useStore } from '../storage/store';
 import { downloadBackup, importState } from '../storage/db';
 import { CustomExerciseDialog } from '../components/ExercisePicker';
 import { ExerciseDetail } from '../components/ExerciseDetail';
+import { BodyLogButtons, MeasurementsDialog, PhotosDialog } from '../components/BodyLog';
 import { ConfirmDialog, Modal, NumberInput, Stat, fmt, useToast } from '../components/ui';
 import {
-  IconDownload, IconEdit, IconPlus, IconScale, IconTrash, IconUpload, IconUser,
+  IconDownload, IconEdit, IconPlus, IconScale, IconTarget, IconTrash, IconUpload, IconUser,
 } from '../components/icons';
+import { ALL_REGIONS, REGION_LABELS, type MuscleRegion } from '../lib/muscles';
+import { DEFAULT_WEEKLY_TARGET, targetFor } from '../lib/muscleLoad';
+import { ALL_EQUIPMENT } from '../data/catalog';
 
 export function ProfilePage() {
   const {
@@ -24,6 +28,10 @@ export function ProfilePage() {
 
   const [weightOpen, setWeightOpen] = useState(false);
   const [exercisesOpen, setExercisesOpen] = useState(false);
+  const [targetsOpen, setTargetsOpen] = useState(false);
+  const [measurementsOpen, setMeasurementsOpen] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState(false);
+  const [equipmentOpen, setEquipmentOpen] = useState(false);
   const [newExerciseOpen, setNewExerciseOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
 
@@ -168,6 +176,17 @@ export function ProfilePage() {
             </tbody>
           </table>
         )}
+
+        <div className="divider" />
+        <div className="tiny dim" style={{ marginBottom: 8 }}>
+          {t("Umfänge und Fotos zeigen die Veränderung oft früher als die Waage.")}
+          {' '}
+          {t("Fotos bleiben auf diesem Gerät.")}
+        </div>
+        <BodyLogButtons
+          onMeasurements={() => setMeasurementsOpen(true)}
+          onPhotos={() => setPhotosOpen(true)}
+        />
       </div>
 
       <div className="card">
@@ -226,6 +245,40 @@ export function ProfilePage() {
             </select>
           </div>
 
+          <label className="row" style={{ gap: 9, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={settings.countdownBeep}
+              onChange={(event) => updateSettings({ countdownBeep: event.target.checked })}
+            />
+            <span className="small">
+              {t("Signalton, wenn eine Halteübung abgelaufen ist")}
+            </span>
+          </label>
+
+          <div className="field">
+            <label className="field__label">{t("Trainingspartner")}</label>
+            <input
+              className="input"
+              value={settings.partnerName}
+              placeholder={t("Name – leer lassen für aus")}
+              onChange={(event) => updateSettings({ partnerName: event.target.value })}
+            />
+            <span className="field__hint">
+              {t("Ist ein Name gesetzt, kannst du im Training Sätze deinem Partner zuordnen. Die zählen nicht in deine Auswertung.")}
+            </span>
+          </div>
+
+          <button className="btn btn--block" onClick={() => setTargetsOpen(true)}>
+            <IconTarget /> {t('Wochenziele je Muskelgruppe')}
+          </button>
+
+          <button className="btn btn--block" onClick={() => setEquipmentOpen(true)}>
+            {t('Verfügbare Geräte')} ({settings.availableEquipment.length === 0
+              ? t('alle')
+              : settings.availableEquipment.length})
+          </button>
+
           <button className="btn btn--block" onClick={() => setExercisesOpen(true)}>
             Eigene Übungen verwalten ({state.exercises.length})
           </button>
@@ -271,6 +324,25 @@ export function ProfilePage() {
           onClose={() => setWeightOpen(false)}
           onSave={(date, kg) => { logBodyWeight(date, kg); setWeightOpen(false); toast.show(t("Gewicht gespeichert")); }}
           defaultWeight={profile.weightKg}
+        />
+      )}
+
+      {measurementsOpen && <MeasurementsDialog onClose={() => setMeasurementsOpen(false)} />}
+      {photosOpen && <PhotosDialog onClose={() => setPhotosOpen(false)} />}
+
+      {targetsOpen && (
+        <WeeklyTargetsDialog
+          targets={settings.weeklySetTargets}
+          onClose={() => setTargetsOpen(false)}
+          onSave={(next) => { updateSettings({ weeklySetTargets: next }); setTargetsOpen(false); }}
+        />
+      )}
+
+      {equipmentOpen && (
+        <EquipmentDialog
+          chosen={settings.availableEquipment}
+          onClose={() => setEquipmentOpen(false)}
+          onSave={(next) => { updateSettings({ availableEquipment: next }); setEquipmentOpen(false); }}
         />
       )}
 
@@ -413,6 +485,110 @@ function CustomExerciseManager({
       )}
 
       {detail && <ExerciseDetail exercise={detail} onClose={() => setDetail(null)} />}
+    </Modal>
+  );
+}
+
+
+/**
+ * Wochenziele je Muskelregion. Voreingestellt sind die ueblichen Empfehlungen;
+ * 0 heisst "interessiert mich nicht" und nimmt die Region aus der Ampel.
+ */
+function WeeklyTargetsDialog({
+  targets, onClose, onSave,
+}: {
+  targets: Record<string, number>;
+  onClose: () => void;
+  onSave: (targets: Record<string, number>) => void;
+}) {
+  const [draft, setDraft] = useState<Record<string, number>>(() => {
+    const initial: Record<string, number> = {};
+    for (const region of ALL_REGIONS) initial[region] = targetFor(targets, region);
+    return initial;
+  });
+
+  const set = (region: MuscleRegion, value: number | null) =>
+    setDraft((current) => ({ ...current, [region]: Math.max(0, Math.min(40, value ?? 0)) }));
+
+  return (
+    <Modal title={t('Wochenziele')} onClose={onClose}>
+      <div className="list">
+        <p className="small muted">
+          {t("Wie viele harte Sätze soll jede Muskelgruppe pro Woche bekommen? Üblich sind 10 bis 20. Auf 0 gesetzt, taucht die Gruppe in der Ampel nicht mehr auf.")}
+        </p>
+
+        {ALL_REGIONS.map((region) => (
+          <div className="row row--between" key={region}>
+            <span className="small">{t(REGION_LABELS[region])}</span>
+            <div style={{ width: 96 }}>
+              <NumberInput
+                value={draft[region]}
+                min={0}
+                max={40}
+                onChange={(value) => set(region, value)}
+              />
+            </div>
+          </div>
+        ))}
+
+        <div className="grid-2" style={{ marginTop: 6 }}>
+          <button
+            className="btn"
+            onClick={() => setDraft({ ...DEFAULT_WEEKLY_TARGET })}
+          >
+            {t('Standard')}
+          </button>
+          <button className="btn btn--primary" onClick={() => onSave(draft)}>
+            {t('Speichern')}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Geraeteprofil. Ohne Auswahl steht alles zur Verfuegung - erst wer etwas
+ * ankreuzt, bekommt in Suche und Vorschlaegen nur noch passende Uebungen.
+ */
+function EquipmentDialog({
+  chosen, onClose, onSave,
+}: {
+  chosen: string[];
+  onClose: () => void;
+  onSave: (equipment: string[]) => void;
+}) {
+  const [draft, setDraft] = useState<string[]>(chosen);
+
+  const toggle = (item: string) => setDraft((current) => (
+    current.includes(item) ? current.filter((entry) => entry !== item) : [...current, item]
+  ));
+
+  return (
+    <Modal title={t('Verfügbare Geräte')} onClose={onClose}>
+      <div className="list">
+        <p className="small muted">
+          {t("Kreuze an, was du zur Verfügung hast. Die Übungssuche zeigt dann zuerst, was du auch machen kannst. Nichts angekreuzt heißt: alles verfügbar.")}
+        </p>
+
+        <div className="row row--wrap" style={{ gap: 6 }}>
+          {ALL_EQUIPMENT.map((item) => (
+            <button
+              key={item}
+              className={`chip chip--button ${draft.includes(item) ? 'chip--accent' : ''}`}
+              aria-pressed={draft.includes(item)}
+              onClick={() => toggle(item)}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid-2" style={{ marginTop: 6 }}>
+          <button className="btn" onClick={() => setDraft([])}>{t('Alles verfügbar')}</button>
+          <button className="btn btn--primary" onClick={() => onSave(draft)}>{t('Speichern')}</button>
+        </div>
+      </div>
     </Modal>
   );
 }

@@ -86,3 +86,47 @@ export const IconUsers = (p: IconProps) => (
     <path d="M16.5 5.4a3.2 3.2 0 0 1 0 5.2M18 14.2a6 6 0 0 1 3 4.8" />
   </Base>
 );
+export const IconTarget = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <circle cx="12" cy="12" r="4.5" />
+    <circle cx="12" cy="12" r="1" />
+  </Base>
+);
+export const IconCamera = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 8h3l1.5-2h7L17 8h3v11H4z" />
+    <circle cx="12" cy="13" r="3.4" />
+  </Base>
+);
+export const IconRuler = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M3.5 14.5l11-11 5 5-11 11z" />
+    <path d="M7 11l2 2M10 8l2 2M13 5l2 2" />
+  </Base>
+);
+export const IconSwap = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5" />
+  </Base>
+);
+export const IconBell = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z" />
+    <path d="M10 19a2 2 0 0 0 4 0" />
+  </Base>
+);
+export const IconShare = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="18" cy="6" r="2.6" />
+    <circle cx="6" cy="12" r="2.6" />
+    <circle cx="18" cy="18" r="2.6" />
+    <path d="M8.4 10.8l7.2-3.6M8.4 13.2l7.2 3.6" />
+  </Base>
+);
+export const IconPrinter = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M7 9V4h10v5" />
+    <path d="M5 9h14v7h-3v4H8v-4H5z" />
+  </Base>
+);

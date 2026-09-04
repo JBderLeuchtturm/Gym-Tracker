@@ -10,7 +10,15 @@ import { REGION_LABELS, type MuscleRegion } from '../lib/muscles';
  * urheberrechtlich nicht nutzbar.
  */
 
-export type Intensity = 'primary' | 'secondary' | 'none';
+/**
+ * Faerbung einer Region.
+ * - primary/secondary/none: Ziel- und Hilfsmuskeln einer Uebung
+ * - off/none/low/mid/good/over: Ampel gegen das Wochenziel
+ * - Zahl 0..1: gleitender Verlauf fuer eine reine Belastungskarte
+ */
+export type Intensity =
+  | 'primary' | 'secondary' | 'none'
+  | 'off' | 'low' | 'mid' | 'good' | 'over';
 
 interface Shape {
   region: MuscleRegion;
@@ -87,9 +95,15 @@ export function MuscleMap({
       if (value <= 0) return { fill: 'var(--surface-3)', opacity: 1 };
       return { fill: 'var(--accent)', opacity: 0.25 + value * 0.75 };
     }
-    if (value === 'primary') return { fill: 'var(--accent)', opacity: 1 };
-    if (value === 'secondary') return { fill: 'var(--accent)', opacity: 0.42 };
-    return { fill: 'var(--surface-3)', opacity: 1 };
+    switch (value) {
+      case 'primary': return { fill: 'var(--accent)', opacity: 1 };
+      case 'secondary': return { fill: 'var(--accent)', opacity: 0.42 };
+      case 'low': return { fill: 'var(--danger)', opacity: 0.85 };
+      case 'mid': return { fill: 'var(--warn)', opacity: 0.85 };
+      case 'good': return { fill: 'var(--success)', opacity: 0.9 };
+      case 'over': return { fill: 'var(--violet)', opacity: 0.85 };
+      default: return { fill: 'var(--surface-3)', opacity: 1 };
+    }
   };
 
   return (

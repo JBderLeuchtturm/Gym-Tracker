@@ -2,8 +2,10 @@ import { t } from '../../i18n';
 import { useMemo, useState } from 'react';
 import { useSync } from '../../sync/SyncProvider';
 import type { Friend } from '../../sync/types';
-import { formatDateShort, relativeDayLabel } from '../../lib/date';
+import { formatDateShort, relativeDayLabel, todayISO, weekKey } from '../../lib/date';
 import { EmptyState, fmt, useToast } from '../../components/ui';
+import { useStore } from '../../storage/store';
+import { weeklySummaries } from '../../lib/stats';
 import { IconTrash } from '../../components/icons';
 
 const EMOJIS = ['💪', '🔥', '👏', '🤯', '🫡'];
@@ -58,6 +60,7 @@ export function ActivityFeed({ friends }: { friends: Friend[] }) {
 
   return (
     <div className="list">
+      <WeeklyRecap friends={friends} />
       {items.map((item) => {
         const key = `${item.friend.userId}:${item.date}`;
         const mine = sync.reactions.filter(
@@ -161,6 +164,91 @@ export function ActivityFeed({ friends }: { friends: Friend[] }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+
+/**
+ * Wochenrueckblick: Wer hat diese Woche was gemacht?
+ *
+ * Gerechnet wird aus den geteilten Wochenzahlen - keine neuen Daten, nur eine
+ * andere Sicht darauf. Wer nichts freigegeben hat, taucht nicht auf; das ist
+ * kein Versehen, sondern die Freigabe.
+ */
+function WeeklyRecap({ friends }: { friends: Friend[] }) {
+  const sync = useSync();
+  const { state } = useStore();
+
+  // Die eigenen Zahlen kommen aus dem lokalen Stand, nicht ueber den Server.
+  const ownWeekly = useMemo(() => weeklySummaries(state, 2), [state]);
+
+  const rows = useMemo(() => {
+    const thisWeek = weekKey(todayISO());
+
+    const entries = friends.map((friend) => {
+      const weekly = sync.friendData[friend.userId]?.progress?.weekly ?? [];
+      const week = weekly.find((item) => item.key === thisWeek);
+      return {
+        friend,
+        workouts: week?.workouts ?? 0,
+        sets: week?.sets ?? 0,
+        volume: week?.volume ?? 0,
+      };
+    });
+
+    // Eigene Zahlen mitrechnen, damit der Vergleich einen Bezugspunkt hat.
+    const own = ownWeekly.find((item) => item.key === thisWeek);
+    if (own) {
+      entries.push({
+        friend: { userId: 'me', handle: 'du', displayName: t('Du'), scopes: [] } as unknown as Friend,
+        workouts: own.workouts,
+        sets: own.sets,
+        volume: own.volume,
+      });
+    }
+
+    return entries
+      .filter((entry) => entry.sets > 0)
+      .sort((a, b) => b.sets - a.sets);
+  }, [friends, sync.friendData, ownWeekly]);
+
+  if (rows.length === 0) return null;
+
+  const total = rows.reduce((sum, row) => sum + row.sets, 0);
+  const best = rows[0];
+
+  return (
+    <div className="card">
+      <div className="card__header">
+        <div className="card__title">{t("Diese Woche")}</div>
+        <span className="tiny dim">{t('{count} Sätze zusammen', { count: total })}</span>
+      </div>
+
+      <div className="list">
+        {rows.map((row) => (
+          <div key={row.friend.userId}>
+            <div className="row row--between tiny" style={{ marginBottom: 4 }}>
+              <span className="bold">
+                {row.friend.displayName || `@${row.friend.handle}`}
+                {row.friend.userId === best.friend.userId && rows.length > 1 && ' 🏅'}
+              </span>
+              <span className="dim">
+                {row.workouts} × · {row.sets} {t('Sätze')} · {fmt(row.volume)} kg
+              </span>
+            </div>
+            <div className="progress-bar">
+              <div
+                className="progress-bar__fill"
+                style={{
+                  width: `${(row.sets / (best.sets || 1)) * 100}%`,
+                  background: row.friend.userId === 'me' ? 'var(--accent)' : 'var(--violet)',
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { exerciseName, t } from '../i18n';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Exercise, LoggedExercise, PlanExercise, SetLog, Workout } from '../types';
 import {
   WEEKDAY_SHORT, addDays, formatClock, formatDateShort, parseISODate, relativeDayLabel,
@@ -7,20 +7,27 @@ import {
 } from '../lib/date';
 import { calcWorkoutBurn } from '../lib/calories';
 import { detectRecord, suggestWeight, warmupSets, type NewRecord } from '../lib/coaching';
-import { exerciseVolume, lastPerformance, workoutSetCount, workoutVolume } from '../lib/stats';
+import { cycleLabel, cycleWeight, isDeload } from '../lib/cycle';
+import {
+  countsAsWork, exerciseVolume, lastPerformance, workoutSetCount, workoutVolume,
+} from '../lib/stats';
 import { useStore } from '../storage/store';
+import { useSync } from '../sync/SyncProvider';
 import { uid } from '../storage/defaults';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { ExerciseDetail } from '../components/ExerciseDetail';
 import { BodyMap, type Intensity } from '../components/MuscleMap';
-import { REGION_LABELS, regionsOf, type MuscleRegion } from '../lib/muscles';
-import { ConfirmDialog, EmptyState, NumberInput, fmt, useToast } from '../components/ui';
+import {
+  REGION_LABELS, fitsEquipment, regionsOf, suggestForRegion, type MuscleRegion,
+} from '../lib/muscles';
+import { ConfirmDialog, EmptyState, Modal, NumberInput, fmt, useToast } from '../components/ui';
 import { ProgressRing } from '../components/ProgressRing';
 import { CATEGORY_ICONS, categoryColor, categoryTint } from '../lib/categoryColors';
 import {
   IconCheck, IconChart, IconChevronDown, IconChevronLeft, IconChevronRight, IconClock,
-  IconPlus, IconTrash, IconX,
+  IconPlay, IconPlus, IconSwap, IconTrash, IconX,
 } from '../components/icons';
+import { beep } from '../lib/beep';
 
 /* ------------------------------------------------------------ Zeilenmodell */
 
@@ -58,6 +65,8 @@ export function TodayPage() {
 
   const [date, setDate] = useState(todayISO());
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [swapFor, setSwapFor] = useState<Row | null>(null);
+  const sync = useSync();
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
@@ -88,7 +97,9 @@ export function TodayPage() {
         const reference = previous?.sets[index] ?? previous?.sets[previous.sets.length - 1];
         return newSet({
           reps: reference?.reps ?? planExercise.targetRepsMin ?? null,
-          weightKg: reference?.weightKg ?? planExercise.targetWeightKg ?? null,
+          weightKg: reference?.weightKg
+            ?? cycleWeight(planExercise.targetWeightKg, plan?.cycle, date)
+            ?? null,
           durationSec: reference?.durationSec ?? null,
         });
       });
@@ -197,6 +208,40 @@ export function TodayPage() {
     if (rest > 0) startRest(rest);
   };
 
+  /**
+   * Tauscht die Uebung einer Zeile gegen eine andere. Die bereits
+   * eingetragenen Saetze bleiben stehen - das Geraet war besetzt, die Arbeit
+   * war es nicht.
+   */
+  const swapExercise = (row: Row, next: Exercise) => {
+    upsertWorkout(date, (current) => {
+      const existing = current.exercises.find((logged) => logged.exerciseId === row.exerciseId);
+      const exercises = existing
+        ? current.exercises.map((logged) => (
+            logged.exerciseId === row.exerciseId
+              ? { ...logged, exerciseId: next.id, planExerciseId: undefined }
+              : logged
+          ))
+        : [
+            ...current.exercises,
+            {
+              id: uid('le'),
+              exerciseId: next.id,
+              groupId: row.groupId,
+              sets: row.sets.map((set) => ({ ...set, id: uid('set') })),
+            },
+          ];
+
+      // Die Plan-Uebung wird ersetzt, nicht ergaenzt: ihre Reihenfolge bleibt.
+      const order = (current.exerciseOrder ?? rows.map((item) => item.exerciseId))
+        .map((id) => (id === row.exerciseId ? next.id : id));
+
+      return { ...current, exercises, exerciseOrder: order };
+    });
+    setSwapFor(null);
+    toast.show(t('Getauscht gegen {name}', { name: exerciseName(next) }));
+  };
+
   const addSet = (row: Row) => {
     updateRow(row, (logged) => {
       const last = logged.sets[logged.sets.length - 1];
@@ -283,6 +328,8 @@ export function TodayPage() {
       return { ...current, endedAt: new Date().toISOString(), durationMin: minutes };
     });
     toast.show(t("Training beendet"));
+    // Freunde anstupsen - still, und nur wenn Push eingerichtet ist.
+    void sync.nudgeFriends();
   };
 
   const removeRow = (row: Row) => {
@@ -296,13 +343,16 @@ export function TodayPage() {
   /* ------------------------------------------------------------ Kennzahlen */
 
   const stats = useMemo(() => {
-    if (!workout) return { sets: 0, volume: 0, kcal: 0, minutes: 0 };
+    if (!workout) {
+      return { sets: 0, volume: 0, kcal: 0, minutes: 0, durationImplausible: false };
+    }
     const burn = calcWorkoutBurn(workout, getExercise, state.profile.weightKg, state.settings.restTimerSec);
     return {
       sets: workoutSetCount(workout),
       volume: workoutVolume(workout),
       kcal: burn.kcal,
       minutes: burn.minutes,
+      durationImplausible: burn.durationImplausible,
     };
   }, [workout, getExercise, state.profile.weightKg, state.settings.restTimerSec]);
 
@@ -336,6 +386,14 @@ export function TodayPage() {
         </button>
       )}
 
+      {cycleLabel(plan, date) && (
+        <div className="row" style={{ justifyContent: 'center' }}>
+          <span className={`chip ${isDeload(plan?.cycle, date) ? 'chip--warn' : 'chip--accent'}`}>
+            {cycleLabel(plan, date)}
+          </span>
+        </div>
+      )}
+
       {(stats.sets > 0 || rows.length > 0) && (
         <div className="hero">
           <ProgressRing value={stats.sets} max={plannedSets || stats.sets || 1} size={92}>
@@ -364,6 +422,11 @@ export function TodayPage() {
               <span className="hero__fact-value" style={{ color: 'var(--warn)' }}>
                 {fmt(stats.kcal)}<span className="hero__fact-unit">{t("kcal")}</span>
               </span>
+              {stats.minutes > 0 && (
+                <span className="hero__fact-sub">
+                  {t('{minutes} min gerechnet', { minutes: Math.round(stats.minutes) })}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -402,6 +465,7 @@ export function TodayPage() {
             onAddSet={() => addSet(row)}
             onRemove={() => removeRow(row)}
             onOpenDetail={() => row.exercise && setDetail(row.exercise)}
+            onSwap={() => setSwapFor(row)}
             onStartRest={startRest}
             onMove={(direction) => moveRow(index, direction)}
             onToggleSuperset={() => toggleSuperset(index)}
@@ -428,7 +492,11 @@ export function TodayPage() {
                 placeholder={t("gemessen")}
               />
               <span className="field__hint">
-                {workout.endedAt ? 'Von der Stoppuhr übernommen' : 'Leer lassen = wird geschätzt'}
+                {stats.durationImplausible
+                  ? t('Kürzer als die reine Hebezeit – für den Verbrauch wird geschätzt.')
+                  : workout.endedAt
+                    ? t('Von der Stoppuhr übernommen')
+                    : t('Leer lassen = wird geschätzt')}
               </span>
             </div>
             <div className="field">
@@ -473,6 +541,14 @@ export function TodayPage() {
           onPick={addExercise}
           onClose={() => setPickerOpen(false)}
           excludeIds={rows.map((row) => row.exerciseId)}
+        />
+      )}
+
+      {swapFor && (
+        <SwapDialog
+          row={swapFor}
+          onClose={() => setSwapFor(null)}
+          onPick={(next) => swapExercise(swapFor, next)}
         />
       )}
 
@@ -531,7 +607,7 @@ function WeekStrip({
 
 function ExerciseCard({
   row, index, total, date, sortMode, groupedWithAbove,
-  onToggleSet, onUpdate, onAddSet, onRemove, onOpenDetail, onStartRest, onMove, onToggleSuperset,
+  onToggleSet, onUpdate, onAddSet, onRemove, onOpenDetail, onSwap, onStartRest, onMove, onToggleSuperset,
 }: {
   row: Row;
   index: number;
@@ -544,6 +620,7 @@ function ExerciseCard({
   onAddSet: () => void;
   onRemove: () => void;
   onOpenDetail: () => void;
+  onSwap: () => void;
   onStartRest: (seconds: number) => void;
   onMove: (direction: -1 | 1) => void;
   onToggleSuperset: () => void;
@@ -559,8 +636,11 @@ function ExerciseCard({
     [state, row.exerciseId, row.exercise, row.planExercise, date],
   );
 
-  const doneSets = row.sets.filter((set) => set.done && !set.isWarmup).length;
+  const doneSets = row.sets.filter(countsAsWork).length;
   const [open, setOpen] = useState(doneSets === 0);
+  /** Welcher Satz zeigt gerade seine Zusatzzeile (Notiz, Partner)? */
+  const [openSet, setOpenSet] = useState<string | null>(null);
+  const partnerName = state.settings.partnerName.trim();
   const isTimed = row.exercise?.kind === 'time' || row.exercise?.kind === 'cardio';
 
   const target = row.planExercise;
@@ -710,7 +790,14 @@ function ExerciseCard({
           </div>
 
           {row.sets.map((set, index) => (
-            <div className={`set-row${set.done ? ' set-row--done' : ''}`} key={set.id}>
+            <Fragment key={set.id}>
+            <div
+              className={[
+                'set-row',
+                set.done ? 'set-row--done' : '',
+                set.forPartner ? 'set-row--partner' : '',
+              ].filter(Boolean).join(' ')}
+            >
               <button
                 className={`set-row__index ${set.isWarmup ? 'set-row__index--warmup' : ''}`}
                 style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
@@ -722,12 +809,21 @@ function ExerciseCard({
 
               {isTimed ? (
                 <>
-                  <NumberInput
-                    value={set.durationSec}
-                    ariaLabel={t('Dauer in Sekunden')}
-                    onChange={(value) => patchSet(set.id, { durationSec: value })}
-                    placeholder={t("Sek.")}
-                  />
+                  <div className="row" style={{ gap: 4 }}>
+                    <NumberInput
+                      value={set.durationSec}
+                      ariaLabel={t('Dauer in Sekunden')}
+                      onChange={(value) => patchSet(set.id, { durationSec: value })}
+                      placeholder={t("Sek.")}
+                    />
+                    {(set.durationSec ?? 0) > 0 && !set.done && (
+                      <HoldCountdown
+                        seconds={set.durationSec ?? 0}
+                        beepOnEnd={state.settings.countdownBeep}
+                        onDone={() => onToggleSet(set.id)}
+                      />
+                    )}
+                  </div>
                   <NumberInput
                     value={set.distanceKm}
                     ariaLabel={t('Distanz in Kilometern')}
@@ -770,8 +866,37 @@ function ExerciseCard({
                 >
                   <IconCheck />
                 </button>
+                <button
+                  className={`set-more ${openSet === set.id ? 'set-more--on' : ''}`}
+                  onClick={() => setOpenSet(openSet === set.id ? null : set.id)}
+                  aria-label={t('Mehr zu diesem Satz')}
+                  aria-expanded={openSet === set.id}
+                >
+                  ⋯
+                </button>
               </div>
             </div>
+
+            {openSet === set.id && (
+              <div className="set-extra" key={`${set.id}-extra`}>
+                <input
+                  className="input input--sm"
+                  placeholder={t("Notiz zum Satz, z. B. enger Griff")}
+                  value={set.note ?? ''}
+                  onChange={(event) => patchSet(set.id, { note: event.target.value || undefined })}
+                />
+                {partnerName && (
+                  <button
+                    className={`chip chip--button ${set.forPartner ? 'chip--accent' : ''}`}
+                    aria-pressed={Boolean(set.forPartner)}
+                    onClick={() => patchSet(set.id, { forPartner: !set.forPartner })}
+                  >
+                    {t('Satz von {name}', { name: partnerName })}
+                  </button>
+                )}
+              </div>
+            )}
+          </Fragment>
           ))}
 
           <div className="row row--wrap" style={{ marginTop: 10, gap: 7 }}>
@@ -785,6 +910,9 @@ function ExerciseCard({
               <IconClock /> {t('Pause')}
             </button>
             <button className="btn btn--sm" onClick={onOpenDetail}><IconChart /> {t("Fortschritt")}</button>
+            <button className="btn btn--sm" onClick={onSwap} title={t("Gerät besetzt? Ersatz suchen")}>
+              <IconSwap /> {t('Ersatz')}
+            </button>
             <span className="spacer" />
             {row.sets.length > 1 && (
               <button
@@ -983,7 +1111,7 @@ function SessionMuscles({ rows }: { rows: Row[] }) {
     for (const row of rows) {
       if (!row.exercise) continue;
       const { primary, secondary } = regionsOf(row.exercise);
-      const target = row.sets.some((set) => set.done) ? doneRegions : plannedRegions;
+      const target = row.sets.some(countsAsWork) ? doneRegions : plannedRegions;
       for (const region of primary) target.add(region);
       for (const region of secondary) plannedRegions.add(region);
     }
@@ -1015,5 +1143,153 @@ function SessionMuscles({ rows }: { rows: Row[] }) {
         ))}
       </div>
     </div>
+  );
+}
+
+
+/**
+ * Ersatzuebungen: Was trifft dieselben Zielmuskeln? Ist ein Geraeteprofil
+ * hinterlegt, stehen die machbaren Uebungen oben; der Rest bleibt sichtbar,
+ * denn im fremden Studio steht manchmal doch etwas anderes herum.
+ */
+function SwapDialog({
+  row, onClose, onPick,
+}: {
+  row: Row;
+  onClose: () => void;
+  onPick: (exercise: Exercise) => void;
+}) {
+  const { state, allExercises } = useStore();
+  const available = state.settings.availableEquipment;
+
+  const candidates = useMemo(() => {
+    if (!row.exercise) return [];
+    const { primary } = regionsOf(row.exercise);
+    if (primary.size === 0) return [];
+
+    const seen = new Map<string, { exercise: Exercise; hits: number }>();
+    for (const region of primary) {
+      for (const exercise of suggestForRegion(allExercises, region)) {
+        if (exercise.id === row.exerciseId) continue;
+        const entry = seen.get(exercise.id) ?? { exercise, hits: 0 };
+        entry.hits += 1;
+        seen.set(exercise.id, entry);
+      }
+    }
+
+    return [...seen.values()]
+      .map((entry) => ({ ...entry, fits: fitsEquipment(entry.exercise, available) }))
+      .sort((a, b) => (
+        Number(b.fits) - Number(a.fits)
+        || b.hits - a.hits
+        || a.exercise.name.localeCompare(b.exercise.name)
+      ))
+      .slice(0, 30);
+  }, [row.exercise, row.exerciseId, allExercises, available]);
+
+  const regions = row.exercise ? [...regionsOf(row.exercise).primary] : [];
+
+  return (
+    <Modal title={t('Ersatz für {name}', { name: exerciseName(row.exercise) })} onClose={onClose} flush>
+      <div style={{ padding: '12px 14px 6px' }}>
+        <div className="row row--wrap" style={{ gap: 6 }}>
+          {regions.map((region) => (
+            <span key={region} className="chip chip--accent">{t(REGION_LABELS[region])}</span>
+          ))}
+        </div>
+        <div className="tiny dim" style={{ marginTop: 8 }}>
+          {t("Die eingetragenen Sätze bleiben stehen.")}
+        </div>
+      </div>
+
+      <div style={{ maxHeight: '54vh', overflowY: 'auto' }}>
+        {candidates.length === 0 && (
+          <div className="empty tiny">{t("Keine passende Alternative gefunden.")}</div>
+        )}
+        {candidates.map(({ exercise, fits }) => (
+          <button key={exercise.id} className="search-result" onClick={() => onPick(exercise)}>
+            <span
+              className="search-result__thumb search-result__thumb--cat"
+              style={{
+                '--cat': categoryColor(exercise.category),
+                '--cat-tint': categoryTint(exercise.category),
+              } as React.CSSProperties}
+            >
+              {CATEGORY_ICONS[exercise.category]}
+            </span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span className="search-result__name">{exerciseName(exercise)}</span>
+              <span className="search-result__meta" style={{ display: 'block' }}>
+                {exercise.equipment.length > 0 ? exercise.equipment.join(', ') : t('ohne Gerät')}
+              </span>
+            </span>
+            {!fits && available.length > 0 && <span className="chip chip--warn">{t("fehlt dir")}</span>}
+          </button>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+
+/**
+ * Countdown fuer Halteuebungen. Laeuft rueckwaerts, haelt sich an die Uhr statt
+ * an gezaehlte Ticks - ein Tab im Hintergrund darf die Zeit nicht verschleppen.
+ * Am Ende wird der Satz abgehakt und, wenn gewuenscht, ein Ton gespielt.
+ */
+function HoldCountdown({
+  seconds, beepOnEnd, onDone,
+}: {
+  seconds: number;
+  beepOnEnd: boolean;
+  onDone: () => void;
+}) {
+  const [endsAt, setEndsAt] = useState<number | null>(null);
+  const [left, setLeft] = useState(seconds);
+  const doneRef = useRef(false);
+
+  useEffect(() => {
+    if (endsAt == null) return undefined;
+    doneRef.current = false;
+
+    const tick = () => {
+      const remaining = Math.ceil((endsAt - Date.now()) / 1000);
+      setLeft(Math.max(0, remaining));
+      if (remaining <= 0 && !doneRef.current) {
+        doneRef.current = true;
+        if (beepOnEnd) beep();
+        navigator.vibrate?.([120, 60, 120]);
+        setEndsAt(null);
+        onDone();
+      }
+    };
+
+    tick();
+    const id = window.setInterval(tick, 200);
+    return () => window.clearInterval(id);
+  }, [endsAt, beepOnEnd, onDone]);
+
+  if (endsAt == null) {
+    return (
+      <button
+        className="btn btn--sm btn--icon"
+        onClick={() => { setLeft(seconds); setEndsAt(Date.now() + seconds * 1000); }}
+        aria-label={t('Countdown starten')}
+        title={t('Countdown starten')}
+      >
+        <IconPlay />
+      </button>
+    );
+  }
+
+  return (
+    <button
+      className="btn btn--sm btn--icon btn--accent"
+      onClick={() => setEndsAt(null)}
+      aria-label={t('Countdown abbrechen')}
+      style={{ minWidth: 42, fontVariantNumeric: 'tabular-nums' }}
+    >
+      {left}
+    </button>
   );
 }

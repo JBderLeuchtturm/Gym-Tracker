@@ -9,7 +9,10 @@ genauso wie auf dem Handy, wo sie sich als App auf den Startbildschirm legen lä
 Beliebig viele Pläne anlegen, benennen und jederzeit zwischen ihnen wechseln.
 Jeder Wochentag bekommt einen Namen (z. B. „Push"), Übungen mit Zielvorgaben
 (Sätze, Wiederholungsbereich, Zielgewicht, Pausenzeit) und lässt sich auf andere
-Tage kopieren. Fünf fertige Vorlagen sind dabei: Push/Pull/Legs, Oberkörper/
+Tage kopieren – auch auf mehrere gleichzeitig. Ein Plan lässt sich als
+Textbaustein weitergeben und woanders wieder einfügen; das läuft ohne Server
+und ohne Konto, mitgeschickte eigene Übungen kommen mit. Fünf fertige Vorlagen
+sind dabei: Push/Pull/Legs, Oberkörper/
 Unterkörper, Ganzkörper, 5er-Split und ein reines Körpergewichts-Programm.
 
 **Training aufzeichnen**
@@ -30,19 +33,59 @@ und für jede einzelne Übung ein Verlaufsdiagramm – wahlweise nach geschätzt
 bestem Gewicht, Volumen, Wiederholungen oder Zeit. Dazu persönliche Bestleistungen
 und eine Tabelle der letzten Einheiten.
 
-**Muskelkarte**
+**Muskelkarte und Wochenziele**
 Eine Körperkarte von vorne und hinten zeigt bei jeder Übung, welche Muskeln
 das Ziel sind (kräftig) und welche mitarbeiten (blass). Auf der Startseite
 steht dieselbe Karte für den heutigen Tag – kräftig ist, was schon abgehakt
 ist. In der Übungssuche lässt sich eine Region antippen und man bekommt
-passende Übungen vorgeschlagen, Zielmuskel zuerst. In der Auswertung wird
-daraus eine Belastungskarte über den gewählten Zeitraum: je kräftiger die
-Farbe, desto mehr Sätze; darunter steht, welche Regionen gar nicht drankamen.
+passende Übungen vorgeschlagen, Zielmuskel zuerst.
+
+In der Auswertung wird daraus eine Ampel gegen dein **Wochenziel**: rot heißt
+deutlich zu wenig, gelb knapp drunter, grün im Ziel, violett darüber. Grau
+heißt schlicht „diese Woche noch nichts" – am Montagmorgen wäre ein komplett
+roter Körper wenig hilfreich. Darunter steht im Klartext, was noch fehlt und
+welche Region am längsten nicht dran war. Die Ziele stehen unter
+*Profil → Wochenziele je Muskelgruppe*; voreingestellt sind die üblichen
+10 bis 20 Sätze je Woche, auf 0 gesetzt verschwindet eine Gruppe aus der Ampel.
 Die Zeichnung ist selbst gemacht, damit keine fremden Abbildungen im Spiel sind.
+
+**Zyklen und Progression**
+Ein Plan kann über mehrere Wochen laufen: Die Zielgewichte steigen Woche für
+Woche um einen festen Prozentsatz und fallen in der Entlastungswoche zurück.
+Auf der Startseite steht, in welcher Woche du gerade bist. Je Übung lässt sich
+außerdem eine Steigerung hinterlegen – schaffst du in allen Sätzen das obere
+Ende des Wiederholungsbereichs, schlägt die App beim nächsten Mal so viel mehr
+vor (doppelte Progression). Auf 0 gesetzt bleibt das Gewicht, wo es ist.
+
+**Ersatzübungen und Geräteprofil**
+Ist die Bank besetzt, zeigt *Ersatz* Übungen mit denselben Zielmuskeln; die
+schon eingetragenen Sätze bleiben stehen. Wer unter *Profil → Verfügbare
+Geräte* ankreuzt, was er hat, bekommt in der Suche zuerst das, was auch
+machbar ist – und sieht im Ersatz-Dialog, was ihm fehlt.
+
+**Körpermaße und Fotos**
+Umfänge für Hals, Brust, Oberarm, Taille, Hüfte, Oberschenkel und Wade, jeweils
+mit Verlauf – das Gewicht allein steht bei Muskelaufbau wochenlang still.
+Dazu Fortschrittsfotos, die sich zu zweit nebeneinander legen lassen. Die
+Bilder bleiben ausdrücklich auf dem Gerät: kein Server, keine Freigabe, kein
+Backup-JSON.
+
+**Kalender, Hochrechnung, Export**
+Ein Trainingskalender über 27 Wochen zeigt Lücken auf einen Blick. Bei jeder
+Übung steht, wie viel im Monat dazukommt und wann das nächste runde Ziel
+erreicht wäre – mit ehrlicher Angabe, wie gleichmäßig der Verlauf ist. Alles
+lässt sich als CSV mitnehmen; der Bericht geht über den Druckdialog als PDF.
+
+**Trainingspartner**
+Steht unter *Profil → Trainingspartner* ein Name, lässt sich jeder Satz dem
+Partner zuordnen. Die Sätze stehen mit im Training, zählen aber nicht in dein
+Volumen, deine Bestleistungen oder deinen Kalorienverbrauch.
 
 **Kalorienverbrauch**
 Aus den Profildaten wird der Grundumsatz berechnet, daraus der Alltagsumsatz, und
-das Training kommt über MET-Werte je Übung obendrauf. Die Zufuhr kann von Hand,
+das Training kommt über MET-Werte je Übung obendrauf. Eine gemessene
+Trainingsdauer skaliert die Schätzung – sie muss aber mindestens so lang sein
+wie die reine Hebezeit, sonst ist sie nachweislich falsch und wird verworfen. Die Zufuhr kann von Hand,
 per Yazio-CSV-Export oder über eine eigene Bridge dazukommen (siehe unten).
 
 **Übungssuche mit vielen Vorschlägen**
@@ -73,10 +116,10 @@ npm run build && npm test        # alle Läufe
 npm test training                # nur einen Lauf
 ```
 
-Neun Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
-Übungssuche ohne Netz, Layout auf schmalen Geräten, Muskelkarte,
-Mehrsprachigkeit, Freunde und Freigaben, Gruppen und Challenges sowie
-Einladungslinks ab. Die Läufe mit Konto arbeiten gegen ein nachgebautes
+Zehn Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
+Übungssuche ohne Netz, Layout auf schmalen Geräten, Muskelkarte, Wochenziele
+und Zyklen, Mehrsprachigkeit, Freunde und Freigaben, Gruppen und Challenges
+sowie Einladungslinks ab. Die Läufe mit Konto arbeiten gegen ein nachgebautes
 Supabase unter
 [`tests/mockBackend.mjs`](tests/mockBackend.mjs) und fassen das echte Projekt
 nie an. Bei jedem Push und Pull Request laufen sie zusätzlich in GitHub Actions.
@@ -215,6 +258,49 @@ Treffen zwei Stände aufeinander (etwa Handy und Rechner), werden sie
 zusammengeführt statt überschrieben: Trainings, Pläne und Einträge aus beiden
 Richtungen bleiben erhalten, und bei demselben Eintrag gewinnt der jüngere.
 
+## Push-Nachrichten
+
+Ohne Einrichtung meldet sich die App nur, solange sie geöffnet ist. Für echte
+Benachrichtigungen – auch bei geschlossener App – braucht es ein
+VAPID-Schlüsselpaar und eine kleine Funktion auf dem Supabase-Projekt. Das ist
+einmalige Arbeit von etwa zehn Minuten und kostet nichts.
+
+1. **Schlüsselpaar erzeugen** (irgendwo mit Node):
+
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+
+2. **Öffentlichen Schlüssel eintragen** in `public/sync-config.json` unter
+   `vapidPublicKey`. Der gehört dorthin – er ist öffentlich, genau wie der
+   `anon`-Key. Der **private** Schlüssel darf niemals in dieses Repository.
+
+3. **Private Schlüssel als Supabase-Secret hinterlegen** und die Funktion
+   ausrollen:
+
+   ```bash
+   supabase secrets set \
+     VAPID_PUBLIC_KEY=... \
+     VAPID_PRIVATE_KEY=... \
+     VAPID_SUBJECT=mailto:du@example.com
+   supabase functions deploy notify-friends
+   ```
+
+4. **`supabase/schema.sql` noch einmal ausführen** – dabei entsteht die Tabelle
+   `push_subscriptions`. Das Skript ist wiederholbar und ändert an vorhandenen
+   Daten nichts.
+
+5. In der App unter *Freunde* auf **„Bescheid geben, wenn Freunde trainiert
+   haben"** tippen. Jedes Gerät meldet sich einzeln an.
+
+Verschickt wird bewusst **nur ein Anstupser ohne Inhalt**: Bei den Push-Diensten
+von Google und Apple sollen keine Trainingsdaten liegen. Die Benachrichtigung
+lautet deshalb allgemein „Bei deinen Freunden hat sich etwas getan"; was
+tatsächlich passiert ist, holt sich die App beim Öffnen selbst.
+
+Auf dem iPhone funktioniert Push nur, wenn die App über *Zum Startbildschirm
+hinzufügen* installiert wurde – das ist eine Vorgabe von Apple, keine der App.
+
 ## Wo die Daten liegen
 
 Ohne eingerichtete Synchronisierung bleibt alles auf deinem Gerät, im
@@ -298,7 +384,8 @@ src/
 └── types.ts       Datenmodell
 ```
 
-Dazu `supabase/schema.sql` – das Datenbankschema samt Zugriffsregeln.
+Dazu `supabase/schema.sql` – das Datenbankschema samt Zugriffsregeln – und
+`supabase/functions/notify-friends/` für die Push-Nachrichten.
 
 Abhängigkeiten sind nur React und der Supabase-Client; Diagramme, Icons und
 Suche sind selbst geschrieben, damit die App klein und offline-fähig bleibt.

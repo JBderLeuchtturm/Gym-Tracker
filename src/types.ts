@@ -28,6 +28,18 @@ export interface WeightEntry {
   kg: number;
 }
 
+/** Umfaenge in Zentimetern. Alles freiwillig - leere Felder bleiben null. */
+export interface MeasurementEntry {
+  date: string; // yyyy-mm-dd
+  neckCm: number | null;
+  chestCm: number | null;
+  armCm: number | null;
+  waistCm: number | null;
+  hipCm: number | null;
+  thighCm: number | null;
+  calfCm: number | null;
+}
+
 /* --------------------------------------------------------------- Uebungen */
 
 export type ExerciseCategory =
@@ -71,6 +83,12 @@ export interface PlanExercise {
   targetWeightKg: number | null;
   restSec: number | null;
   note?: string;
+  /**
+   * Doppelte Progression: Erreichen alle Arbeitssaetze das obere Ende des
+   * Wiederholungsbereichs, wird beim naechsten Mal um diesen Betrag erhoeht.
+   * null oder fehlend = keine automatische Steigerung.
+   */
+  progressionKg?: number | null;
 }
 
 export interface PlanDay {
@@ -80,11 +98,29 @@ export interface PlanDay {
   exercises: PlanExercise[];
 }
 
+/**
+ * Mehrwoechiger Zyklus: Die Zielgewichte steigen Woche fuer Woche und fallen
+ * in der Entlastungswoche zurueck. Ohne Zyklus bleibt jede Woche gleich.
+ */
+export interface PlanCycle {
+  /** Laenge in Wochen. */
+  weeks: number;
+  /** Entlastungswoche, 1-basiert. null = keine. */
+  deloadWeek: number | null;
+  /** Steigerung je Woche in Prozent des Zielgewichts. */
+  stepPct: number;
+  /** Anteil des Zielgewichts in der Entlastungswoche, in Prozent. */
+  deloadPct: number;
+  /** Montag der ersten Zykluswoche, yyyy-mm-dd. */
+  startDate: string;
+}
+
 export interface Plan {
   id: ID;
   name: string;
   description?: string;
   days: PlanDay[]; // immer 7 Eintraege, Index === weekday
+  cycle?: PlanCycle | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -100,6 +136,9 @@ export interface SetLog {
   rpe: number | null;
   done: boolean;
   isWarmup: boolean;
+  note?: string;
+  /** Satz des Trainingspartners - zaehlt nicht in die eigene Auswertung. */
+  forPartner?: boolean;
 }
 
 export interface LoggedExercise {
@@ -158,6 +197,14 @@ export interface Settings {
   restTimerSec: number;
   weekStartsMonday: boolean;
   useWgerApi: boolean;
+  /** Wochenziel an Arbeitssaetzen je Muskelregion. Fehlt ein Wert, gilt der Standard. */
+  weeklySetTargets: Record<string, number>;
+  /** Verfuegbare Geraete. Leere Liste = keine Einschraenkung. */
+  availableEquipment: string[];
+  /** Name des Trainingspartners. Leer = Partner-Modus aus. */
+  partnerName: string;
+  /** Signalton, wenn der Countdown einer Halteuebung ablaeuft. */
+  countdownBeep: boolean;
   yazio: YazioSettings;
 }
 
@@ -171,6 +218,7 @@ export interface AppState {
   activePlanId: ID | null;
   workouts: Workout[];
   weightLog: WeightEntry[];
+  measurements: MeasurementEntry[];
   nutrition: NutritionEntry[];
   settings: Settings;
 }

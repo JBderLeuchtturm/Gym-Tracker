@@ -17,7 +17,7 @@ import { formatClock, formatDateShort, formatDateTiny, relativeDayLabel } from '
 import { BarChart, LineChart, Sparkline } from '../components/charts/Charts';
 import { EmptyState, Modal, Stat, fmt, useToast } from '../components/ui';
 import {
-  IconCheck, IconChevronRight, IconCopy, IconPlus, IconRefresh,
+  IconBell, IconCheck, IconChevronRight, IconCopy, IconPlus, IconRefresh,
   IconTrash, IconTrophy, IconUser, IconX,
 } from '../components/icons';
 
@@ -435,18 +435,53 @@ function FriendsHome() {
           <button className="btn btn--sm btn--ghost" onClick={() => void sync.signOut()}>{t("Abmelden")}</button>
         </div>
 
-        {notificationPermission() === 'default' && accepted.length > 0 && (
+        {accepted.length > 0 && sync.pushStatus === 'on' && (
+          <button
+            className="btn btn--sm btn--block"
+            style={{ marginTop: 9 }}
+            onClick={async () => {
+              await sync.disablePush();
+              toast.show(t('Push ist aus'));
+            }}
+          >
+            <IconBell /> {t('Push ist an – abschalten')}
+          </button>
+        )}
+
+        {accepted.length > 0 && sync.pushStatus === 'off' && (
+          <button
+            className="btn btn--sm btn--block"
+            style={{ marginTop: 9 }}
+            onClick={async () => {
+              const result = await sync.enablePush();
+              toast.show(result === 'on'
+                ? t('Du wirst benachrichtigt, auch wenn die App zu ist')
+                : t('Benachrichtigungen bleiben aus'));
+            }}
+          >
+            <IconBell /> {t('Bescheid geben, wenn Freunde trainiert haben')}
+          </button>
+        )}
+
+        {accepted.length > 0 && sync.pushStatus === 'denied' && (
+          <div className="tiny dim" style={{ marginTop: 9 }}>
+            {t("Benachrichtigungen sind für diese Seite im Browser gesperrt. Das lässt sich nur dort wieder freigeben.")}
+          </div>
+        )}
+
+        {accepted.length > 0 && sync.pushStatus === 'unconfigured'
+          && notificationPermission() === 'default' && (
           <button
             className="btn btn--sm btn--block"
             style={{ marginTop: 9 }}
             onClick={async () => {
               const result = await requestNotifications();
               toast.show(result === 'granted'
-                ? 'Du wirst benachrichtigt, wenn Freunde trainiert haben'
-                : 'Benachrichtigungen bleiben aus');
+                ? t('Du wirst benachrichtigt, solange die App offen ist')
+                : t('Benachrichtigungen bleiben aus'));
             }}
           >
-            🔔 Bescheid geben, wenn Freunde trainiert haben
+            <IconBell /> {t('Bescheid geben, solange die App offen ist')}
           </button>
         )}
 

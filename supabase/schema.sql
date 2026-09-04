@@ -271,6 +271,33 @@ create policy share_grants_write on public.share_grants
   using (owner_id = auth.uid())
   with check (owner_id = auth.uid() and public.are_friends(owner_id, viewer_id));
 
+-- ------------------------------------------------------- Push-Nachrichten
+
+/*
+ * Ein Eintrag je Geraet. Die Adresse kommt vom Push-Dienst des Browsers.
+ * Gespeichert wird nur, wohin geschickt werden darf - keine Inhalte.
+ *
+ * Lesen darf niemand ausser dem Besitzer; verschickt wird ausschliesslich aus
+ * der Edge Function heraus, die mit dem Service-Role-Schluessel laeuft und
+ * damit an den Zeilenregeln vorbeikommt.
+ */
+create table if not exists public.push_subscriptions (
+  user_id    uuid not null references auth.users on delete cascade,
+  endpoint   text not null,
+  p256dh     text not null default '',
+  auth       text not null default '',
+  created_at timestamptz not null default now(),
+  primary key (user_id, endpoint)
+);
+
+alter table public.push_subscriptions enable row level security;
+
+drop policy if exists push_subscriptions_own on public.push_subscriptions;
+create policy push_subscriptions_own on public.push_subscriptions
+  for all to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
 -- ------------------------------------------------------------ Ausfuehrrechte
 
 -- Die Hilfsfunktionen laufen mit erhoehten Rechten - deshalb bekommt sie nur,

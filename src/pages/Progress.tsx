@@ -3,19 +3,26 @@ import { useMemo, useState } from 'react';
 import type { Exercise, Workout } from '../types';
 import { CATEGORY_LABELS } from '../data/catalog';
 import { categoryColor } from '../lib/categoryColors';
-import { addDays, formatDateShort, formatDateTiny, todayISO } from '../lib/date';
+import { addDays, formatDateShort, formatDateTiny, startOfWeek, todayISO } from '../lib/date';
 import {
   buildReview, categoryTrend, exerciseHistory, personalRecords, streakInfo, volumeByCategory,
   weeklySummaries, workoutSetCount, workoutVolume,
+  countsAsWork,
 } from '../lib/stats';
 import { useStore } from '../storage/store';
-import { BarChart, LineChart, Sparkline, StackedBarChart, type Point } from '../components/charts/Charts';
+import {
+  BarChart, LineChart, Sparkline, StackedBarChart, YearHeatmap, type Point,
+} from '../components/charts/Charts';
 import { ExerciseDetail } from '../components/ExerciseDetail';
-import { BodyMap } from '../components/MuscleMap';
-import { ALL_REGIONS, REGION_LABELS, regionsOf, suggestForRegion, type MuscleRegion } from '../lib/muscles';
-import { EmptyState, Stat, fmt } from '../components/ui';
+import { BodyMap, type Intensity } from '../components/MuscleMap';
+import { ALL_REGIONS, REGION_LABELS, suggestForRegion, type MuscleRegion } from '../lib/muscles';
+import { daysSince, loadStatus, regionLoad, targetFor } from '../lib/muscleLoad';
+import { EmptyState, Stat, fmt, useToast } from '../components/ui';
 import { formatClock } from '../lib/date';
-import { IconChevronRight, IconSearch } from '../components/icons';
+import { IconChevronRight, IconDownload, IconPrinter, IconSearch } from '../components/icons';
+import {
+  bodyToCsv, downloadText, printReport, summaryToCsv, workoutsToCsv,
+} from '../lib/exportData';
 
 type Range = 30 | 90 | 365 | 0;
 
@@ -43,6 +50,8 @@ export function ProgressPage() {
   const [range, setRange] = useState<Range>(90);
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [filter, setFilter] = useState('');
+  const [calendarDay, setCalendarDay] = useState<string | null>(null);
+  const toast = useToast();
 
   const since = range === 0 ? '0000-01-01' : addDays(todayISO(), -range);
 
@@ -52,6 +61,57 @@ export function ProgressPage() {
   );
 
   const streak = useMemo(() => streakInfo(state), [state]);
+
+  /** Ein Punkt je Trainingstag fuer den Kalender - Wert sind die Arbeitssaetze. */
+  const calendarDays = useMemo(() => state.workouts
+    .map((workout) => {
+      const sets = workoutSetCount(workout);
+      return {
+        date: workout.date,
+        value: sets,
+        title: sets > 0
+          ? `${formatDateShort(workout.date)}: ${sets} ${t('Sätze')} · ${fmt(workoutVolume(workout))} kg`
+          : formatDateShort(workout.date),
+      };
+    })
+    .filter((day) => day.value > 0), [state.workouts]);
+
+  /** Zusammenfassung fuer den Ausdruck. */
+  const printReport_ = () => {
+    printReport({
+      title: t('Trainingsbericht'),
+      rangeLabel: RANGE_LABELS[range],
+      stats: [
+        { label: t('Einheiten'), value: String(totals.count) },
+        { label: t('Sätze'), value: String(totals.sets) },
+        { label: t('Volumen'), value: `${fmt(totals.volume)} kg` },
+        { label: t('Wochen-Serie'), value: String(streak.current) },
+      ],
+      sections: [
+        {
+          heading: t('Fortschritt je Übung'),
+          rows: trackedExercises.slice(0, 40).map((item) => [
+            `${item.exercise!.name} (${item.sessions} ${t('Einheiten')})`,
+            `${item.records.maxWeight ? `${fmt(item.records.maxWeight.value, 1)} kg × ${item.records.maxWeight.reps}` : '–'}${
+              item.trend != null ? ` · ${item.trend >= 0 ? '+' : ''}${fmt(item.trend, 0)} %` : ''}`,
+          ]),
+        },
+        {
+          heading: t('Verteilung nach Muskelgruppe'),
+          rows: byCategory.map((entry) => [
+            labelOf(entry.category),
+            `${entry.sets} ${t('Sätze')} · ${fmt(entry.volume)} kg`,
+          ]),
+        },
+      ],
+    });
+  };
+
+  /** Trainings der laufenden Kalenderwoche - Grundlage fuer die Wochenziele. */
+  const weekWorkouts = useMemo(() => {
+    const monday = startOfWeek(todayISO());
+    return state.workouts.filter((workout) => workout.date >= monday);
+  }, [state.workouts]);
 
   const totals = useMemo(() => {
     const volume = workouts.reduce((sum, workout) => sum + workoutVolume(workout), 0);
@@ -115,7 +175,7 @@ export function ProgressPage() {
     const ids = new Set<string>();
     for (const workout of workouts) {
       for (const logged of workout.exercises) {
-        if (logged.sets.some((set) => set.done)) ids.add(logged.exerciseId);
+        if (logged.sets.some(countsAsWork)) ids.add(logged.exerciseId);
       }
     }
 
@@ -261,8 +321,33 @@ export function ProgressPage() {
             </div>
           )}
 
+          <div className="card">
+            <div className="card__header">
+              <div className="card__title">{t("Trainingskalender")}</div>
+              <span className="tiny dim">{t("letzte 27 Wochen")}</span>
+            </div>
+            <YearHeatmap
+              days={calendarDays}
+              onSelect={(day) => {
+                const workout = state.workouts.find((item) => item.date === day);
+                if (workout && workoutSetCount(workout) > 0) setCalendarDay(day);
+              }}
+            />
+            <div className="row row--between tiny dim" style={{ marginTop: 8 }}>
+              <span>{t('{count} Trainingstage', { count: calendarDays.filter((day) => day.value > 0).length })}</span>
+              <span>{t("weniger")} → {t("mehr")}</span>
+            </div>
+            {calendarDay && (
+              <div className="tiny" style={{ marginTop: 8 }}>
+                {calendarDays.find((day) => day.date === calendarDay)?.title}
+              </div>
+            )}
+          </div>
+
           <MuscleLoadCard
             workouts={workouts}
+            weekWorkouts={weekWorkouts}
+            targets={state.settings.weeklySetTargets}
             getExercise={getExercise}
             allExercises={allExercises}
             rangeLabel={RANGE_LABELS[range]}
@@ -329,6 +414,45 @@ export function ProgressPage() {
             <IconChevronRight style={{ width: 16, height: 16, color: 'var(--text-dim)', flexShrink: 0 }} />
           </button>
         ))}
+      </div>
+
+      <div className="card">
+        <div className="card__title" style={{ marginBottom: 6 }}>{t("Auswertung mitnehmen")}</div>
+        <div className="tiny dim" style={{ marginBottom: 11 }}>
+          {t("CSV öffnet sich in jeder Tabellenkalkulation. Der Ausdruck lässt sich im Druckdialog als PDF speichern.")}
+        </div>
+        <div className="grid-2">
+          <button
+            className="btn"
+            onClick={() => {
+              downloadText(`gym-tracker-saetze-${todayISO()}.csv`, workoutsToCsv(state, getExercise));
+              toast.show(t('CSV gespeichert'));
+            }}
+          >
+            <IconDownload /> {t('Sätze als CSV')}
+          </button>
+          <button
+            className="btn"
+            onClick={() => {
+              downloadText(`gym-tracker-trainings-${todayISO()}.csv`, summaryToCsv(state));
+              toast.show(t('CSV gespeichert'));
+            }}
+          >
+            <IconDownload /> {t('Trainings als CSV')}
+          </button>
+          <button
+            className="btn"
+            onClick={() => {
+              downloadText(`gym-tracker-koerper-${todayISO()}.csv`, bodyToCsv(state));
+              toast.show(t('CSV gespeichert'));
+            }}
+          >
+            <IconDownload /> {t('Körperdaten als CSV')}
+          </button>
+          <button className="btn" onClick={printReport_}>
+            <IconPrinter /> {t('Bericht drucken')}
+          </button>
+        </div>
       </div>
 
       {detail && <ExerciseDetail exercise={detail} onClose={() => setDetail(null)} />}
@@ -414,44 +538,33 @@ function ReviewCard({ review, label }: { review: ReturnType<typeof buildReview>;
 
 
 /**
- * Belastungskarte: wie viele Arbeitssaetze im Zeitraum auf welche Region
- * entfallen. Sekundaere Muskeln zaehlen halb - sie arbeiten mit, sind aber
- * nicht das Ziel des Satzes. Ein Tipp auf eine Region zeigt, woher die Saetze
- * kommen, und schlaegt bei Luecken Uebungen vor.
+ * Belastungskarte. Zwei Ansichten:
+ *
+ * - "Diese Woche" misst gegen das Wochenziel je Region und faerbt als Ampel:
+ *   rot deutlich darunter, gelb knapp darunter, gruen im Ziel, violett darueber.
+ * - "Zeitraum" zeigt die Verteilung ueber den gewaehlten Bereich.
+ *
+ * Ein Tipp auf eine Region zeigt, woher die Saetze kommen, wann sie zuletzt
+ * drankam und schlaegt bei Luecken Uebungen vor.
  */
 function MuscleLoadCard({
-  workouts, getExercise, allExercises, rangeLabel, onOpen,
+  workouts, weekWorkouts, getExercise, allExercises, rangeLabel, targets, onOpen,
 }: {
   workouts: Workout[];
+  weekWorkouts: Workout[];
   getExercise: (id: string) => Exercise | undefined;
   allExercises: Exercise[];
   rangeLabel: string;
+  targets: Record<string, number>;
   onOpen: (exercise: Exercise) => void;
 }) {
   const [selected, setSelected] = useState<MuscleRegion | null>(null);
+  const [mode, setMode] = useState<'week' | 'range'>('week');
 
-  const load = useMemo(() => {
-    const map = new Map<MuscleRegion, { sets: number; byExercise: Map<string, number> }>();
-    const add = (region: MuscleRegion, sets: number, exerciseId: string) => {
-      const entry = map.get(region) ?? { sets: 0, byExercise: new Map<string, number>() };
-      entry.sets += sets;
-      entry.byExercise.set(exerciseId, (entry.byExercise.get(exerciseId) ?? 0) + sets);
-      map.set(region, entry);
-    };
-
-    for (const workout of workouts) {
-      for (const logged of workout.exercises) {
-        const sets = logged.sets.filter((set) => set.done).length;
-        if (sets === 0) continue;
-        const exercise = getExercise(logged.exerciseId);
-        if (!exercise) continue;
-        const { primary, secondary } = regionsOf(exercise);
-        for (const region of primary) add(region, sets, exercise.id);
-        for (const region of secondary) add(region, sets * 0.5, exercise.id);
-      }
-    }
-    return map;
-  }, [workouts, getExercise]);
+  const today = todayISO();
+  const rangeLoad = useMemo(() => regionLoad(workouts, getExercise), [workouts, getExercise]);
+  const weekLoad = useMemo(() => regionLoad(weekWorkouts, getExercise), [weekWorkouts, getExercise]);
+  const load = mode === 'week' ? weekLoad : rangeLoad;
 
   const max = useMemo(
     () => Math.max(1, ...[...load.values()].map((entry) => entry.sets)),
@@ -459,8 +572,16 @@ function MuscleLoadCard({
   );
 
   const detail = selected ? load.get(selected) : undefined;
+  /** Fuer "zuletzt trainiert" zaehlt der ganze Zeitraum, nicht nur diese Woche. */
+  const lastSeen = selected ? daysSince(rangeLoad.get(selected)?.lastDate ?? null, today) : null;
 
-  /** Uebungen, die im Zeitraum auf die gewaehlte Region eingezahlt haben. */
+  const intensity = (region: MuscleRegion): Intensity | number => {
+    const sets = load.get(region)?.sets ?? 0;
+    if (mode === 'range') return sets / max;
+    return loadStatus(sets, targetFor(targets, region));
+  };
+
+  /** Uebungen, die auf die gewaehlte Region eingezahlt haben. */
   const trained = useMemo(() => {
     if (!detail) return [];
     return [...detail.byExercise.entries()]
@@ -477,40 +598,89 @@ function MuscleLoadCard({
       .slice(0, 5);
   }, [selected, allExercises, trained]);
 
-  const neglected = useMemo(
-    () => ALL_REGIONS.filter((region) => !load.has(region)),
-    [load],
-  );
+  /** Was diese Woche noch fehlt - nach Groesse der Luecke sortiert. */
+  const gaps = useMemo(() => {
+    return ALL_REGIONS
+      .map((region) => {
+        const sets = weekLoad.get(region)?.sets ?? 0;
+        const target = targetFor(targets, region);
+        return { region, sets, target, missing: target - sets };
+      })
+      .filter((entry) => entry.target > 0 && entry.missing > 0)
+      .sort((a, b) => b.missing - a.missing);
+  }, [weekLoad, targets]);
 
-  if (load.size === 0) return null;
+  /** Regionen, die im Zeitraum lange nicht drankamen. */
+  const stale = useMemo(() => {
+    return ALL_REGIONS
+      .map((region) => ({
+        region,
+        target: targetFor(targets, region),
+        days: daysSince(rangeLoad.get(region)?.lastDate ?? null, today),
+      }))
+      .filter((entry) => entry.target > 0 && (entry.days === null || entry.days >= 7))
+      .sort((a, b) => (b.days ?? 9999) - (a.days ?? 9999))
+      .slice(0, 6);
+  }, [rangeLoad, targets, today]);
+
+  if (rangeLoad.size === 0) return null;
 
   return (
     <div className="card">
       <div className="card__header">
         <div className="card__title">{t("Muskelkarte")}</div>
-        <span className="tiny dim">{rangeLabel}</span>
+        <div className="row" style={{ gap: 6 }}>
+          <button
+            className={`chip chip--button ${mode === 'week' ? 'chip--accent' : ''}`}
+            onClick={() => setMode('week')}
+          >
+            {t("Diese Woche")}
+          </button>
+          <button
+            className={`chip chip--button ${mode === 'range' ? 'chip--accent' : ''}`}
+            onClick={() => setMode('range')}
+          >
+            {rangeLabel}
+          </button>
+        </div>
       </div>
 
       <BodyMap
         size={150}
         selected={selected}
         onSelect={(region) => setSelected(region === selected ? null : region)}
-        intensity={(region) => (load.get(region)?.sets ?? 0) / max}
+        intensity={intensity}
       />
 
-      {!selected && (
+      {mode === 'week' ? (
+        <div className="muscle-legend" style={{ marginTop: 10 }}>
+          <span className="chip chip--danger">{t("deutlich unter Ziel")}</span>
+          <span className="chip chip--warn">{t("knapp drunter")}</span>
+          <span className="chip chip--success">{t("im Ziel")}</span>
+          <span className="chip">{t("darüber")}</span>
+          <span className="chip">{t("grau = noch nichts")}</span>
+        </div>
+      ) : (
         <div className="tiny dim" style={{ textAlign: 'center', marginTop: 8 }}>
           {t("Je kräftiger die Farbe, desto mehr Sätze. Tippe eine Region an.")}
         </div>
       )}
 
       {selected && (
-        <div className="list" style={{ marginTop: 10 }}>
+        <div className="list" style={{ marginTop: 12 }}>
           <div className="row row--between">
             <span className="bold">{t(REGION_LABELS[selected])}</span>
             <span className="tiny dim">
-              {fmt(detail?.sets ?? 0, 1)} {t("Sätze")}
+              {fmt(detail?.sets ?? 0, 1)} / {targetFor(targets, selected)} {t("Sätze")}
             </span>
+          </div>
+
+          <div className="tiny dim">
+            {lastSeen === null
+              ? t('Im Zeitraum nie trainiert.')
+              : lastSeen === 0
+                ? t('Heute trainiert.')
+                : t('Zuletzt vor {days} Tagen', { days: lastSeen })}
           </div>
 
           {trained.length > 0 ? (
@@ -518,8 +688,7 @@ function MuscleLoadCard({
               {trained.slice(0, 6).map((item) => (
                 <button
                   key={item.exercise.id}
-                  className="row row--between"
-                  style={{ background: 'none', border: 0, padding: '3px 0', width: '100%', cursor: 'pointer' }}
+                  className="row row--between link-row"
                   onClick={() => onOpen(item.exercise)}
                 >
                   <span className="small">{exerciseName(item.exercise)}</span>
@@ -528,7 +697,7 @@ function MuscleLoadCard({
               ))}
             </div>
           ) : (
-            <div className="tiny dim">{t("Im Zeitraum nichts für diese Region trainiert.")}</div>
+            <div className="tiny dim">{t("Hier ist im gewählten Bereich nichts angekommen.")}</div>
           )}
 
           {suggestions.length > 0 && (
@@ -550,9 +719,34 @@ function MuscleLoadCard({
         </div>
       )}
 
-      {neglected.length > 0 && (
-        <div className="tiny dim" style={{ marginTop: 10 }}>
-          {t("Nicht trainiert:")} {neglected.map((region) => t(REGION_LABELS[region])).join(', ')}
+      {!selected && mode === 'week' && gaps.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div className="section-label">{t("Diese Woche fehlt noch")}</div>
+          <div className="list">
+            {gaps.slice(0, 5).map((entry) => (
+              <button
+                key={entry.region}
+                className="row row--between link-row"
+                onClick={() => setSelected(entry.region)}
+              >
+                <span className="small">{t(REGION_LABELS[entry.region])}</span>
+                <span className="tiny dim mono">
+                  {fmt(entry.sets, 1)} / {entry.target}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!selected && stale.length > 0 && (
+        <div className="tiny dim" style={{ marginTop: 12 }}>
+          <strong style={{ color: 'var(--text-muted)' }}>{t("Lange nicht dran:")}</strong>{' '}
+          {stale.map((entry) => (
+            entry.days === null
+              ? `${t(REGION_LABELS[entry.region])} (${t('nie')})`
+              : `${t(REGION_LABELS[entry.region])} (${entry.days} ${t('Tage')})`
+          )).join(', ')}
         </div>
       )}
     </div>

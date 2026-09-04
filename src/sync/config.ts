@@ -12,6 +12,13 @@
 export interface SyncConfig {
   url: string;
   anonKey: string;
+  /**
+   * Oeffentlicher VAPID-Schluessel fuer echte Push-Nachrichten.
+   * Leer heisst: kein Push - die App faellt auf Meldungen zurueck, solange
+   * sie offen ist. Der Schluessel ist oeffentlich; der private gehoert
+   * ausschliesslich in die Supabase-Secrets.
+   */
+  vapidPublicKey?: string;
 }
 
 const OVERRIDE_KEY = 'gym-tracker:sync-config';
@@ -51,7 +58,11 @@ export async function loadSyncConfig(): Promise<SyncConfig | null> {
     const response = await fetch(`${base}sync-config.json`, { cache: 'no-cache' });
     if (!response.ok) return null;
     const parsed = (await response.json()) as Partial<SyncConfig>;
-    const config = { url: (parsed.url ?? '').trim(), anonKey: (parsed.anonKey ?? '').trim() };
+    const config = {
+      url: (parsed.url ?? '').trim(),
+      anonKey: (parsed.anonKey ?? '').trim(),
+      vapidPublicKey: (parsed.vapidPublicKey ?? '').trim(),
+    };
     return isUsable(config) ? config : null;
   } catch {
     return null;

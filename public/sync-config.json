@@ -1,5 +1,7 @@
 {
   "_hinweis": "Zugangsdaten des Supabase-Projekts. Der publishable Key ist absichtlich oeffentlich - geschuetzt wird alles ueber die Zeilenregeln aus supabase/schema.sql. Niemals den service_role- oder sb_secret_-Key hier eintragen.",
   "url": "https://vuiycerxdjpcefuezdbt.supabase.co",
-  "anonKey": "sb_publishable_vWb5vldjD1NUZM2zpPmROA_l4T8BxU-"
+  "anonKey": "sb_publishable_vWb5vldjD1NUZM2zpPmROA_l4T8BxU-",
+  "vapidPublicKey": "",
+  "_push": "Oeffentlicher VAPID-Schluessel fuer Push-Nachrichten. Leer = kein Push. Erzeugung und Einrichtung stehen im README unter \"Push-Nachrichten\"."
 }

@@ -2,7 +2,7 @@ import React, {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
 } from 'react';
 import type {
-  AppState, Exercise, ID, NutritionEntry, Plan, Profile, Settings, Workout,
+  AppState, Exercise, ID, MeasurementEntry, NutritionEntry, Plan, Profile, Settings, Workout,
 } from '../types';
 import { CATALOG } from '../data/catalog';
 import { loadState, requestPersistence, saveState } from './db';
@@ -17,6 +17,8 @@ interface StoreValue {
   updateSettings: (patch: Partial<Settings>) => void;
   logBodyWeight: (date: string, kg: number) => void;
   removeBodyWeight: (date: string) => void;
+  logMeasurement: (entry: MeasurementEntry) => void;
+  removeMeasurement: (date: string) => void;
   addExercise: (exercise: Exercise) => Exercise;
   updateExercise: (id: ID, patch: Partial<Exercise>) => void;
   deleteExercise: (id: ID) => void;
@@ -130,6 +132,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [commit]);
 
+  const logMeasurement = useCallback((entry: MeasurementEntry) => {
+    commit((prev) => {
+      const rest = (prev.measurements ?? []).filter((item) => item.date !== entry.date);
+      return {
+        ...prev,
+        measurements: [...rest, entry].sort((a, b) => a.date.localeCompare(b.date)),
+      };
+    });
+  }, [commit]);
+
+  const removeMeasurement = useCallback((date: string) => {
+    commit((prev) => ({
+      ...prev,
+      measurements: (prev.measurements ?? []).filter((entry) => entry.date !== date),
+    }));
+  }, [commit]);
+
   const addExercise = useCallback((exercise: Exercise) => {
     commit((prev) => {
       if (prev.exercises.some((e) => e.id === exercise.id)) return prev;
@@ -211,13 +230,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<StoreValue>(
     () => ({
       state, allExercises, getExercise, updateProfile, updateSettings, logBodyWeight,
-      removeBodyWeight, addExercise, updateExercise, deleteExercise, addPlan, updatePlan,
+      removeBodyWeight, logMeasurement, removeMeasurement,
+      addExercise, updateExercise, deleteExercise, addPlan, updatePlan,
       deletePlan, setActivePlan, upsertWorkout, deleteWorkout, setNutrition, replaceState,
       lastSavedAt,
     }),
     [
       state, allExercises, getExercise, updateProfile, updateSettings, logBodyWeight,
-      removeBodyWeight, addExercise, updateExercise, deleteExercise, addPlan, updatePlan,
+      removeBodyWeight, logMeasurement, removeMeasurement,
+      addExercise, updateExercise, deleteExercise, addPlan, updatePlan,
       deletePlan, setActivePlan, upsertWorkout, deleteWorkout, setNutrition, replaceState,
       lastSavedAt,
     ],

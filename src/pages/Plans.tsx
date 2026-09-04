@@ -1,7 +1,10 @@
 import { exerciseName, t } from '../i18n';
-import { useMemo, useState } from 'react';
-import type { Exercise, ExerciseCategory, Plan, PlanExercise, Weekday } from '../types';
-import { WEEKDAY_NAMES, WEEKDAY_SHORT, weekdayOf, todayISO } from '../lib/date';
+import { useEffect, useMemo, useState } from 'react';
+import type {
+  Exercise, ExerciseCategory, Plan, PlanCycle, PlanExercise, Weekday,
+} from '../types';
+import { WEEKDAY_NAMES, WEEKDAY_SHORT, startOfWeek, weekdayOf, todayISO } from '../lib/date';
+import { DEFAULT_CYCLE, cycleWeek } from '../lib/cycle';
 import { CATEGORY_LABELS } from '../data/catalog';
 import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { useStore } from '../storage/store';
@@ -10,18 +13,24 @@ import { PLAN_TEMPLATES, buildTemplatePlan } from '../data/templates';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { ConfirmDialog, EmptyState, Modal, NumberInput, useToast } from '../components/ui';
 import {
-  IconCheck, IconChevronDown, IconCopy, IconEdit, IconPlus, IconTrash,
+  IconCheck, IconChevronDown, IconCopy, IconEdit, IconPlus, IconShare, IconTrash,
 } from '../components/icons';
+import { customToExercises, decodePlan, encodePlan } from '../lib/planShare';
 
 export function PlansPage() {
-  const { state, addPlan, updatePlan, deletePlan, setActivePlan, getExercise } = useStore();
+  const {
+    state, addPlan, updatePlan, deletePlan, setActivePlan, getExercise, addExercise,
+  } = useStore();
   const toast = useToast();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const editing = state.plans.find((plan) => plan.id === editingId) ?? null;
+  const sharing = state.plans.find((plan) => plan.id === sharingId) ?? null;
 
   const createEmpty = () => {
     const now = new Date().toISOString();
@@ -115,6 +124,9 @@ export function PlansPage() {
                 )}
                 <button className="btn btn--sm" onClick={() => setEditingId(plan.id)}><IconEdit /> {t("Bearbeiten")}</button>
                 <button className="btn btn--sm" onClick={() => duplicate(plan)}><IconCopy /> {t("Kopie")}</button>
+                <button className="btn btn--sm" onClick={() => setSharingId(plan.id)}>
+                  <IconShare /> {t("Teilen")}
+                </button>
                 <span className="spacer" />
                 {state.plans.length > 1 && (
                   <button className="btn btn--sm btn--ghost" onClick={() => setDeletingId(plan.id)} aria-label={t("Plan löschen")}>
@@ -130,7 +142,29 @@ export function PlansPage() {
       <div className="grid-2">
         <button className="btn btn--primary" onClick={createEmpty}><IconPlus /> {t("Leerer Plan")}</button>
         <button className="btn" onClick={() => setTemplatesOpen(true)}>{t("Aus Vorlage")}</button>
+        <button className="btn" onClick={() => setImportOpen(true)}>{t("Plan einfügen")}</button>
       </div>
+
+      {sharing && (
+        <SharePlanDialog
+          plan={sharing}
+          getExercise={getExercise}
+          onClose={() => setSharingId(null)}
+        />
+      )}
+
+      {importOpen && (
+        <ImportPlanDialog
+          onClose={() => setImportOpen(false)}
+          onImport={(plan, exercises) => {
+            for (const exercise of exercises) addExercise(exercise);
+            addPlan(plan);
+            setImportOpen(false);
+            setEditingId(plan.id);
+            toast.show(t('„{name}“ übernommen', { name: plan.name }));
+          }}
+        />
+      )}
 
       {editing && (
         <PlanEditor
@@ -264,6 +298,8 @@ function PlanEditor({
           />
         </div>
 
+        <CycleEditor plan={plan} onChange={onChange} />
+
         <div className="divider" />
 
         <div className="day-strip">
@@ -387,55 +423,91 @@ function PlanEditor({
   );
 }
 
-/** Kopiert einen Tag auf einen anderen Wochentag. */
+/** Kopiert einen Tag auf beliebig viele andere Wochentage. */
 function CopyDayRow({
   activeDay, onChange,
 }: {
   activeDay: Weekday;
   onChange: (updater: (plan: Plan) => Plan) => void;
 }) {
-  const [target, setTarget] = useState<Weekday | ''>('');
+  const toast = useToast();
+  const [targets, setTargets] = useState<Weekday[]>([]);
   const options = useMemo(
     () => ([0, 1, 2, 3, 4, 5, 6] as Weekday[]).filter((weekday) => weekday !== activeDay),
     [activeDay],
   );
 
+  // Wechselt der bearbeitete Tag, passt die alte Auswahl nicht mehr.
+  useEffect(() => { setTargets([]); }, [activeDay]);
+
+  const toggle = (weekday: Weekday) => setTargets((current) => (
+    current.includes(weekday)
+      ? current.filter((entry) => entry !== weekday)
+      : [...current, weekday]
+  ));
+
+  const copy = () => {
+    if (targets.length === 0) return;
+    const chosen = new Set(targets);
+    onChange((current) => {
+      const source = current.days[activeDay];
+      return {
+        ...current,
+        days: current.days.map((day, index) => (
+          chosen.has(index as Weekday)
+            ? {
+                ...day,
+                title: source.title,
+                isRestDay: source.isRestDay,
+                // Jeder Zieltag bekommt eigene IDs, sonst zeigen zwei Tage auf denselben Eintrag.
+                exercises: source.exercises.map((exercise) => ({ ...exercise, id: uid('pe') })),
+              }
+            : day
+        )),
+      };
+    });
+    toast.show(targets.length === 1
+      ? t('Auf einen Tag kopiert')
+      : t('Auf {count} Tage kopiert', { count: targets.length }));
+    setTargets([]);
+  };
+
   return (
-    <div className="row" style={{ gap: 8 }}>
-      <select
-        className="select"
-        value={target}
-        onChange={(event) => setTarget(event.target.value === '' ? '' : (Number(event.target.value) as Weekday))}
-      >
-        <option value="">{t("Diesen Tag kopieren nach…")}</option>
-        {options.map((weekday) => <option key={weekday} value={weekday}>{t(WEEKDAY_NAMES[weekday])}</option>)}
-      </select>
-      <button
-        className="btn"
-        disabled={target === ''}
-        onClick={() => {
-          if (target === '') return;
-          onChange((current) => {
-            const source = current.days[activeDay];
-            return {
-              ...current,
-              days: current.days.map((day, index) =>
-                index === target
-                  ? {
-                      ...day,
-                      title: source.title,
-                      isRestDay: source.isRestDay,
-                      exercises: source.exercises.map((exercise) => ({ ...exercise, id: uid('pe') })),
-                    }
-                  : day,
-              ),
-            };
-          });
-          setTarget('');
-        }}
-      >
-        Kopieren
+    <div className="list">
+      <div className="row row--between">
+        <span className="section-label">{t("Diesen Tag kopieren nach")}</span>
+        <button
+          className="chip chip--button"
+          onClick={() => setTargets(targets.length === options.length ? [] : options)}
+        >
+          {targets.length === options.length ? t('Keinen') : t('Alle')}
+        </button>
+      </div>
+
+      <div className="row row--wrap" style={{ gap: 6 }}>
+        {options.map((weekday) => (
+          <button
+            key={weekday}
+            className={`chip chip--button ${targets.includes(weekday) ? 'chip--accent' : ''}`}
+            aria-pressed={targets.includes(weekday)}
+            onClick={() => toggle(weekday)}
+          >
+            {t(WEEKDAY_SHORT[weekday])}
+          </button>
+        ))}
+      </div>
+
+      <button className="btn btn--block" disabled={targets.length === 0} onClick={copy}>
+        <IconCopy /> {targets.length === 0
+          ? t('Zieltage wählen')
+          : t('Auf {count} Tage kopieren', { count: targets.length })}
       </button>
+
+      {targets.length > 0 && (
+        <div className="tiny dim">
+          {t("Was dort steht, wird überschrieben.")}
+        </div>
+      )}
     </div>
   );
 }
@@ -456,6 +528,9 @@ function TargetEditor({
   const [weight, setWeight] = useState<number | null>(planExercise.targetWeightKg);
   const [rest, setRest] = useState<number | null>(planExercise.restSec);
   const [note, setNote] = useState(planExercise.note ?? '');
+  const [progression, setProgression] = useState<number | null>(
+    planExercise.progressionKg ?? null,
+  );
 
   return (
     <Modal title={exerciseName || t('Vorgaben')} onClose={onClose}>
@@ -485,6 +560,21 @@ function TargetEditor({
           </div>
         </div>
         <div className="field">
+          <label className="field__label">{t("Steigerung (kg)")}</label>
+          <NumberInput
+            value={progression}
+            min={0}
+            max={20}
+            step={0.5}
+            onChange={setProgression}
+            placeholder={t("automatisch")}
+          />
+          <span className="field__hint">
+            {t("Schaffst du in allen Sätzen das obere Ende des Wiederholungsbereichs, schlägt die App beim nächsten Mal so viel mehr vor. 0 = keine automatische Steigerung, leer = Faustregel.")}
+          </span>
+        </div>
+
+        <div className="field">
           <label className="field__label">{t("Notiz")}</label>
           <input className="input" value={note} placeholder={t("z. B. langsam ablassen")} onChange={(event) => setNote(event.target.value)} />
         </div>
@@ -498,6 +588,7 @@ function TargetEditor({
               targetRepsMax: repsMax,
               targetWeightKg: weight,
               restSec: rest,
+              progressionKg: progression,
               note: note.trim() || undefined,
             })}
           >
@@ -543,4 +634,288 @@ function suggestTitle(exercise: Exercise): string {
     other: 'Training',
   };
   return map[exercise.category] ?? 'Training';
+}
+
+
+/* ------------------------------------------------------------------ Zyklus */
+
+/**
+ * Mehrwoechiger Zyklus eines Plans. Ohne Zyklus bleibt jede Woche gleich -
+ * das ist voellig in Ordnung und deshalb auch der Standard.
+ */
+function CycleEditor({
+  plan, onChange,
+}: {
+  plan: Plan;
+  onChange: (updater: (plan: Plan) => Plan) => void;
+}) {
+  const cycle = plan.cycle ?? null;
+  const [open, setOpen] = useState(Boolean(cycle));
+
+  const patch = (next: Partial<PlanCycle>) => onChange((current) => ({
+    ...current,
+    cycle: { ...DEFAULT_CYCLE, startDate: startOfWeek(todayISO()), ...(current.cycle ?? {}), ...next },
+  }));
+
+  const enable = (on: boolean) => {
+    if (on) {
+      onChange((current) => ({
+        ...current,
+        cycle: { ...DEFAULT_CYCLE, startDate: startOfWeek(todayISO()) },
+      }));
+      setOpen(true);
+    } else {
+      onChange((current) => ({ ...current, cycle: null }));
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className="card card--inset">
+      <label className="row" style={{ gap: 9, cursor: 'pointer' }}>
+        <input type="checkbox" checked={Boolean(cycle)} onChange={(event) => enable(event.target.checked)} />
+        <span className="small">
+          {t("Zyklus über mehrere Wochen")}
+          <span className="tiny dim" style={{ display: 'block' }}>
+            {t("Die Zielgewichte steigen Woche für Woche und fallen in der Entlastungswoche zurück.")}
+          </span>
+        </span>
+      </label>
+
+      {cycle && open && (
+        <>
+          <div className="grid-2" style={{ marginTop: 10 }}>
+            <div className="field">
+              <label className="field__label">{t("Wochen")}</label>
+              <NumberInput
+                value={cycle.weeks}
+                min={2}
+                max={16}
+                onChange={(value) => patch({ weeks: Math.max(2, value ?? 4) })}
+              />
+            </div>
+            <div className="field">
+              <label className="field__label">{t("Steigerung je Woche (%)")}</label>
+              <NumberInput
+                value={cycle.stepPct}
+                min={0}
+                max={20}
+                step={0.5}
+                onChange={(value) => patch({ stepPct: value ?? 0 })}
+              />
+            </div>
+          </div>
+
+          <div className="grid-2">
+            <div className="field">
+              <label className="field__label">{t("Entlastungswoche")}</label>
+              <select
+                className="select"
+                value={cycle.deloadWeek ?? ''}
+                onChange={(event) => patch({
+                  deloadWeek: event.target.value === '' ? null : Number(event.target.value),
+                })}
+              >
+                <option value="">{t("keine")}</option>
+                {Array.from({ length: cycle.weeks }, (_, index) => index + 1).map((week) => (
+                  <option key={week} value={week}>{t('Woche {week}', { week })}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field__label">{t("Entlastung auf (%)")}</label>
+              <NumberInput
+                value={cycle.deloadPct}
+                min={20}
+                max={100}
+                onChange={(value) => patch({ deloadPct: value ?? 60 })}
+              />
+            </div>
+          </div>
+
+          <div className="field">
+            <label className="field__label">{t("Start des Zyklus")}</label>
+            <input
+              className="input"
+              type="date"
+              value={cycle.startDate}
+              onChange={(event) => patch({ startDate: startOfWeek(event.target.value || todayISO()) })}
+            />
+            <span className="field__hint">
+              {t("Gerechnet wird ab dem Montag dieser Woche. Danach beginnt der Zyklus von vorn.")}
+            </span>
+          </div>
+
+          <div className="row row--wrap" style={{ gap: 6 }}>
+            {Array.from({ length: cycle.weeks }, (_, index) => index + 1).map((week) => {
+              const isDeloadWeek = cycle.deloadWeek === week;
+              const factor = isDeloadWeek
+                ? cycle.deloadPct / 100
+                : 1 + (cycle.stepPct / 100) * (week - 1);
+              const current = cycleWeek(cycle, todayISO()) === week;
+              return (
+                <span
+                  key={week}
+                  className={`chip ${current ? 'chip--accent' : isDeloadWeek ? 'chip--warn' : ''}`}
+                >
+                  {t('W{week}', { week })} · {Math.round(factor * 100)} %
+                </span>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+
+/* --------------------------------------------------------- Plaene weitergeben */
+
+/**
+ * Zeigt den Textbaustein zum Weitergeben. Bewusst ohne Server: Der Baustein
+ * geht per Nachricht raus, der Empfaenger fuegt ihn unter "Plan einfügen" ein.
+ */
+function SharePlanDialog({
+  plan, getExercise, onClose,
+}: {
+  plan: Plan;
+  getExercise: (id: string) => Exercise | undefined;
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const code = useMemo(() => encodePlan(plan, getExercise), [plan, getExercise]);
+  const message = t('Mein Trainingsplan „{name}“ für den Gym-Tracker:', { name: plan.name });
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(`${message}\n\n${code}`);
+      toast.show(t('In die Zwischenablage kopiert'));
+    } catch {
+      toast.show(t('Kopieren hat nicht geklappt – markier den Text von Hand'));
+    }
+  };
+
+  const share = async () => {
+    if (!navigator.share) { void copy(); return; }
+    try {
+      await navigator.share({ title: plan.name, text: `${message}\n\n${code}` });
+    } catch {
+      /* Abgebrochen ist kein Fehler. */
+    }
+  };
+
+  return (
+    <Modal title={t('„{name}“ teilen', { name: plan.name })} onClose={onClose}>
+      <div className="list">
+        <p className="small muted">
+          {t("Schick diesen Baustein per Nachricht weiter. Wer ihn bekommt, fügt ihn unter „Plan einfügen“ ein und hat den Plan samt Vorgaben. Es werden nur der Plan und die darin benutzten eigenen Übungen weitergegeben – keine Trainingsdaten.")}
+        </p>
+
+        <textarea
+          className="textarea mono"
+          readOnly
+          rows={5}
+          value={code}
+          onFocus={(event) => event.currentTarget.select()}
+          style={{ fontSize: '0.72rem' }}
+        />
+
+        <div className="grid-2">
+          <button className="btn" onClick={copy}>{t('Kopieren')}</button>
+          <button className="btn btn--primary" onClick={share}>
+            <IconShare /> {t('Weitergeben')}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/** Nimmt einen Textbaustein entgegen und macht daraus einen eigenen Plan. */
+function ImportPlanDialog({
+  onClose, onImport,
+}: {
+  onClose: () => void;
+  onImport: (plan: Plan, exercises: Exercise[]) => void;
+}) {
+  const { allExercises } = useStore();
+  const [text, setText] = useState('');
+
+  const known = useMemo(() => new Set(allExercises.map((exercise) => exercise.id)), [allExercises]);
+  const decoded = useMemo(
+    () => (text.trim() ? decodePlan(text, (id) => known.has(id), () => uid('pe')) : null),
+    [text, known],
+  );
+
+  const take = () => {
+    if (!decoded) return;
+    const now = new Date().toISOString();
+    const plan: Plan = {
+      id: uid('plan'),
+      name: decoded.name,
+      description: decoded.description,
+      days: decoded.days,
+      cycle: decoded.cycle
+        ? {
+            weeks: decoded.cycle.w,
+            deloadWeek: decoded.cycle.dw,
+            stepPct: decoded.cycle.sp,
+            deloadPct: decoded.cycle.dp,
+            startDate: startOfWeek(todayISO()),
+          }
+        : null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const missing = customToExercises(decoded.custom).filter((item) => !known.has(item.id));
+    onImport(plan, missing);
+  };
+
+  return (
+    <Modal title={t('Plan einfügen')} onClose={onClose}>
+      <div className="list">
+        <p className="small muted">
+          {t("Füge hier den Baustein ein, den dir jemand geschickt hat. Dein eigener Plan bleibt unangetastet – der neue kommt zusätzlich dazu.")}
+        </p>
+
+        <textarea
+          className="textarea"
+          rows={5}
+          placeholder="GTPLAN1:…"
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+        />
+
+        {text.trim() && !decoded && (
+          <div className="tiny" style={{ color: 'var(--danger)' }}>
+            {t("Damit kann ich nichts anfangen. Kopier den Baustein noch einmal vollständig.")}
+          </div>
+        )}
+
+        {decoded && (
+          <div className="card card--inset">
+            <div className="bold">{decoded.name}</div>
+            {decoded.description && <div className="tiny dim">{decoded.description}</div>}
+            <div className="row row--wrap" style={{ gap: 6, marginTop: 8 }}>
+              {decoded.days.map((day) => (
+                <span key={day.weekday} className="chip">
+                  {t(WEEKDAY_SHORT[day.weekday])}: {day.isRestDay ? t('frei') : day.exercises.length}
+                </span>
+              ))}
+            </div>
+            {decoded.unknownCount > 0 && (
+              <div className="tiny" style={{ color: 'var(--warn)', marginTop: 8 }}>
+                {t('{count} Übungen kennst du nicht – die bleiben im Plan leer und lassen sich ersetzen.', { count: decoded.unknownCount })}
+              </div>
+            )}
+          </div>
+        )}
+
+        <button className="btn btn--primary btn--block" disabled={!decoded} onClick={take}>
+          {t('Plan übernehmen')}
+        </button>
+      </div>
+    </Modal>
+  );
 }

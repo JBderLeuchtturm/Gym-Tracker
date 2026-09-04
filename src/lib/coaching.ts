@@ -51,12 +51,15 @@ export function suggestWeight(
 
   const weight = Math.max(...working.map((set) => set.weightKg ?? 0));
   const atWeight = working.filter((set) => (set.weightKg ?? 0) === weight);
-  const step = increment(exercise);
+  // Eigene Schrittweite aus dem Plan schlaegt die Faustregel.
+  // 0 heisst ausdruecklich: nicht automatisch erhoehen.
+  const own = target?.progressionKg;
+  const step = typeof own === 'number' ? own : increment(exercise);
 
   const upper = target?.targetRepsMax ?? null;
   const lower = target?.targetRepsMin ?? null;
 
-  if (upper != null) {
+  if (upper != null && step > 0) {
     const allHitTop = atWeight.every((set) => (set.reps ?? 0) >= upper);
     if (allHitTop && atWeight.length >= Math.max(1, (target?.targetSets ?? atWeight.length) - 1)) {
       return {
@@ -67,7 +70,7 @@ export function suggestWeight(
     }
   }
 
-  if (lower != null) {
+  if (lower != null && step > 0) {
     const missed = atWeight.filter((set) => (set.reps ?? 0) < lower).length;
     if (missed >= 2) {
       return {

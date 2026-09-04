@@ -44,10 +44,17 @@ export function migrate(raw: unknown): AppState {
     activePlanId: typeof raw.activePlanId === 'string' ? raw.activePlanId : null,
     workouts: asArray(raw.workouts),
     weightLog: asArray(raw.weightLog),
+    measurements: asArray(raw.measurements),
     nutrition: asArray(raw.nutrition),
     settings: {
       ...DEFAULT_SETTINGS,
       ...(settings as object),
+      // Objekte und Listen aus alten Staenden koennen fehlen oder den falschen
+      // Typ haben - dann lieber der Standard als ein Absturz beim Lesen.
+      weeklySetTargets: isObject(settings.weeklySetTargets)
+        ? (settings.weeklySetTargets as Record<string, number>)
+        : {},
+      availableEquipment: asArray<string>(settings.availableEquipment),
       yazio: { ...DEFAULT_SETTINGS.yazio, ...(yazio as object) },
     },
   };
