@@ -63,6 +63,8 @@ export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export interface PlanExercise {
   id: ID;
   exerciseId: ID;
+  /** Uebungen mit derselben Gruppe bilden einen Supersatz. */
+  groupId?: string;
   targetSets: number;
   targetRepsMin: number | null;
   targetRepsMax: number | null;
@@ -104,6 +106,8 @@ export interface LoggedExercise {
   id: ID;
   exerciseId: ID;
   planExerciseId?: ID;
+  /** Uebungen mit derselben Gruppe bilden einen Supersatz. */
+  groupId?: string;
   sets: SetLog[];
   note?: string;
 }
@@ -117,6 +121,11 @@ export interface Workout {
   exercises: LoggedExercise[];
   /** Tatsaechliche Dauer in Minuten (optional, sonst geschaetzt). */
   durationMin: number | null;
+  /** Laufende Zeitmessung: gesetzt, solange das Training laeuft. */
+  startedAt?: string | null;
+  endedAt?: string | null;
+  /** Eigene Reihenfolge der Uebungen an diesem Tag (Uebungs-IDs). */
+  exerciseOrder?: ID[];
   bodyWeightKg: number | null;
   notes?: string;
   createdAt: string;

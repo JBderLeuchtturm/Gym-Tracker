@@ -5,6 +5,7 @@ import {
   startOfWeek, todayISO, weekdayOf,
 } from '../lib/date';
 import { calcWorkoutBurn } from '../lib/calories';
+import { detectRecord, suggestWeight, warmupSets, type NewRecord } from '../lib/coaching';
 import { exerciseVolume, lastPerformance, workoutSetCount, workoutVolume } from '../lib/stats';
 import { useStore } from '../storage/store';
 import { uid } from '../storage/defaults';
@@ -28,6 +29,8 @@ interface Row {
   logged?: LoggedExercise;
   sets: SetLog[];
   fromPlan: boolean;
+  /** Uebungen mit derselben Gruppe bilden einen Supersatz. */
+  groupId?: string;
 }
 
 const newSet = (partial: Partial<SetLog> = {}): SetLog => ({
@@ -55,6 +58,8 @@ export function TodayPage() {
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
+  const [sortMode, setSortMode] = useState(false);
+  const [record, setRecord] = useState<{ name: string; record: NewRecord } | null>(null);
 
   const plan = state.plans.find((item) => item.id === state.activePlanId) ?? null;
   const planDay = plan?.days[weekdayOf(date)] ?? null;
@@ -93,6 +98,7 @@ export function TodayPage() {
         logged,
         sets: logged?.sets ?? draftSets,
         fromPlan: true,
+        groupId: logged?.groupId ?? planExercise.groupId,
       });
     }
 
@@ -105,7 +111,15 @@ export function TodayPage() {
         logged,
         sets: logged.sets,
         fromPlan: false,
+        groupId: logged.groupId,
       });
+    }
+
+    // Eigene Reihenfolge des Tages beruecksichtigen, falls eine gesetzt wurde.
+    const order = workout?.exerciseOrder;
+    if (order && order.length > 0) {
+      const rank = new Map(order.map((id, index) => [id, index]));
+      result.sort((a, b) => (rank.get(a.exerciseId) ?? 999) - (rank.get(b.exerciseId) ?? 999));
     }
 
     return result;
@@ -152,17 +166,32 @@ export function TodayPage() {
   const toggleSet = (row: Row, setId: string) => {
     // Der Zustand vor dem Klick entscheidet, ob die Pause startet - der
     // State-Updater unten laeuft erst spaeter und taugt dafuer nicht.
-    const becameDone = !row.sets.find((set) => set.id === setId)?.done;
+    const target = row.sets.find((set) => set.id === setId);
+    const becameDone = !target?.done;
 
     updateRow(row, (logged) => ({
       ...logged,
       sets: logged.sets.map((set) => (set.id === setId ? { ...set, done: !set.done } : set)),
     }));
 
-    if (becameDone) {
-      const rest = row.planExercise?.restSec ?? state.settings.restTimerSec;
-      if (rest > 0) startRest(rest);
+    if (!becameDone || !target) return;
+
+    // Ist der Satz eine Bestleistung? Dann kurz feiern.
+    const beaten = detectRecord(state, row.exerciseId, target, date);
+    if (beaten) {
+      setRecord({ name: row.exercise?.name ?? 'Übung', record: beaten });
+      navigator.vibrate?.([25, 40, 25]);
     }
+
+    // Beim Supersatz erst nach der letzten Uebung der Gruppe pausieren.
+    if (row.groupId) {
+      const group = rows.filter((item) => item.groupId === row.groupId);
+      const isLast = group[group.length - 1]?.exerciseId === row.exerciseId;
+      if (!isLast) return;
+    }
+
+    const rest = row.planExercise?.restSec ?? state.settings.restTimerSec;
+    if (rest > 0) startRest(rest);
   };
 
   const addSet = (row: Row) => {
@@ -200,6 +229,57 @@ export function TodayPage() {
 
     setPickerOpen(false);
     toast.show(`„${exercise.name}“ hinzugefügt`);
+  };
+
+  /** Verschiebt eine Uebung im Tagesablauf und haelt die Reihenfolge fest. */
+  const moveRow = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= rows.length) return;
+    const ids = rows.map((row) => row.exerciseId);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    upsertWorkout(date, (current) => ({
+      ...current,
+      planId: plan?.id,
+      planDayIndex: weekdayOf(date),
+      title: current.title || planDay?.title || '',
+      exerciseOrder: ids,
+    }));
+  };
+
+  /** Fasst eine Uebung mit der darueberliegenden zu einem Supersatz zusammen. */
+  const toggleSuperset = (index: number) => {
+    if (index <= 0) return;
+    const row = rows[index];
+    const above = rows[index - 1];
+    const groupId = row.groupId && row.groupId === above.groupId
+      ? undefined
+      : (above.groupId ?? uid('grp'));
+
+    for (const item of [above, row]) {
+      if (groupId === undefined && item !== row) continue; // beim Loesen nur die untere loesen
+      updateRow(item, (logged) => ({ ...logged, groupId }));
+    }
+  };
+
+  const startSession = () => {
+    upsertWorkout(date, (current) => ({
+      ...current,
+      planId: plan?.id,
+      planDayIndex: weekdayOf(date),
+      title: current.title || planDay?.title || 'Training',
+      bodyWeightKg: current.bodyWeightKg ?? state.profile.weightKg,
+      startedAt: new Date().toISOString(),
+      endedAt: null,
+    }));
+  };
+
+  const stopSession = () => {
+    upsertWorkout(date, (current) => {
+      const started = current.startedAt ? new Date(current.startedAt).valueOf() : null;
+      const minutes = started ? Math.max(1, Math.round((Date.now() - started) / 60000)) : current.durationMin;
+      return { ...current, endedAt: new Date().toISOString(), durationMin: minutes };
+    });
+    toast.show('Training beendet');
   };
 
   const removeRow = (row: Row) => {
@@ -286,6 +366,16 @@ export function TodayPage() {
         </div>
       )}
 
+      {rows.length > 0 && (
+        <SessionBar
+          workout={workout}
+          onStart={startSession}
+          onStop={stopSession}
+          sortMode={sortMode}
+          onToggleSort={() => setSortMode(!sortMode)}
+        />
+      )}
+
       {rows.length === 0 && (
         <EmptyState
           icon={planDay?.isRestDay ? '😴' : '🏋️'}
@@ -295,17 +385,23 @@ export function TodayPage() {
       )}
 
       <div className="list">
-        {rows.map((row) => (
+        {rows.map((row, index) => (
           <ExerciseCard
             key={row.key}
             row={row}
+            index={index}
+            total={rows.length}
             date={date}
+            sortMode={sortMode}
+            groupedWithAbove={index > 0 && !!row.groupId && row.groupId === rows[index - 1].groupId}
             onToggleSet={(setId) => toggleSet(row, setId)}
             onUpdate={updateRow}
             onAddSet={() => addSet(row)}
             onRemove={() => removeRow(row)}
             onOpenDetail={() => row.exercise && setDetail(row.exercise)}
             onStartRest={startRest}
+            onMove={(direction) => moveRow(index, direction)}
+            onToggleSuperset={() => toggleSuperset(index)}
           />
         ))}
       </div>
@@ -326,7 +422,9 @@ export function TodayPage() {
                 onChange={(value) => upsertWorkout(date, (current) => ({ ...current, durationMin: value }))}
                 placeholder="gemessen"
               />
-              <span className="field__hint">Leer lassen = wird geschätzt</span>
+              <span className="field__hint">
+                {workout.endedAt ? 'Von der Stoppuhr übernommen' : 'Leer lassen = wird geschätzt'}
+              </span>
             </div>
             <div className="field">
               <label className="field__label">Körpergewicht (kg)</label>
@@ -350,6 +448,14 @@ export function TodayPage() {
             <IconTrash /> Training löschen
           </button>
         </div>
+      )}
+
+      {record && (
+        <RecordBanner
+          name={record.name}
+          record={record.record}
+          onClose={() => setRecord(null)}
+        />
       )}
 
       {restEndsAt && (
@@ -419,21 +525,33 @@ function WeekStrip({
 /* ------------------------------------------------------------- Übungskarte */
 
 function ExerciseCard({
-  row, date, onToggleSet, onUpdate, onAddSet, onRemove, onOpenDetail, onStartRest,
+  row, index, total, date, sortMode, groupedWithAbove,
+  onToggleSet, onUpdate, onAddSet, onRemove, onOpenDetail, onStartRest, onMove, onToggleSuperset,
 }: {
   row: Row;
+  index: number;
+  total: number;
   date: string;
+  sortMode: boolean;
+  groupedWithAbove: boolean;
   onToggleSet: (setId: string) => void;
   onUpdate: (row: Row, mutate: (logged: LoggedExercise) => LoggedExercise) => void;
   onAddSet: () => void;
   onRemove: () => void;
   onOpenDetail: () => void;
   onStartRest: (seconds: number) => void;
+  onMove: (direction: -1 | 1) => void;
+  onToggleSuperset: () => void;
 }) {
   const { state } = useStore();
   const previous = useMemo(
     () => lastPerformance(state, row.exerciseId, date),
     [state, row.exerciseId, date],
+  );
+
+  const suggestion = useMemo(
+    () => suggestWeight(state, row.exerciseId, row.exercise, row.planExercise, date),
+    [state, row.exerciseId, row.exercise, row.planExercise, date],
   );
 
   const doneSets = row.sets.filter((set) => set.done && !set.isWarmup).length;
@@ -460,15 +578,68 @@ function ExerciseCard({
     onUpdate(row, (logged) => ({ ...logged, sets: logged.sets.filter((set) => set.id !== setId) }));
   };
 
+  /** Setzt den Vorschlag auf alle noch offenen Arbeitssaetze. */
+  const applySuggestion = () => {
+    if (!suggestion) return;
+    onUpdate(row, (logged) => ({
+      ...logged,
+      sets: logged.sets.map((set) =>
+        set.done || set.isWarmup ? set : { ...set, weightKg: suggestion.weightKg }),
+    }));
+  };
+
+  /** Stellt Aufwaermsaetze vor die Arbeitssaetze. */
+  const addWarmup = () => {
+    const working = row.sets.find((set) => !set.isWarmup && (set.weightKg ?? 0) > 0);
+    const base = working?.weightKg ?? suggestion?.weightKg ?? 0;
+    const warmups = warmupSets(base, row.exercise);
+    if (warmups.length === 0) return;
+    onUpdate(row, (logged) => ({
+      ...logged,
+      sets: [
+        ...warmups.map((item) => newSet({ weightKg: item.weightKg, reps: item.reps, isWarmup: true })),
+        ...logged.sets.filter((set) => !set.isWarmup),
+      ],
+    }));
+  };
+
   const totalTarget = target?.targetSets ?? row.sets.length;
   const allDone = doneSets >= totalTarget && totalTarget > 0;
   const accent = row.exercise ? categoryColor(row.exercise.category) : 'var(--border)';
 
   return (
     <div
-      className={`exercise${allDone ? ' exercise--done' : ''}`}
+      className={[
+        'exercise',
+        allDone ? 'exercise--done' : '',
+        row.groupId ? 'exercise--grouped' : '',
+        groupedWithAbove ? 'exercise--group-cont' : '',
+      ].filter(Boolean).join(' ')}
       style={{ '--cat': accent, '--cat-tint': row.exercise ? categoryTint(row.exercise.category) : undefined } as React.CSSProperties}
     >
+      {row.groupId && !groupedWithAbove && (
+        <div className="exercise__group-label">Supersatz</div>
+      )}
+
+      {sortMode && (
+        <div className="exercise__sort">
+          <button className="btn btn--sm btn--icon" onClick={() => onMove(-1)} disabled={index === 0} aria-label="Nach oben">
+            <IconChevronDown style={{ transform: 'rotate(180deg)' }} />
+          </button>
+          <button className="btn btn--sm btn--icon" onClick={() => onMove(1)} disabled={index === total - 1} aria-label="Nach unten">
+            <IconChevronDown />
+          </button>
+          {index > 0 && (
+            <button
+              className={`btn btn--sm ${groupedWithAbove ? 'btn--primary' : ''}`}
+              onClick={onToggleSuperset}
+            >
+              {groupedWithAbove ? 'Supersatz lösen' : 'Mit Übung darüber koppeln'}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="exercise__head" onClick={() => setOpen(!open)}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="row" style={{ gap: 7 }}>
@@ -500,6 +671,15 @@ function ExerciseCard({
             <div className="row row--wrap tiny" style={{ gap: 6, padding: '10px 0 2px' }}>
               <span className="chip">Letztes Mal: {summarizeSets(previous.sets, isTimed)}</span>
               {previous.best1RM > 0 && <span className="chip">1RM ≈ {fmt(previous.best1RM, 1)} kg</span>}
+              {suggestion && suggestion.direction !== 'hold' && (
+                <button
+                  className={`chip chip--button ${suggestion.direction === 'up' ? 'chip--success' : 'chip--warn'}`}
+                  onClick={applySuggestion}
+                  title={suggestion.reason}
+                >
+                  {suggestion.direction === 'up' ? '↑' : '↓'} Vorschlag {fmt(suggestion.weightKg, 1)} kg
+                </button>
+              )}
               {previous.volumeChangePct != null && (
                 <span className={`chip ${previous.volumeChangePct >= 0 ? 'chip--success' : 'chip--danger'}`}>
                   {previous.volumeChangePct >= 0 ? '▲' : '▼'} {fmt(Math.abs(previous.volumeChangePct), 0)} % Volumen
@@ -583,6 +763,11 @@ function ExerciseCard({
 
           <div className="row row--wrap" style={{ marginTop: 10, gap: 7 }}>
             <button className="btn btn--sm" onClick={onAddSet}><IconPlus /> Satz</button>
+            {!isTimed && !row.sets.some((set) => set.isWarmup) && (
+              <button className="btn btn--sm" onClick={addWarmup} title="Aufwärmsätze davorstellen">
+                Aufwärmen
+              </button>
+            )}
             <button className="btn btn--sm" onClick={() => onStartRest(row.planExercise?.restSec ?? state.settings.restTimerSec)}>
               <IconClock /> Pause
             </button>
@@ -692,6 +877,83 @@ function RestTimer({
         <IconX />
       </button>
       <span className="rest-timer__bar" style={{ width: `${barWidth}%` }} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------ Stoppuhr und Sortierleiste */
+
+/** Zeigt die laufende Trainingszeit und den Umschalter fuers Sortieren. */
+function SessionBar({
+  workout, onStart, onStop, sortMode, onToggleSort,
+}: {
+  workout: Workout | undefined;
+  onStart: () => void;
+  onStop: () => void;
+  sortMode: boolean;
+  onToggleSort: () => void;
+}) {
+  const running = !!workout?.startedAt && !workout?.endedAt;
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [running]);
+
+  const elapsed = running && workout?.startedAt
+    ? Math.max(0, (now - new Date(workout.startedAt).valueOf()) / 1000)
+    : 0;
+
+  return (
+    <div className="row row--wrap" style={{ gap: 8 }}>
+      {running ? (
+        <>
+          <span className="chip chip--success" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <IconClock style={{ width: 13, height: 13 }} /> {formatClock(elapsed)}
+          </span>
+          <button className="btn btn--sm" onClick={onStop}>Training beenden</button>
+        </>
+      ) : (
+        <button className="btn btn--sm" onClick={onStart}>
+          <IconClock /> {workout?.endedAt ? 'Neu starten' : 'Zeit messen'}
+        </button>
+      )}
+
+      <span className="spacer" />
+      <button className={`btn btn--sm ${sortMode ? 'btn--primary' : ''}`} onClick={onToggleSort}>
+        {sortMode ? 'Fertig' : 'Sortieren'}
+      </button>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------- Bestleistungs-Meldung */
+
+/** Kurze Rueckmeldung, wenn ein Satz einen bisherigen Bestwert schlaegt. */
+function RecordBanner({
+  name, record, onClose,
+}: {
+  name: string;
+  record: NewRecord;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const timer = window.setTimeout(onClose, 5000);
+    return () => window.clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="record-banner" role="status">
+      <span className="record-banner__icon">🏆</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="bold small">{record.label}</div>
+        <div className="tiny" style={{ opacity: 0.85 }}>{name} · {record.value}</div>
+      </div>
+      <button className="btn btn--ghost btn--icon btn--sm" onClick={onClose} aria-label="Schließen">
+        <IconX />
+      </button>
     </div>
   );
 }
