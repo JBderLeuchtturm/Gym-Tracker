@@ -10,14 +10,19 @@ import {
   countsAsWork,
 } from '../lib/stats';
 import { useStore } from '../storage/store';
-import { BarChart, LineChart, Sparkline, StackedBarChart, type Point } from '../components/charts/Charts';
+import {
+  BarChart, LineChart, Sparkline, StackedBarChart, YearHeatmap, type Point,
+} from '../components/charts/Charts';
 import { ExerciseDetail } from '../components/ExerciseDetail';
 import { BodyMap, type Intensity } from '../components/MuscleMap';
 import { ALL_REGIONS, REGION_LABELS, suggestForRegion, type MuscleRegion } from '../lib/muscles';
 import { daysSince, loadStatus, regionLoad, targetFor } from '../lib/muscleLoad';
-import { EmptyState, Stat, fmt } from '../components/ui';
+import { EmptyState, Stat, fmt, useToast } from '../components/ui';
 import { formatClock } from '../lib/date';
-import { IconChevronRight, IconSearch } from '../components/icons';
+import { IconChevronRight, IconDownload, IconPrinter, IconSearch } from '../components/icons';
+import {
+  bodyToCsv, downloadText, printReport, summaryToCsv, workoutsToCsv,
+} from '../lib/exportData';
 
 type Range = 30 | 90 | 365 | 0;
 
@@ -45,6 +50,8 @@ export function ProgressPage() {
   const [range, setRange] = useState<Range>(90);
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [filter, setFilter] = useState('');
+  const [calendarDay, setCalendarDay] = useState<string | null>(null);
+  const toast = useToast();
 
   const since = range === 0 ? '0000-01-01' : addDays(todayISO(), -range);
 
@@ -54,6 +61,51 @@ export function ProgressPage() {
   );
 
   const streak = useMemo(() => streakInfo(state), [state]);
+
+  /** Ein Punkt je Trainingstag fuer den Kalender - Wert sind die Arbeitssaetze. */
+  const calendarDays = useMemo(() => state.workouts
+    .map((workout) => {
+      const sets = workoutSetCount(workout);
+      return {
+        date: workout.date,
+        value: sets,
+        title: sets > 0
+          ? `${formatDateShort(workout.date)}: ${sets} ${t('Sätze')} · ${fmt(workoutVolume(workout))} kg`
+          : formatDateShort(workout.date),
+      };
+    })
+    .filter((day) => day.value > 0), [state.workouts]);
+
+  /** Zusammenfassung fuer den Ausdruck. */
+  const printReport_ = () => {
+    printReport({
+      title: t('Trainingsbericht'),
+      rangeLabel: RANGE_LABELS[range],
+      stats: [
+        { label: t('Einheiten'), value: String(totals.count) },
+        { label: t('Sätze'), value: String(totals.sets) },
+        { label: t('Volumen'), value: `${fmt(totals.volume)} kg` },
+        { label: t('Wochen-Serie'), value: String(streak.current) },
+      ],
+      sections: [
+        {
+          heading: t('Fortschritt je Übung'),
+          rows: trackedExercises.slice(0, 40).map((item) => [
+            `${item.exercise!.name} (${item.sessions} ${t('Einheiten')})`,
+            `${item.records.maxWeight ? `${fmt(item.records.maxWeight.value, 1)} kg × ${item.records.maxWeight.reps}` : '–'}${
+              item.trend != null ? ` · ${item.trend >= 0 ? '+' : ''}${fmt(item.trend, 0)} %` : ''}`,
+          ]),
+        },
+        {
+          heading: t('Verteilung nach Muskelgruppe'),
+          rows: byCategory.map((entry) => [
+            labelOf(entry.category),
+            `${entry.sets} ${t('Sätze')} · ${fmt(entry.volume)} kg`,
+          ]),
+        },
+      ],
+    });
+  };
 
   /** Trainings der laufenden Kalenderwoche - Grundlage fuer die Wochenziele. */
   const weekWorkouts = useMemo(() => {
@@ -269,6 +321,29 @@ export function ProgressPage() {
             </div>
           )}
 
+          <div className="card">
+            <div className="card__header">
+              <div className="card__title">{t("Trainingskalender")}</div>
+              <span className="tiny dim">{t("letzte 27 Wochen")}</span>
+            </div>
+            <YearHeatmap
+              days={calendarDays}
+              onSelect={(day) => {
+                const workout = state.workouts.find((item) => item.date === day);
+                if (workout && workoutSetCount(workout) > 0) setCalendarDay(day);
+              }}
+            />
+            <div className="row row--between tiny dim" style={{ marginTop: 8 }}>
+              <span>{t('{count} Trainingstage', { count: calendarDays.filter((day) => day.value > 0).length })}</span>
+              <span>{t("weniger")} → {t("mehr")}</span>
+            </div>
+            {calendarDay && (
+              <div className="tiny" style={{ marginTop: 8 }}>
+                {calendarDays.find((day) => day.date === calendarDay)?.title}
+              </div>
+            )}
+          </div>
+
           <MuscleLoadCard
             workouts={workouts}
             weekWorkouts={weekWorkouts}
@@ -339,6 +414,45 @@ export function ProgressPage() {
             <IconChevronRight style={{ width: 16, height: 16, color: 'var(--text-dim)', flexShrink: 0 }} />
           </button>
         ))}
+      </div>
+
+      <div className="card">
+        <div className="card__title" style={{ marginBottom: 6 }}>{t("Auswertung mitnehmen")}</div>
+        <div className="tiny dim" style={{ marginBottom: 11 }}>
+          {t("CSV öffnet sich in jeder Tabellenkalkulation. Der Ausdruck lässt sich im Druckdialog als PDF speichern.")}
+        </div>
+        <div className="grid-2">
+          <button
+            className="btn"
+            onClick={() => {
+              downloadText(`gym-tracker-saetze-${todayISO()}.csv`, workoutsToCsv(state, getExercise));
+              toast.show(t('CSV gespeichert'));
+            }}
+          >
+            <IconDownload /> {t('Sätze als CSV')}
+          </button>
+          <button
+            className="btn"
+            onClick={() => {
+              downloadText(`gym-tracker-trainings-${todayISO()}.csv`, summaryToCsv(state));
+              toast.show(t('CSV gespeichert'));
+            }}
+          >
+            <IconDownload /> {t('Trainings als CSV')}
+          </button>
+          <button
+            className="btn"
+            onClick={() => {
+              downloadText(`gym-tracker-koerper-${todayISO()}.csv`, bodyToCsv(state));
+              toast.show(t('CSV gespeichert'));
+            }}
+          >
+            <IconDownload /> {t('Körperdaten als CSV')}
+          </button>
+          <button className="btn" onClick={printReport_}>
+            <IconPrinter /> {t('Bericht drucken')}
+          </button>
+        </div>
       </div>
 
       {detail && <ExerciseDetail exercise={detail} onClose={() => setDetail(null)} />}

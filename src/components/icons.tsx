@@ -124,3 +124,9 @@ export const IconShare = (p: IconProps) => (
     <path d="M8.4 10.8l7.2-3.6M8.4 13.2l7.2 3.6" />
   </Base>
 );
+export const IconPrinter = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M7 9V4h10v5" />
+    <path d="M5 9h14v7h-3v4H8v-4H5z" />
+  </Base>
+);

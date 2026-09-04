@@ -1057,3 +1057,87 @@ table.data tr:last-child td { border-bottom: 0; }
   border-left: 2px solid var(--violet);
   padding-left: 4px;
 }
+
+/* ------------------------------------------------------- Fortschrittsfotos */
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.photo-tile {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.photo-tile--on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.photo-tile > button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.photo-tile img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+}
+
+.photo-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.photo-compare figure {
+  margin: 0;
+  text-align: center;
+}
+
+.photo-compare img {
+  width: 100%;
+  border-radius: var(--radius-sm);
+}
+
+/* ------------------------------------------------------ Trainingskalender */
+
+.heatmap {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.heatmap__col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.heatmap__cell {
+  width: 11px;
+  height: 11px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--surface-3);
+  cursor: pointer;
+}
+
+.heatmap__cell:disabled { cursor: default; }
+.heatmap__cell--future { opacity: 0.35; }
+.heatmap__cell--1 { background: color-mix(in srgb, var(--accent) 30%, var(--surface-3)); }
+.heatmap__cell--2 { background: color-mix(in srgb, var(--accent) 55%, var(--surface-3)); }
+.heatmap__cell--3 { background: color-mix(in srgb, var(--accent) 78%, var(--surface-3)); }
+.heatmap__cell--4 { background: var(--accent); }

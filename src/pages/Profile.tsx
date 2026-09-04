@@ -8,6 +8,7 @@ import { useStore } from '../storage/store';
 import { downloadBackup, importState } from '../storage/db';
 import { CustomExerciseDialog } from '../components/ExercisePicker';
 import { ExerciseDetail } from '../components/ExerciseDetail';
+import { BodyLogButtons, MeasurementsDialog, PhotosDialog } from '../components/BodyLog';
 import { ConfirmDialog, Modal, NumberInput, Stat, fmt, useToast } from '../components/ui';
 import {
   IconDownload, IconEdit, IconPlus, IconScale, IconTarget, IconTrash, IconUpload, IconUser,
@@ -28,6 +29,8 @@ export function ProfilePage() {
   const [weightOpen, setWeightOpen] = useState(false);
   const [exercisesOpen, setExercisesOpen] = useState(false);
   const [targetsOpen, setTargetsOpen] = useState(false);
+  const [measurementsOpen, setMeasurementsOpen] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState(false);
   const [equipmentOpen, setEquipmentOpen] = useState(false);
   const [newExerciseOpen, setNewExerciseOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
@@ -173,6 +176,17 @@ export function ProfilePage() {
             </tbody>
           </table>
         )}
+
+        <div className="divider" />
+        <div className="tiny dim" style={{ marginBottom: 8 }}>
+          {t("Umfänge und Fotos zeigen die Veränderung oft früher als die Waage.")}
+          {' '}
+          {t("Fotos bleiben auf diesem Gerät.")}
+        </div>
+        <BodyLogButtons
+          onMeasurements={() => setMeasurementsOpen(true)}
+          onPhotos={() => setPhotosOpen(true)}
+        />
       </div>
 
       <div className="card">
@@ -312,6 +326,9 @@ export function ProfilePage() {
           defaultWeight={profile.weightKg}
         />
       )}
+
+      {measurementsOpen && <MeasurementsDialog onClose={() => setMeasurementsOpen(false)} />}
+      {photosOpen && <PhotosDialog onClose={() => setPhotosOpen(false)} />}
 
       {targetsOpen && (
         <WeeklyTargetsDialog

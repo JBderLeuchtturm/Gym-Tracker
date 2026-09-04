@@ -9,6 +9,9 @@ import { useStore } from '../storage/store';
 import { LineChart, type Point } from './charts/Charts';
 import { Modal, Stat, fmt } from './ui';
 import { IconTrophy } from './icons';
+import {
+  CONFIDENCE_LABELS, linearTrend, nextRoundGoal, perMonth, projectTarget,
+} from '../lib/forecast';
 import { BodyMap, type Intensity } from './MuscleMap';
 import { REGION_LABELS, regionsOf, type MuscleRegion } from '../lib/muscles';
 
@@ -137,6 +140,8 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
               />
             </div>
 
+            <ForecastCard exercise={exercise} history={history} />
+
             <div className="card card--flush">
               <div className="section-label" style={{ padding: '12px 14px 4px' }}>{t("Letzte Einheiten")}</div>
               <table className="data">
@@ -240,6 +245,79 @@ function MuscleCard({ exercise }: { exercise: Exercise }) {
         <div className="tiny dim" style={{ marginTop: 8, textAlign: 'center' }}>
           {exercise.primaryMuscles.join(', ')}
           {exercise.secondaryMuscles.length > 0 && ` · ${exercise.secondaryMuscles.join(', ')}`}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+/**
+ * Hochrechnung: Wohin fuehrt die Linie, wenn es so weiterginge?
+ *
+ * Bewusst zurueckhaltend formuliert. Kraft waechst nicht ewig gleichmaessig,
+ * und eine Gerade durch acht Punkte ist keine Prophezeiung. Deshalb steht
+ * dabei, wie gleichmaessig der Verlauf ist - und bei duenner Datenlage
+ * erscheint die Karte gar nicht erst.
+ */
+function ForecastCard({
+  exercise, history,
+}: {
+  exercise: Exercise;
+  history: ReturnType<typeof exerciseHistory>;
+}) {
+  const timed = exercise.kind === 'time' || exercise.kind === 'cardio';
+
+  const series = useMemo(() => history.map((session) => ({
+    date: session.date,
+    value: timed ? session.bestDurationSec : session.best1RM,
+  })), [history, timed]);
+
+  const trend = useMemo(() => linearTrend(series), [series]);
+  const goal = trend ? nextRoundGoal(trend.last.value) : 0;
+  const projection = useMemo(() => projectTarget(trend, goal), [trend, goal]);
+
+  if (!trend) return null;
+
+  const monthly = perMonth(trend);
+  const unit = timed ? t('s') : t('kg');
+
+  return (
+    <div className="card">
+      <div className="card__header">
+        <div className="card__title">{t("Hochrechnung")}</div>
+        <span className="tiny dim">{t('{count} Einheiten', { count: trend.points })}</span>
+      </div>
+
+      {monthly != null && Math.abs(monthly) >= 0.1 ? (
+        <div className="small">
+          {monthly > 0
+            ? t('Aktuell etwa +{value} {unit} im Monat.', { value: fmt(monthly, 1), unit })
+            : t('Aktuell etwa {value} {unit} im Monat.', { value: fmt(monthly, 1), unit })}
+        </div>
+      ) : (
+        <div className="small">{t("Der Wert bewegt sich gerade kaum.")}</div>
+      )}
+
+      {projection ? (
+        <div className="list" style={{ marginTop: 8 }}>
+          <div className="row row--between">
+            <span className="small">
+              {t('{value} {unit} erreichst du etwa', { value: fmt(goal, 0), unit })}
+            </span>
+            <span className="bold">{formatDateShort(projection.date)}</span>
+          </div>
+          <div className="tiny dim">
+            {t(CONFIDENCE_LABELS[projection.confidence])}
+            {' · '}
+            {t("Hochgerechnet aus dem bisherigen Verlauf – Kraft wächst nicht ewig gleichmäßig.")}
+          </div>
+        </div>
+      ) : (
+        <div className="tiny dim" style={{ marginTop: 8 }}>
+          {trend.slopePerDay <= 0
+            ? t("Es geht gerade nicht aufwärts – deshalb keine Vorhersage.")
+            : t("Das nächste runde Ziel liegt zu weit weg für eine sinnvolle Vorhersage.")}
         </div>
       )}
     </div>

@@ -426,3 +426,82 @@ export function StackedBarChart({
     </div>
   );
 }
+
+/* ------------------------------------------------------- Trainingskalender */
+
+export interface CalendarDay {
+  date: string;
+  /** Beliebiger Wert, etwa Saetze oder Volumen. 0 = kein Training. */
+  value: number;
+  title?: string;
+}
+
+/**
+ * Ein Jahr auf einen Blick: eine Spalte je Woche, eine Zeile je Wochentag.
+ * Kraeftiger heisst mehr Arbeit an diesem Tag. Luecken sieht man sofort -
+ * genau dafuer ist die Darstellung da.
+ */
+export function YearHeatmap({
+  days, onSelect, weeks = 27,
+}: {
+  days: CalendarDay[];
+  onSelect?: (date: string) => void;
+  weeks?: number;
+}) {
+  const byDate = new Map(days.map((day) => [day.date, day]));
+  const max = Math.max(1, ...days.map((day) => day.value));
+
+  // Von rechts nach links aufbauen: die letzte Spalte ist die laufende Woche.
+  const today = new Date();
+  const mondayOffset = (today.getDay() + 6) % 7;
+  const lastMonday = new Date(today);
+  lastMonday.setDate(today.getDate() - mondayOffset);
+
+  const columns: string[][] = [];
+  for (let week = weeks - 1; week >= 0; week -= 1) {
+    const column: string[] = [];
+    for (let day = 0; day < 7; day += 1) {
+      const date = new Date(lastMonday);
+      date.setDate(lastMonday.getDate() - week * 7 + day);
+      const iso = [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, '0'),
+        String(date.getDate()).padStart(2, '0'),
+      ].join('-');
+      column.push(iso);
+    }
+    columns.push(column);
+  }
+
+  const todayIso = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-');
+
+  return (
+    <div className="heatmap">
+      {columns.map((column) => (
+        <div className="heatmap__col" key={column[0]}>
+          {column.map((iso) => {
+            const entry = byDate.get(iso);
+            const level = entry && entry.value > 0
+              ? Math.min(4, Math.ceil((entry.value / max) * 4))
+              : 0;
+            const future = iso > todayIso;
+            return (
+              <button
+                key={iso}
+                className={`heatmap__cell heatmap__cell--${level}${future ? ' heatmap__cell--future' : ''}`}
+                title={entry?.title ?? iso}
+                aria-label={entry?.title ?? iso}
+                disabled={future || !onSelect}
+                onClick={onSelect ? () => onSelect(iso) : undefined}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
