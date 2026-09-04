@@ -125,10 +125,20 @@ Megabyte-Bereich.
 
 ### Wie es sich benutzt
 
-Unter *Freunde* legt jeder ein Konto mit E-Mail und Passwort an und bekommt
-automatisch einen Benutzernamen wie `jan-4f2a`, den man ändern kann. Du schickst
-Freunden den Link zur App und deinen Benutzernamen; sie schicken dir eine
-Anfrage, du nimmst sie an – fertig.
+**Deine Freunde richten nichts ein.** Das Supabase-Projekt legst nur du an,
+einmal. Alle anderen öffnen bloß den Link und legen ein Konto mit E-Mail und
+Passwort an; einen Benutzernamen wie `jan-4f2a` bekommen sie automatisch und
+können ihn ändern.
+
+Am bequemsten geht es über *Freunde → Einladung teilen*. Das erzeugt einen Link
+mit deinem Benutzernamen daran (`…/#add=jan-4f2a`). Wer ihn öffnet, landet direkt
+auf der Freunde-Seite, sieht wer ihn eingeladen hat, legt ein Konto an – und die
+Freundschaftsanfrage geht von selbst bei dir raus. Nichts abtippen, nichts
+suchen. Der Anhang verschwindet danach wieder aus der Adresszeile, und eine
+Einladung wird nur ein einziges Mal eingelöst.
+
+Wer lieber von Hand sucht, gibt unter *Freund hinzufügen* einfach den
+Benutzernamen ein.
 
 **Was andere sehen, entscheidest du pro Freund.** Bei jedem Freund gibt es drei
 Schalter unter „Was ich zeige":
@@ -230,7 +240,7 @@ Verbrauch, die Bilanz und alle Diagramme funktionieren dann genauso.
 ```
 src/
 ├── api/           wger-Übungsdatenbank, Yazio (Bridge + CSV)
-├── sync/          Konto, Freunde, Freigaben, Zusammenführen zweier Stände
+├── sync/          Konto, Freunde, Freigaben, Einladungslinks, Zusammenführen
 ├── components/    UI-Bausteine, Übungssuche, Detailansicht, Diagramme
 ├── data/          Übungskatalog (216 Einträge) und Planvorlagen
 ├── lib/           Datum, Suche, Kalorien- und Statistikberechnung

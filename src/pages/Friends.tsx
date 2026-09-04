@@ -6,6 +6,7 @@ import {
   SCOPE_HINTS, SCOPE_LABELS, buildProgressShare, type ProgressShare, type ShareScope,
 } from '../sync/sharePayload';
 import { hasOverride, saveOverride } from '../sync/config';
+import { buildInviteLink } from '../sync/invite';
 import { formatClock, formatDateShort, formatDateTiny, relativeDayLabel } from '../lib/date';
 import { BarChart, LineChart, Sparkline } from '../components/charts/Charts';
 import { EmptyState, Modal, Stat, fmt, useToast } from '../components/ui';
@@ -138,6 +139,24 @@ function AuthPanel() {
 
   return (
     <div className="card">
+      {sync.pendingInvite && (
+        <div
+          className="row"
+          style={{
+            gap: 9, alignItems: 'flex-start', marginBottom: 13, padding: '10px 12px',
+            borderRadius: 'var(--radius-sm)', background: 'var(--accent-soft)',
+          }}
+        >
+          <span style={{ fontSize: '1.2rem' }}>🤝</span>
+          <span className="small">
+            <strong>@{sync.pendingInvite}</strong> hat dich eingeladen.
+            <span className="tiny dim" style={{ display: 'block' }}>
+              Leg einfach ein Konto an – die Freundschaftsanfrage geht danach von selbst raus.
+            </span>
+          </span>
+        </div>
+      )}
+
       <div className="card__title" style={{ marginBottom: 4 }}>
         {mode === 'in' ? 'Anmelden' : 'Konto anlegen'}
       </div>
@@ -235,7 +254,7 @@ function FriendsHome() {
     }
   };
 
-  const shareLink = `${window.location.origin}${window.location.pathname}`;
+  const inviteLink = sync.profile ? buildInviteLink(sync.profile.handle) : '';
 
   return (
     <>
@@ -256,18 +275,18 @@ function FriendsHome() {
           <button
             className="btn btn--sm"
             onClick={() => {
-              void navigator.clipboard?.writeText(sync.profile?.handle ?? '');
-              toast.show('Benutzername kopiert');
+              void navigator.clipboard?.writeText(inviteLink);
+              toast.show('Einladungslink kopiert');
             }}
           >
-            <IconCopy /> Name kopieren
+            <IconCopy /> Link kopieren
           </button>
           <button
             className="btn btn--sm"
             onClick={() => {
-              const text = `Trainier mit mir im Gym Tracker: ${shareLink}\nMein Benutzername: @${sync.profile?.handle ?? ''}`;
+              const text = `Trainier mit mir im Gym Tracker – Konto anlegen, fertig:\n${inviteLink}`;
               if (navigator.share) void navigator.share({ text }).catch(() => undefined);
-              else { void navigator.clipboard?.writeText(text); toast.show('Einladung kopiert'); }
+              else { void navigator.clipboard?.writeText(text); toast.show('Einladungslink kopiert'); }
             }}
           >
             Einladung teilen
@@ -290,6 +309,15 @@ function FriendsHome() {
         {sync.error && <div className="tiny" style={{ color: 'var(--danger)', marginTop: 4 }}>{sync.error}</div>}
       </div>
 
+      {sync.inviteNote && (
+        <div className="card" style={{ borderColor: 'var(--accent)' }}>
+          <div className="row" style={{ gap: 9 }}>
+            <span style={{ fontSize: '1.2rem' }}>🤝</span>
+            <span className="small">{sync.inviteNote}</span>
+          </div>
+        </div>
+      )}
+
       {/* ------------------------------------------------- Freund hinzufügen */}
       <div className="card">
         <div className="card__title" style={{ marginBottom: 9 }}><IconPlus /> Freund hinzufügen</div>
@@ -307,8 +335,8 @@ function FriendsHome() {
         </div>
         {addError && <div className="tiny" style={{ color: 'var(--danger)', marginTop: 6 }}>{addError}</div>}
         <div className="tiny dim" style={{ marginTop: 7 }}>
-          Schick deinen Freunden den Link zur App und deinen Benutzernamen – sie legen ein
-          Konto an und schicken dir eine Anfrage.
+          Am einfachsten geht es über „Einladung teilen“ – wer den Link öffnet, legt nur ein
+          Konto an, die Anfrage kommt dann automatisch bei dir an.
         </div>
       </div>
 

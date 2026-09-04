@@ -35,8 +35,10 @@ const TITLES: Record<Tab, string> = {
 export function App() {
   const { state } = useStore();
   const sync = useSync();
+
   const pendingRequests = sync.friends.filter((friend) => friend.state === 'incoming').length;
-  const [tab, setTab] = useState<Tab>('today');
+  // Wer über einen Einladungslink kommt, landet direkt bei den Freunden.
+  const [tab, setTab] = useState<Tab>(() => (sync.pendingInvite ? 'friends' : 'today'));
   const [historyOpen, setHistoryOpen] = useState(false);
 
   // Farbschema anwenden (dunkel, hell oder Systemvorgabe).

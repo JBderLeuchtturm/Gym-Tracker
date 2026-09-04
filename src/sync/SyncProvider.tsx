@@ -11,6 +11,7 @@ import {
 } from './sharePayload';
 import type { Friend, FriendData, RemoteProfile, SyncStatus } from './types';
 import { migrate } from '../storage/db';
+import { captureInviteFromUrl, clearPendingInvite, readPendingInvite } from './invite';
 
 const PUSH_DELAY_MS = 3500;
 const POLL_INTERVAL_MS = 90_000;
@@ -23,6 +24,10 @@ interface SyncValue {
   busy: boolean;
   lastSyncAt: number | null;
   lastMergeNote: string | null;
+  /** Benutzername aus einem Einladungslink, solange die Anfrage noch aussteht. */
+  pendingInvite: string | null;
+  /** Rueckmeldung, nachdem eine Einladung eingeloest wurde. */
+  inviteNote: string | null;
 
   signUp: (email: string, password: string) => Promise<{ needsConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
@@ -59,6 +64,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const [lastMergeNote, setLastMergeNote] = useState<string | null>(null);
+  const [pendingInvite, setPendingInvite] = useState<string | null>(() => captureInviteFromUrl());
+  const [inviteNote, setInviteNote] = useState<string | null>(null);
 
   // Der zuletzt hochgeladene Stand - verhindert, dass Hoch- und Runterladen
   // sich gegenseitig immer wieder anstossen.
@@ -387,6 +394,28 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   /* ----------------------------------------------------------- Anmeldung */
 
+  // Sobald das Profil steht, eine gemerkte Einladung automatisch einloesen.
+  useEffect(() => {
+    if (status !== 'signed-in' || !profile) return;
+    const pending = readPendingInvite();
+    if (!pending) return;
+    if (pending === profile.handle) { clearPendingInvite(); setPendingInvite(null); return; }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const note = await addFriend(pending);
+        if (!cancelled) setInviteNote(note);
+      } catch (caught) {
+        if (!cancelled) setInviteNote(caught instanceof Error ? caught.message : 'Einladung konnte nicht eingelöst werden');
+      } finally {
+        clearPendingInvite();
+        if (!cancelled) setPendingInvite(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [status, profile, addFriend]);
+
   const signUp = useCallback(async (email: string, password: string) => {
     if (!client) throw new Error('Synchronisierung ist nicht eingerichtet');
     setBusy(true);
@@ -450,12 +479,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   }, [pullAndMerge, refreshFriends]);
 
   const value = useMemo<SyncValue>(() => ({
-    status, user, profile, error, busy, lastSyncAt, lastMergeNote,
+    status, user, profile, error, busy, lastSyncAt, lastMergeNote, pendingInvite, inviteNote,
     signUp, signIn, signOut, saveProfile,
     friends, refreshFriends, addFriend, acceptFriend, removeFriend,
     grants, setGrant, loadFriendData, syncNow,
   }), [
-    status, user, profile, error, busy, lastSyncAt, lastMergeNote,
+    status, user, profile, error, busy, lastSyncAt, lastMergeNote, pendingInvite, inviteNote,
     signUp, signIn, signOut, saveProfile,
     friends, refreshFriends, addFriend, acceptFriend, removeFriend,
     grants, setGrant, loadFriendData, syncNow,
