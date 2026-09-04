@@ -243,3 +243,118 @@ function isNextWeek(week: string, next: string): boolean {
   // Jahreswechsel: KW 52/53 gefolgt von KW 1.
   return yearB === yearA + 1 && weekB === 1 && weekA >= 52;
 }
+
+/* -------------------------------------------------------------- Rueckblick */
+
+export interface PeriodSummary {
+  label: string;
+  workouts: number;
+  sets: number;
+  volume: number;
+  minutes: number;
+}
+
+export interface Review {
+  current: PeriodSummary;
+  previous: PeriodSummary;
+  /** Uebungen, bei denen im Zeitraum ein neuer Bestwert stand. */
+  records: Array<{ name: string; value: string; date: string }>;
+  /** Meistgenutzte Muskelgruppen im Zeitraum. */
+  focus: Array<{ category: string; sets: number }>;
+}
+
+const summarize = (workouts: Workout[], label: string): PeriodSummary => ({
+  label,
+  workouts: workouts.length,
+  sets: workouts.reduce((sum, workout) => sum + workoutSetCount(workout), 0),
+  volume: workouts.reduce((sum, workout) => sum + workoutVolume(workout), 0),
+  minutes: workouts.reduce((sum, workout) => sum + (workout.durationMin ?? 0), 0),
+});
+
+/**
+ * Stellt einen Zeitraum dem gleich langen davor gegenueber und sammelt die
+ * Bestleistungen, die in dieser Zeit aufgestellt wurden.
+ */
+export function buildReview(
+  state: AppState,
+  fromDate: string,
+  toDate: string,
+  previousFrom: string,
+  getName: (id: ID) => string | undefined,
+  getCategory: (id: ID) => string,
+): Review {
+  const done = state.workouts.filter((workout) => workoutSetCount(workout) > 0);
+  const current = done.filter((workout) => workout.date >= fromDate && workout.date <= toDate);
+  const previous = done.filter((workout) => workout.date >= previousFrom && workout.date < fromDate);
+
+  // Bestwerte: je Uebung pruefen, ob der Hoehepunkt im Zeitraum liegt.
+  const records: Review['records'] = [];
+  const exerciseIds = new Set<ID>();
+  for (const workout of current) {
+    for (const logged of workout.exercises) exerciseIds.add(logged.exerciseId);
+  }
+  for (const id of exerciseIds) {
+    const best = personalRecords(state, id);
+    const peak = best.maxWeight ?? null;
+    if (peak && peak.date >= fromDate && peak.date <= toDate) {
+      records.push({
+        name: getName(id) ?? 'Übung',
+        value: `${peak.value.toLocaleString('de-DE', { maximumFractionDigits: 1 })} kg × ${peak.reps}`,
+        date: peak.date,
+      });
+    }
+  }
+  records.sort((a, b) => b.date.localeCompare(a.date));
+
+  const focusMap = new Map<string, number>();
+  for (const workout of current) {
+    for (const logged of workout.exercises) {
+      const category = getCategory(logged.exerciseId);
+      const sets = logged.sets.filter((set) => set.done && !set.isWarmup).length;
+      if (sets > 0) focusMap.set(category, (focusMap.get(category) ?? 0) + sets);
+    }
+  }
+
+  return {
+    current: summarize(current, 'Zeitraum'),
+    previous: summarize(previous, 'davor'),
+    records: records.slice(0, 6),
+    focus: [...focusMap.entries()]
+      .map(([category, sets]) => ({ category, sets }))
+      .sort((a, b) => b.sets - a.sets),
+  };
+}
+
+/* ------------------------------------------ Muskelgruppen im Zeitverlauf */
+
+export interface CategoryTrendPoint {
+  week: string;
+  /** Saetze je Muskelgruppe in dieser Woche. */
+  byCategory: Record<string, number>;
+}
+
+/** Wie sich die Saetze je Muskelgruppe ueber die Wochen verteilen. */
+export function categoryTrend(
+  state: AppState,
+  getCategory: (id: ID) => string,
+  weeks = 12,
+): CategoryTrendPoint[] {
+  const map = new Map<string, Record<string, number>>();
+
+  for (const workout of state.workouts) {
+    if (workoutSetCount(workout) === 0) continue;
+    const key = weekKey(workout.date);
+    const bucket = map.get(key) ?? {};
+    for (const logged of workout.exercises) {
+      const category = getCategory(logged.exerciseId);
+      const sets = logged.sets.filter((set) => set.done && !set.isWarmup).length;
+      if (sets > 0) bucket[category] = (bucket[category] ?? 0) + sets;
+    }
+    map.set(key, bucket);
+  }
+
+  return [...map.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-weeks)
+    .map(([week, byCategory]) => ({ week, byCategory }));
+}

@@ -64,6 +64,10 @@ html, body, #root { height: 100%; }
 body {
   margin: 0;
   background: var(--bg);
+  background-image:
+    radial-gradient(1100px 520px at 12% -8%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 62%),
+    radial-gradient(760px 420px at 108% 4%, color-mix(in srgb, var(--violet) 10%, transparent), transparent 60%);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font);
   font-size: 15px;
@@ -74,10 +78,10 @@ body {
 
 button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
 
-h1, h2, h3, h4 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
-h1 { font-size: 1.45rem; }
-h2 { font-size: 1.15rem; }
-h3 { font-size: 1rem; }
+h1, h2, h3, h4 { margin: 0; font-weight: 700; letter-spacing: -0.025em; }
+h1 { font-size: 1.6rem; line-height: 1.15; }
+h2 { font-size: 1.22rem; }
+h3 { font-size: 1.02rem; }
 p { margin: 0 0 0.6em; }
 
 /* ---------------------------------------------------------------- Layout */
@@ -99,9 +103,9 @@ p { margin: 0 0 0.6em; }
   padding: 15px 16px;
   padding-top: calc(15px + env(safe-area-inset-top, 0px));
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%),
-    color-mix(in srgb, var(--bg) 90%, transparent);
-  backdrop-filter: blur(16px);
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 78%),
+    color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(20px) saturate(1.3);
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -188,12 +192,24 @@ p { margin: 0 0 0.6em; }
 /* ----------------------------------------------------------------- Cards */
 
 .card {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
-  padding: 15px;
+  padding: 16px;
   box-shadow: var(--shadow-sm);
 }
+/* Feine Kante oben - laesst die Karte plastischer wirken. */
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07) 20%, rgba(255, 255, 255, 0.07) 80%, transparent);
+  pointer-events: none;
+}
+:root[data-theme='light'] .card::after { display: none; }
 .card--flush { padding: 0; overflow: hidden; }
 .card__header {
   display: flex;
@@ -202,12 +218,19 @@ p { margin: 0 0 0.6em; }
   gap: 10px;
   margin-bottom: 12px;
 }
-.card__title { display: flex; align-items: center; gap: 8px; font-weight: 650; }
+.card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.98rem;
+  letter-spacing: -0.012em;
+}
 
 .section-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-dim);
 }
@@ -237,12 +260,15 @@ p { margin: 0 0 0.6em; }
 .btn svg { width: 16px; height: 16px; }
 
 .btn--primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent-strong));
+  border-color: transparent;
   color: #fff;
-  box-shadow: 0 4px 14px var(--accent-glow);
+  box-shadow: 0 5px 18px var(--accent-glow);
 }
-.btn--primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+.btn--primary:hover {
+  background: linear-gradient(140deg, var(--accent), var(--accent-strong));
+  border-color: transparent;
+}
 .btn--success { background: var(--success); border-color: var(--success); color: #06251a; }
 .btn--ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
 .btn--ghost:hover { background: var(--surface-2); color: var(--text); }
@@ -326,7 +352,7 @@ p { margin: 0 0 0.6em; }
   min-width: 0;
 }
 .stat__label { font-size: 0.72rem; color: var(--text-dim); font-weight: 600; }
-.stat__value { font-size: 1.22rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 2px; }
+.stat__value { font-size: 1.35rem; font-weight: 750; letter-spacing: -0.03em; margin-top: 3px; }
 .stat__unit { font-size: 0.78rem; font-weight: 600; color: var(--text-dim); margin-left: 3px; }
 .stat__sub { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
 
@@ -346,8 +372,8 @@ p { margin: 0 0 0.6em; }
   content: '';
   position: absolute;
   left: 0; top: 0; bottom: 0;
-  width: 3px;
-  background: var(--cat, var(--border));
+  width: 4px;
+  background: linear-gradient(180deg, var(--cat, var(--border)), color-mix(in srgb, var(--cat, var(--border)) 45%, transparent));
 }
 .exercise--done { border-color: color-mix(in srgb, var(--success) 40%, var(--border-soft)); }
 .exercise__head {
@@ -504,9 +530,17 @@ p { margin: 0 0 0.6em; }
 
 .empty {
   text-align: center;
-  padding: 26px 16px;
+  padding: 34px 16px;
   color: var(--text-dim);
   font-size: 0.9rem;
+}
+.empty__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 68px; height: 68px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, var(--surface-3), var(--surface-2));
+  border: 1px solid var(--border-soft);
 }
 .empty__icon { font-size: 1.9rem; margin-bottom: 6px; opacity: 0.65; }
 
@@ -541,8 +575,12 @@ p { margin: 0 0 0.6em; }
   font-weight: 600;
   color: var(--text-dim);
 }
-.day-strip__item--today { border-color: var(--accent); }
-.day-strip__item--active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.day-strip__item--today { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.day-strip__item--active {
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 92%, #fff), var(--accent-strong));
+  border-color: transparent;
+  color: #fff;
+}
 .day-strip__num { font-size: 0.95rem; font-weight: 700; color: var(--text); }
 .day-strip__item--active .day-strip__num { color: #fff; }
 .day-strip__dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); }
@@ -644,14 +682,14 @@ table.data tr:last-child td { border-bottom: 0; }
   overflow: hidden;
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border-soft);
+  gap: 18px;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border-soft));
   background:
-    radial-gradient(120% 130% at 100% 0%, var(--accent-soft), transparent 62%),
-    var(--surface);
-  box-shadow: var(--shadow-sm);
+    radial-gradient(130% 150% at 108% -20%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 58%),
+    linear-gradient(165deg, var(--surface-2), var(--surface));
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.28);
 }
 
 .hero__ring { flex-shrink: 0; position: relative; display: grid; place-items: center; }
@@ -663,7 +701,7 @@ table.data tr:last-child td { border-bottom: 0; }
   text-align: center;
   line-height: 1.1;
 }
-.hero__ring-value { font-size: 1.3rem; font-weight: 750; letter-spacing: -0.03em; }
+.hero__ring-value { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.04em; }
 .hero__ring-unit {
   font-size: 0.54rem;
   font-weight: 700;
@@ -672,10 +710,10 @@ table.data tr:last-child td { border-bottom: 0; }
   letter-spacing: 0.04em;
 }
 
-.hero__facts { flex: 1; min-width: 0; display: grid; gap: 9px; }
+.hero__facts { flex: 1; min-width: 0; display: grid; gap: 11px; }
 .hero__fact { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .hero__fact-label { font-size: 0.76rem; color: var(--text-muted); font-weight: 600; }
-.hero__fact-value { font-size: 1rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.015em; }
+.hero__fact-value { font-size: 1.2rem; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
 .hero__fact-unit { font-size: 0.7rem; font-weight: 600; color: var(--text-dim); margin-left: 2px; }
 
 /* --------------------------------------------------- Farbige Muskelgruppen */
@@ -753,3 +791,129 @@ table.data tr:last-child td { border-bottom: 0; }
 
 .modal { box-shadow: 0 -8px 50px rgba(0, 0, 0, 0.5); }
 :root[data-theme='light'] .modal { box-shadow: var(--shadow); }
+
+/* ------------------------------------------- Supersätze und Sortiermodus */
+
+.exercise--grouped { border-color: color-mix(in srgb, var(--violet) 45%, var(--border-soft)); }
+.exercise--group-cont { margin-top: -5px; border-top-left-radius: 4px; border-top-right-radius: 4px; }
+
+.exercise__group-label {
+  padding: 5px 14px 0 16px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--violet);
+}
+
+.exercise__sort {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 14px 0 16px;
+}
+
+/* -------------------------------------------------- Bestleistungs-Meldung */
+
+.record-banner {
+  position: fixed;
+  left: 12px; right: 12px;
+  bottom: calc(var(--nav-height) + 12px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  color: #2a1a00;
+  background: linear-gradient(135deg, #ffd43b, #ff922b);
+  box-shadow: 0 10px 30px rgba(255, 146, 43, 0.35);
+  animation: slide-up 0.28s var(--ease);
+}
+.record-banner__icon { font-size: 1.5rem; }
+.record-banner .btn--ghost { color: #2a1a00; }
+
+@media (min-width: 860px) {
+  .record-banner { bottom: 18px; }
+}
+
+/* ------------------------------------------------------- Aktivitätsliste */
+
+.feed-item { padding: 13px 14px; }
+
+.feed-item__avatar {
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------- Bewegung */
+
+/* Listen blenden gestaffelt ein - nur beim ersten Erscheinen. */
+.list > * {
+  animation: rise 0.32s var(--ease) both;
+}
+.list > *:nth-child(1) { animation-delay: 0ms; }
+.list > *:nth-child(2) { animation-delay: 35ms; }
+.list > *:nth-child(3) { animation-delay: 70ms; }
+.list > *:nth-child(4) { animation-delay: 105ms; }
+.list > *:nth-child(5) { animation-delay: 140ms; }
+.list > *:nth-child(n + 6) { animation-delay: 170ms; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Innerhalb von Dialogen und Formularen stoert das Nachziehen eher. */
+.modal .list > *,
+.exercise__body .list > * { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .list > * { animation: none; }
+}
+
+/* Zahlen im Fliesstext bekommen gleiche Breite - Tabellen wirken ruhiger. */
+.stat__value, .hero__fact-value, .mono, table.data td { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------ Übungskarte, gehobene Fassung */
+
+.exercise__tile {
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  border-radius: 11px;
+  background: var(--cat-tint, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--cat, var(--border)) 28%, transparent);
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+
+.exercise__name {
+  font-weight: 700;
+  font-size: 0.98rem;
+  line-height: 1.28;
+  letter-spacing: -0.012em;
+}
+
+.exercise__meta {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+.exercise__count {
+  font-size: 0.72rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.exercise--done .exercise__tile {
+  border-color: color-mix(in srgb, var(--success) 45%, transparent);
+}

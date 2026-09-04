@@ -1,3 +1,4 @@
+import { exerciseName, t } from '../i18n';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Exercise, LoggedExercise, PlanExercise, SetLog, Workout } from '../types';
 import {
@@ -5,6 +6,7 @@ import {
   startOfWeek, todayISO, weekdayOf,
 } from '../lib/date';
 import { calcWorkoutBurn } from '../lib/calories';
+import { detectRecord, suggestWeight, warmupSets, type NewRecord } from '../lib/coaching';
 import { exerciseVolume, lastPerformance, workoutSetCount, workoutVolume } from '../lib/stats';
 import { useStore } from '../storage/store';
 import { uid } from '../storage/defaults';
@@ -12,7 +14,7 @@ import { ExercisePicker } from '../components/ExercisePicker';
 import { ExerciseDetail } from '../components/ExerciseDetail';
 import { ConfirmDialog, EmptyState, NumberInput, fmt, useToast } from '../components/ui';
 import { ProgressRing } from '../components/ProgressRing';
-import { categoryColor, categoryTint } from '../lib/categoryColors';
+import { CATEGORY_ICONS, categoryColor, categoryTint } from '../lib/categoryColors';
 import {
   IconCheck, IconChart, IconChevronDown, IconChevronLeft, IconChevronRight, IconClock,
   IconPlus, IconTrash, IconX,
@@ -28,6 +30,8 @@ interface Row {
   logged?: LoggedExercise;
   sets: SetLog[];
   fromPlan: boolean;
+  /** Uebungen mit derselben Gruppe bilden einen Supersatz. */
+  groupId?: string;
 }
 
 const newSet = (partial: Partial<SetLog> = {}): SetLog => ({
@@ -55,6 +59,8 @@ export function TodayPage() {
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
+  const [sortMode, setSortMode] = useState(false);
+  const [record, setRecord] = useState<{ name: string; record: NewRecord } | null>(null);
 
   const plan = state.plans.find((item) => item.id === state.activePlanId) ?? null;
   const planDay = plan?.days[weekdayOf(date)] ?? null;
@@ -93,6 +99,7 @@ export function TodayPage() {
         logged,
         sets: logged?.sets ?? draftSets,
         fromPlan: true,
+        groupId: logged?.groupId ?? planExercise.groupId,
       });
     }
 
@@ -105,7 +112,15 @@ export function TodayPage() {
         logged,
         sets: logged.sets,
         fromPlan: false,
+        groupId: logged.groupId,
       });
+    }
+
+    // Eigene Reihenfolge des Tages beruecksichtigen, falls eine gesetzt wurde.
+    const order = workout?.exerciseOrder;
+    if (order && order.length > 0) {
+      const rank = new Map(order.map((id, index) => [id, index]));
+      result.sort((a, b) => (rank.get(a.exerciseId) ?? 999) - (rank.get(b.exerciseId) ?? 999));
     }
 
     return result;
@@ -152,17 +167,32 @@ export function TodayPage() {
   const toggleSet = (row: Row, setId: string) => {
     // Der Zustand vor dem Klick entscheidet, ob die Pause startet - der
     // State-Updater unten laeuft erst spaeter und taugt dafuer nicht.
-    const becameDone = !row.sets.find((set) => set.id === setId)?.done;
+    const target = row.sets.find((set) => set.id === setId);
+    const becameDone = !target?.done;
 
     updateRow(row, (logged) => ({
       ...logged,
       sets: logged.sets.map((set) => (set.id === setId ? { ...set, done: !set.done } : set)),
     }));
 
-    if (becameDone) {
-      const rest = row.planExercise?.restSec ?? state.settings.restTimerSec;
-      if (rest > 0) startRest(rest);
+    if (!becameDone || !target) return;
+
+    // Ist der Satz eine Bestleistung? Dann kurz feiern.
+    const beaten = detectRecord(state, row.exerciseId, target, date);
+    if (beaten) {
+      setRecord({ name: exerciseName(row.exercise), record: beaten });
+      navigator.vibrate?.([25, 40, 25]);
     }
+
+    // Beim Supersatz erst nach der letzten Uebung der Gruppe pausieren.
+    if (row.groupId) {
+      const group = rows.filter((item) => item.groupId === row.groupId);
+      const isLast = group[group.length - 1]?.exerciseId === row.exerciseId;
+      if (!isLast) return;
+    }
+
+    const rest = row.planExercise?.restSec ?? state.settings.restTimerSec;
+    if (rest > 0) startRest(rest);
   };
 
   const addSet = (row: Row) => {
@@ -199,7 +229,58 @@ export function TodayPage() {
     }));
 
     setPickerOpen(false);
-    toast.show(`„${exercise.name}“ hinzugefügt`);
+    toast.show(t('„{name}“ hinzugefügt', { name: exercise.name }));
+  };
+
+  /** Verschiebt eine Uebung im Tagesablauf und haelt die Reihenfolge fest. */
+  const moveRow = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= rows.length) return;
+    const ids = rows.map((row) => row.exerciseId);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    upsertWorkout(date, (current) => ({
+      ...current,
+      planId: plan?.id,
+      planDayIndex: weekdayOf(date),
+      title: current.title || planDay?.title || '',
+      exerciseOrder: ids,
+    }));
+  };
+
+  /** Fasst eine Uebung mit der darueberliegenden zu einem Supersatz zusammen. */
+  const toggleSuperset = (index: number) => {
+    if (index <= 0) return;
+    const row = rows[index];
+    const above = rows[index - 1];
+    const groupId = row.groupId && row.groupId === above.groupId
+      ? undefined
+      : (above.groupId ?? uid('grp'));
+
+    for (const item of [above, row]) {
+      if (groupId === undefined && item !== row) continue; // beim Loesen nur die untere loesen
+      updateRow(item, (logged) => ({ ...logged, groupId }));
+    }
+  };
+
+  const startSession = () => {
+    upsertWorkout(date, (current) => ({
+      ...current,
+      planId: plan?.id,
+      planDayIndex: weekdayOf(date),
+      title: current.title || planDay?.title || 'Training',
+      bodyWeightKg: current.bodyWeightKg ?? state.profile.weightKg,
+      startedAt: new Date().toISOString(),
+      endedAt: null,
+    }));
+  };
+
+  const stopSession = () => {
+    upsertWorkout(date, (current) => {
+      const started = current.startedAt ? new Date(current.startedAt).valueOf() : null;
+      const minutes = started ? Math.max(1, Math.round((Date.now() - started) / 60000)) : current.durationMin;
+      return { ...current, endedAt: new Date().toISOString(), durationMin: minutes };
+    });
+    toast.show(t("Training beendet"));
   };
 
   const removeRow = (row: Row) => {
@@ -233,23 +314,23 @@ export function TodayPage() {
       <WeekStrip date={date} onSelect={setDate} workouts={state.workouts} />
 
       <div className="row row--between">
-        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, -1))} aria-label="Vorheriger Tag">
+        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, -1))} aria-label={t("Vorheriger Tag")}>
           <IconChevronLeft />
         </button>
         <div className="center" style={{ flex: 1, minWidth: 0 }}>
           <div className="bold">{relativeDayLabel(date)}</div>
           <div className="tiny dim">
-            {planDay && !planDay.isRestDay ? planDay.title : planDay ? 'Ruhetag laut Plan' : 'Kein Plan aktiv'}
+            {planDay && !planDay.isRestDay ? t(planDay.title) : planDay ? t('Ruhetag laut Plan') : t('Kein Plan aktiv')}
           </div>
         </div>
-        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, 1))} aria-label="Nächster Tag">
+        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, 1))} aria-label={t("Nächster Tag")}>
           <IconChevronRight />
         </button>
       </div>
 
       {date !== todayISO() && (
         <button className="btn btn--sm" style={{ alignSelf: 'center' }} onClick={() => setDate(todayISO())}>
-          Zurück zu heute
+          {t('Zurück zu heute')}
         </button>
       )}
 
@@ -259,77 +340,95 @@ export function TodayPage() {
             <div className="hero__ring-value">
               {plannedSets > 0 ? `${Math.round(progress)}%` : stats.sets}
             </div>
-            <div className="hero__ring-unit">{plannedSets > 0 ? 'geschafft' : 'Sätze'}</div>
+            <div className="hero__ring-unit">{plannedSets > 0 ? t('geschafft') : t('Sätze')}</div>
           </ProgressRing>
 
           <div className="hero__facts">
             <div className="hero__fact">
-              <span className="hero__fact-label">Sätze</span>
+              <span className="hero__fact-label">{t("Sätze")}</span>
               <span className="hero__fact-value">
                 {stats.sets}
-                {plannedSets > 0 && <span className="hero__fact-unit">von {plannedSets}</span>}
+                {plannedSets > 0 && <span className="hero__fact-unit">{t('von {count}', { count: plannedSets })}</span>}
               </span>
             </div>
             <div className="hero__fact">
-              <span className="hero__fact-label">Volumen</span>
+              <span className="hero__fact-label">{t("Volumen")}</span>
               <span className="hero__fact-value">
-                {fmt(stats.volume)}<span className="hero__fact-unit">kg</span>
+                {fmt(stats.volume)}<span className="hero__fact-unit">{t("kg")}</span>
               </span>
             </div>
             <div className="hero__fact">
-              <span className="hero__fact-label">Verbrauch</span>
+              <span className="hero__fact-label">{t("Verbrauch")}</span>
               <span className="hero__fact-value" style={{ color: 'var(--warn)' }}>
-                {fmt(stats.kcal)}<span className="hero__fact-unit">kcal</span>
+                {fmt(stats.kcal)}<span className="hero__fact-unit">{t("kcal")}</span>
               </span>
             </div>
           </div>
         </div>
       )}
 
+      {rows.length > 0 && (
+        <SessionBar
+          workout={workout}
+          onStart={startSession}
+          onStop={stopSession}
+          sortMode={sortMode}
+          onToggleSort={() => setSortMode(!sortMode)}
+        />
+      )}
+
       {rows.length === 0 && (
         <EmptyState
           icon={planDay?.isRestDay ? '😴' : '🏋️'}
-          title={planDay?.isRestDay ? 'Heute ist Ruhetag' : 'Für heute ist nichts geplant'}
-          hint="Du kannst trotzdem jederzeit eine Übung hinzufügen."
+          title={planDay?.isRestDay ? t('Heute ist Ruhetag') : t('Für heute ist nichts geplant')}
+          hint={t('Du kannst trotzdem jederzeit eine Übung hinzufügen.')}
         />
       )}
 
       <div className="list">
-        {rows.map((row) => (
+        {rows.map((row, index) => (
           <ExerciseCard
             key={row.key}
             row={row}
+            index={index}
+            total={rows.length}
             date={date}
+            sortMode={sortMode}
+            groupedWithAbove={index > 0 && !!row.groupId && row.groupId === rows[index - 1].groupId}
             onToggleSet={(setId) => toggleSet(row, setId)}
             onUpdate={updateRow}
             onAddSet={() => addSet(row)}
             onRemove={() => removeRow(row)}
             onOpenDetail={() => row.exercise && setDetail(row.exercise)}
             onStartRest={startRest}
+            onMove={(direction) => moveRow(index, direction)}
+            onToggleSuperset={() => toggleSuperset(index)}
           />
         ))}
       </div>
 
       <button className="btn btn--primary btn--block" onClick={() => setPickerOpen(true)}>
-        <IconPlus /> Übung hinzufügen
+        <IconPlus /> {t('Übung hinzufügen')}
       </button>
 
       {workout && (
         <div className="card">
-          <div className="section-label" style={{ marginBottom: 10 }}>Training</div>
+          <div className="section-label" style={{ marginBottom: 10 }}>{t("Training")}</div>
           <div className="grid-2">
             <div className="field">
-              <label className="field__label">Dauer (min)</label>
+              <label className="field__label">{t("Dauer (min)")}</label>
               <NumberInput
                 value={workout.durationMin}
                 min={0}
                 onChange={(value) => upsertWorkout(date, (current) => ({ ...current, durationMin: value }))}
-                placeholder="gemessen"
+                placeholder={t("gemessen")}
               />
-              <span className="field__hint">Leer lassen = wird geschätzt</span>
+              <span className="field__hint">
+                {workout.endedAt ? 'Von der Stoppuhr übernommen' : 'Leer lassen = wird geschätzt'}
+              </span>
             </div>
             <div className="field">
-              <label className="field__label">Körpergewicht (kg)</label>
+              <label className="field__label">{t("Körpergewicht (kg)")}</label>
               <NumberInput
                 value={workout.bodyWeightKg}
                 min={0}
@@ -338,18 +437,26 @@ export function TodayPage() {
             </div>
           </div>
           <div className="field" style={{ marginTop: 10 }}>
-            <label className="field__label">Notiz zum Training</label>
+            <label className="field__label">{t("Notiz zum Training")}</label>
             <textarea
               className="textarea"
               value={workout.notes ?? ''}
-              placeholder="Wie lief es? Was ist aufgefallen?"
+              placeholder={t("Wie lief es? Was ist aufgefallen?")}
               onChange={(event) => upsertWorkout(date, (current) => ({ ...current, notes: event.target.value }))}
             />
           </div>
           <button className="btn btn--danger btn--sm" style={{ marginTop: 10 }} onClick={() => setConfirmClear(true)}>
-            <IconTrash /> Training löschen
+            <IconTrash /> {t('Training löschen')}
           </button>
         </div>
+      )}
+
+      {record && (
+        <RecordBanner
+          name={record.name}
+          record={record.record}
+          onClose={() => setRecord(null)}
+        />
       )}
 
       {restEndsAt && (
@@ -358,7 +465,7 @@ export function TodayPage() {
 
       {pickerOpen && (
         <ExercisePicker
-          title="Übung hinzufügen"
+          title={t("Übung hinzufügen")}
           onPick={addExercise}
           onClose={() => setPickerOpen(false)}
           excludeIds={rows.map((row) => row.exerciseId)}
@@ -369,10 +476,10 @@ export function TodayPage() {
 
       {confirmClear && workout && (
         <ConfirmDialog
-          title="Training löschen?"
-          message={`Alle Sätze vom ${formatDateShort(date)} werden entfernt. Das lässt sich nicht rückgängig machen.`}
+          title={t("Training löschen?")}
+          message={t('Alle Sätze vom {date} werden entfernt. Das lässt sich nicht rückgängig machen.', { date: formatDateShort(date) })}
           onCancel={() => setConfirmClear(false)}
-          onConfirm={() => { deleteWorkout(workout.id); setConfirmClear(false); toast.show('Training gelöscht'); }}
+          onConfirm={() => { deleteWorkout(workout.id); setConfirmClear(false); toast.show(t("Training gelöscht")); }}
         />
       )}
     </>
@@ -406,7 +513,7 @@ function WeekStrip({
         ].filter(Boolean).join(' ');
         return (
           <button key={day} className={classes} onClick={() => onSelect(day)}>
-            <span>{WEEKDAY_SHORT[index]}</span>
+            <span>{t(WEEKDAY_SHORT[index])}</span>
             <span className="day-strip__num">{parseISODate(day).getDate()}</span>
             <span className={`day-strip__dot ${trained.has(day) ? '' : 'day-strip__dot--empty'}`} />
           </button>
@@ -419,21 +526,33 @@ function WeekStrip({
 /* ------------------------------------------------------------- Übungskarte */
 
 function ExerciseCard({
-  row, date, onToggleSet, onUpdate, onAddSet, onRemove, onOpenDetail, onStartRest,
+  row, index, total, date, sortMode, groupedWithAbove,
+  onToggleSet, onUpdate, onAddSet, onRemove, onOpenDetail, onStartRest, onMove, onToggleSuperset,
 }: {
   row: Row;
+  index: number;
+  total: number;
   date: string;
+  sortMode: boolean;
+  groupedWithAbove: boolean;
   onToggleSet: (setId: string) => void;
   onUpdate: (row: Row, mutate: (logged: LoggedExercise) => LoggedExercise) => void;
   onAddSet: () => void;
   onRemove: () => void;
   onOpenDetail: () => void;
   onStartRest: (seconds: number) => void;
+  onMove: (direction: -1 | 1) => void;
+  onToggleSuperset: () => void;
 }) {
   const { state } = useStore();
   const previous = useMemo(
     () => lastPerformance(state, row.exerciseId, date),
     [state, row.exerciseId, date],
+  );
+
+  const suggestion = useMemo(
+    () => suggestWeight(state, row.exerciseId, row.exercise, row.planExercise, date),
+    [state, row.exerciseId, row.exercise, row.planExercise, date],
   );
 
   const doneSets = row.sets.filter((set) => set.done && !set.isWarmup).length;
@@ -460,36 +579,97 @@ function ExerciseCard({
     onUpdate(row, (logged) => ({ ...logged, sets: logged.sets.filter((set) => set.id !== setId) }));
   };
 
+  /** Setzt den Vorschlag auf alle noch offenen Arbeitssaetze. */
+  const applySuggestion = () => {
+    if (!suggestion) return;
+    onUpdate(row, (logged) => ({
+      ...logged,
+      sets: logged.sets.map((set) =>
+        set.done || set.isWarmup ? set : { ...set, weightKg: suggestion.weightKg }),
+    }));
+  };
+
+  /** Stellt Aufwaermsaetze vor die Arbeitssaetze. */
+  const addWarmup = () => {
+    const working = row.sets.find((set) => !set.isWarmup && (set.weightKg ?? 0) > 0);
+    const base = working?.weightKg ?? suggestion?.weightKg ?? 0;
+    const warmups = warmupSets(base, row.exercise);
+    if (warmups.length === 0) return;
+    onUpdate(row, (logged) => ({
+      ...logged,
+      sets: [
+        ...warmups.map((item) => newSet({ weightKg: item.weightKg, reps: item.reps, isWarmup: true })),
+        ...logged.sets.filter((set) => !set.isWarmup),
+      ],
+    }));
+  };
+
   const totalTarget = target?.targetSets ?? row.sets.length;
   const allDone = doneSets >= totalTarget && totalTarget > 0;
   const accent = row.exercise ? categoryColor(row.exercise.category) : 'var(--border)';
 
   return (
     <div
-      className={`exercise${allDone ? ' exercise--done' : ''}`}
+      className={[
+        'exercise',
+        allDone ? 'exercise--done' : '',
+        row.groupId ? 'exercise--grouped' : '',
+        groupedWithAbove ? 'exercise--group-cont' : '',
+      ].filter(Boolean).join(' ')}
       style={{ '--cat': accent, '--cat-tint': row.exercise ? categoryTint(row.exercise.category) : undefined } as React.CSSProperties}
     >
+      {row.groupId && !groupedWithAbove && (
+        <div className="exercise__group-label">{t("Supersatz")}</div>
+      )}
+
+      {sortMode && (
+        <div className="exercise__sort">
+          <button className="btn btn--sm btn--icon" onClick={() => onMove(-1)} disabled={index === 0} aria-label={t("Nach oben")}>
+            <IconChevronDown style={{ transform: 'rotate(180deg)' }} />
+          </button>
+          <button className="btn btn--sm btn--icon" onClick={() => onMove(1)} disabled={index === total - 1} aria-label={t("Nach unten")}>
+            <IconChevronDown />
+          </button>
+          {index > 0 && (
+            <button
+              className={`btn btn--sm ${groupedWithAbove ? 'btn--primary' : ''}`}
+              onClick={onToggleSuperset}
+            >
+              {groupedWithAbove ? t('Supersatz lösen') : t('Mit Übung darüber koppeln')}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="exercise__head" onClick={() => setOpen(!open)}>
+        <span className="exercise__tile" aria-hidden="true">
+          {row.exercise ? CATEGORY_ICONS[row.exercise.category] : '⚙️'}
+        </span>
+
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="row" style={{ gap: 7 }}>
-            <span className="cat-dot" />
-            <span className="exercise__name">{row.exercise?.name ?? 'Unbekannte Übung'}</span>
-          </div>
+          <div className="exercise__name">{exerciseName(row.exercise)}</div>
           <div className="exercise__meta">
             {targetText}
             {previous
-              ? ` · zuletzt ${formatDateShort(previous.date)}: ${summarizeSets(previous.sets, isTimed)}`
-              : ' · noch keine Vorleistung'}
+              ? ` · ${t('zuletzt')} ${formatDateShort(previous.date)}: ${summarizeSets(previous.sets, isTimed)}`
+              : ` · ${t('noch keine Vorleistung')}`}
           </div>
         </div>
-        <div className="row" style={{ gap: 6, flexShrink: 0 }}>
+
+        <div className="row" style={{ gap: 8, flexShrink: 0, alignItems: 'center' }}>
           {doneSets > 0 && (
-            <span className={`chip ${allDone ? 'chip--success' : 'chip--accent'}`}>
-              {doneSets}/{totalTarget}
-            </span>
+            <ProgressRing
+              value={doneSets}
+              max={totalTarget || doneSets}
+              size={34}
+              stroke={3.5}
+              color={accent}
+            >
+              <span className="exercise__count">{doneSets}</span>
+            </ProgressRing>
           )}
           <IconChevronDown
-            style={{ width: 18, height: 18, color: 'var(--text-dim)', transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}
+            style={{ width: 18, height: 18, color: 'var(--text-dim)', transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.18s' }}
           />
         </div>
       </div>
@@ -500,6 +680,15 @@ function ExerciseCard({
             <div className="row row--wrap tiny" style={{ gap: 6, padding: '10px 0 2px' }}>
               <span className="chip">Letztes Mal: {summarizeSets(previous.sets, isTimed)}</span>
               {previous.best1RM > 0 && <span className="chip">1RM ≈ {fmt(previous.best1RM, 1)} kg</span>}
+              {suggestion && suggestion.direction !== 'hold' && (
+                <button
+                  className={`chip chip--button ${suggestion.direction === 'up' ? 'chip--success' : 'chip--warn'}`}
+                  onClick={applySuggestion}
+                  title={suggestion.reason}
+                >
+                  {suggestion.direction === 'up' ? '↑' : '↓'} Vorschlag {fmt(suggestion.weightKg, 1)} kg
+                </button>
+              )}
               {previous.volumeChangePct != null && (
                 <span className={`chip ${previous.volumeChangePct >= 0 ? 'chip--success' : 'chip--danger'}`}>
                   {previous.volumeChangePct >= 0 ? '▲' : '▼'} {fmt(Math.abs(previous.volumeChangePct), 0)} % Volumen
@@ -510,9 +699,9 @@ function ExerciseCard({
 
           <div className="set-header">
             <span>#</span>
-            <span>{isTimed ? 'Sek.' : 'kg'}</span>
-            <span>{isTimed ? 'km' : 'Wdh'}</span>
-            <span>RPE</span>
+            <span>{isTimed ? t('Sek.') : t('kg')}</span>
+            <span>{isTimed ? t('km') : t('Wdh')}</span>
+            <span>{t("RPE")}</span>
             <span />
           </div>
 
@@ -521,7 +710,7 @@ function ExerciseCard({
               <button
                 className={`set-row__index ${set.isWarmup ? 'set-row__index--warmup' : ''}`}
                 style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
-                title="Als Aufwärmsatz markieren"
+                title={t("Als Aufwärmsatz markieren")}
                 onClick={() => patchSet(set.id, { isWarmup: !set.isWarmup })}
               >
                 {set.isWarmup ? 'W' : index + 1 - row.sets.slice(0, index).filter((item) => item.isWarmup).length}
@@ -531,31 +720,31 @@ function ExerciseCard({
                 <>
                   <NumberInput
                     value={set.durationSec}
-                    ariaLabel="Dauer in Sekunden"
+                    ariaLabel={t('Dauer in Sekunden')}
                     onChange={(value) => patchSet(set.id, { durationSec: value })}
-                    placeholder="Sek."
+                    placeholder={t("Sek.")}
                   />
                   <NumberInput
                     value={set.distanceKm}
-                    ariaLabel="Distanz in Kilometern"
+                    ariaLabel={t('Distanz in Kilometern')}
                     onChange={(value) => patchSet(set.id, { distanceKm: value })}
-                    placeholder="km"
+                    placeholder={t("km")}
                   />
                 </>
               ) : (
                 <>
                   <NumberInput
                     value={set.weightKg}
-                    ariaLabel="Gewicht in Kilogramm"
+                    ariaLabel={t('Gewicht in Kilogramm')}
                     onChange={(value) => patchSet(set.id, { weightKg: value })}
-                    placeholder="kg"
+                    placeholder={t("kg")}
                     step={2.5}
                   />
                   <NumberInput
                     value={set.reps}
-                    ariaLabel="Wiederholungen"
+                    ariaLabel={t('Wiederholungen')}
                     onChange={(value) => patchSet(set.id, { reps: value })}
-                    placeholder="Wdh"
+                    placeholder={t("Wdh")}
                   />
                 </>
               )}
@@ -573,7 +762,7 @@ function ExerciseCard({
                 <button
                   className={`check ${set.done ? 'check--on' : ''}`}
                   onClick={() => onToggleSet(set.id)}
-                  aria-label={set.done ? 'Satz zurücksetzen' : 'Satz abhaken'}
+                  aria-label={set.done ? t('Satz zurücksetzen') : t('Satz abhaken')}
                 >
                   <IconCheck />
                 </button>
@@ -582,23 +771,28 @@ function ExerciseCard({
           ))}
 
           <div className="row row--wrap" style={{ marginTop: 10, gap: 7 }}>
-            <button className="btn btn--sm" onClick={onAddSet}><IconPlus /> Satz</button>
+            <button className="btn btn--sm" onClick={onAddSet}><IconPlus /> {t("Satz")}</button>
+            {!isTimed && !row.sets.some((set) => set.isWarmup) && (
+              <button className="btn btn--sm" onClick={addWarmup} title={t("Aufwärmsätze davorstellen")}>
+                {t('Aufwärmen')}
+              </button>
+            )}
             <button className="btn btn--sm" onClick={() => onStartRest(row.planExercise?.restSec ?? state.settings.restTimerSec)}>
-              <IconClock /> Pause
+              <IconClock /> {t('Pause')}
             </button>
-            <button className="btn btn--sm" onClick={onOpenDetail}><IconChart /> Fortschritt</button>
+            <button className="btn btn--sm" onClick={onOpenDetail}><IconChart /> {t("Fortschritt")}</button>
             <span className="spacer" />
             {row.sets.length > 1 && (
               <button
                 className="btn btn--sm btn--ghost"
                 onClick={() => removeSet(row.sets[row.sets.length - 1].id)}
-                aria-label="Letzten Satz entfernen"
+                aria-label={t("Letzten Satz entfernen")}
               >
-                <IconX /> Satz
+                <IconX /> {t('Satz')}
               </button>
             )}
             {row.logged && !row.fromPlan && (
-              <button className="btn btn--sm btn--ghost" onClick={onRemove} aria-label="Übung entfernen">
+              <button className="btn btn--sm btn--ghost" onClick={onRemove} aria-label={t("Übung entfernen")}>
                 <IconTrash />
               </button>
             )}
@@ -608,7 +802,7 @@ function ExerciseCard({
             <input
               className="input"
               style={{ marginTop: 9 }}
-              placeholder="Notiz zur Übung…"
+              placeholder={t("Notiz zur Übung…")}
               value={row.logged.note ?? ''}
               onChange={(event) => onUpdate(row, (logged) => ({ ...logged, note: event.target.value }))}
             />
@@ -688,10 +882,87 @@ function RestTimer({
       <button className="btn btn--sm" style={{ background: 'rgba(255,255,255,0.18)', borderColor: 'transparent', color: '#fff' }} onClick={onExtend}>
         +30 s
       </button>
-      <button className="btn btn--sm btn--ghost" style={{ color: '#fff' }} onClick={onClose} aria-label="Pause beenden">
+      <button className="btn btn--sm btn--ghost" style={{ color: '#fff' }} onClick={onClose} aria-label={t("Pause beenden")}>
         <IconX />
       </button>
       <span className="rest-timer__bar" style={{ width: `${barWidth}%` }} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------ Stoppuhr und Sortierleiste */
+
+/** Zeigt die laufende Trainingszeit und den Umschalter fuers Sortieren. */
+function SessionBar({
+  workout, onStart, onStop, sortMode, onToggleSort,
+}: {
+  workout: Workout | undefined;
+  onStart: () => void;
+  onStop: () => void;
+  sortMode: boolean;
+  onToggleSort: () => void;
+}) {
+  const running = !!workout?.startedAt && !workout?.endedAt;
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [running]);
+
+  const elapsed = running && workout?.startedAt
+    ? Math.max(0, (now - new Date(workout.startedAt).valueOf()) / 1000)
+    : 0;
+
+  return (
+    <div className="row row--wrap" style={{ gap: 8 }}>
+      {running ? (
+        <>
+          <span className="chip chip--success" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <IconClock style={{ width: 13, height: 13 }} /> {formatClock(elapsed)}
+          </span>
+          <button className="btn btn--sm" onClick={onStop}>{t("Training beenden")}</button>
+        </>
+      ) : (
+        <button className="btn btn--sm" onClick={onStart}>
+          <IconClock /> {workout?.endedAt ? t('Neu starten') : t('Zeit messen')}
+        </button>
+      )}
+
+      <span className="spacer" />
+      <button className={`btn btn--sm ${sortMode ? 'btn--primary' : ''}`} onClick={onToggleSort}>
+        {sortMode ? t('Fertig') : t('Sortieren')}
+      </button>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------- Bestleistungs-Meldung */
+
+/** Kurze Rueckmeldung, wenn ein Satz einen bisherigen Bestwert schlaegt. */
+function RecordBanner({
+  name, record, onClose,
+}: {
+  name: string;
+  record: NewRecord;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const timer = window.setTimeout(onClose, 5000);
+    return () => window.clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="record-banner" role="status">
+      <span className="record-banner__icon">🏆</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="bold small">{record.label}</div>
+        <div className="tiny" style={{ opacity: 0.85 }}>{name} · {record.value}</div>
+      </div>
+      <button className="btn btn--ghost btn--icon btn--sm" onClick={onClose} aria-label={t("Schließen")}>
+        <IconX />
+      </button>
     </div>
   );
 }

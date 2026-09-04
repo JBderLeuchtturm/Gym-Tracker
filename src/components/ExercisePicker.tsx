@@ -1,3 +1,4 @@
+import { exerciseName, t } from '../i18n';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Exercise, ExerciseCategory, ExerciseKind } from '../types';
 import { ALL_EQUIPMENT, CATEGORY_LABELS, KIND_LABELS, slugify } from '../data/catalog';
@@ -15,14 +16,14 @@ const CATEGORY_ICONS: Record<ExerciseCategory, string> = {
 
 /** Erzeugt eine Kurzbeschreibung fuer die Trefferliste. */
 function describe(exercise: Exercise): string {
-  const parts: string[] = [CATEGORY_LABELS[exercise.category]];
+  const parts: string[] = [t(CATEGORY_LABELS[exercise.category])];
   if (exercise.primaryMuscles.length > 0) parts.push(exercise.primaryMuscles.slice(0, 2).join(', '));
   if (exercise.equipment.length > 0) parts.push(exercise.equipment.slice(0, 2).join(', '));
   return parts.join(' · ');
 }
 
 export function ExercisePicker({
-  onPick, onClose, title = 'Übung suchen', excludeIds = [],
+  onPick, onClose, title = t('Übung suchen'), excludeIds = [],
 }: {
   onPick: (exercise: Exercise) => void;
   onClose: () => void;
@@ -107,7 +108,7 @@ export function ExercisePicker({
             ref={inputRef}
             className="input"
             style={{ paddingLeft: 36 }}
-            placeholder="z. B. Bankdrücken, Squat, Latissimus, Kurzhantel…"
+            placeholder={t("z. B. Bankdrücken, Squat, Latissimus, Kurzhantel…")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -128,7 +129,7 @@ export function ExercisePicker({
               onClick={() => setCategory(category === key ? 'all' : key)}
             >
               <span className="cat-dot" style={{ '--cat': categoryColor(key) } as React.CSSProperties} />
-              {CATEGORY_LABELS[key]}
+              {t(CATEGORY_LABELS[key])}
             </button>
           ))}
         </div>
@@ -140,7 +141,7 @@ export function ExercisePicker({
             value={equipment}
             onChange={(event) => setEquipment(event.target.value)}
           >
-            <option value="all">Alle Geräte</option>
+            <option value="all">{t("Alle Geräte")}</option>
             {ALL_EQUIPMENT.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
           <span className="tiny dim nowrap">{totalCount} Treffer</span>
@@ -163,14 +164,14 @@ export function ExercisePicker({
               {CATEGORY_ICONS[exercise.category]}
             </span>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span className="search-result__name">{exercise.name}</span>
+              <span className="search-result__name">{exerciseName(exercise)}</span>
               <span className="search-result__meta" style={{ display: 'block' }}>
                 {describe(exercise)}{reason ? ` · ${reason}` : ''}
               </span>
             </span>
-            {exercise.source === 'custom' && <span className="chip chip--warn">eigen</span>}
+            {exercise.source === 'custom' && <span className="chip chip--warn">{t("eigen")}</span>}
             {excluded.has(exercise.id)
-              ? <span className="chip">drin</span>
+              ? <span className="chip">{t("drin")}</span>
               : <IconPlus style={{ width: 17, height: 17, color: 'var(--text-dim)', flexShrink: 0 }} />}
           </button>
         ))}
@@ -195,16 +196,16 @@ export function ExercisePicker({
                 : CATEGORY_ICONS[exercise.category]}
             </span>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span className="search-result__name">{exercise.name}</span>
+              <span className="search-result__name">{exerciseName(exercise)}</span>
               <span className="search-result__meta" style={{ display: 'block' }}>
-                {CATEGORY_LABELS[exercise.category]} · online
+                {t(CATEGORY_LABELS[exercise.category])} · online
               </span>
             </span>
             <IconPlus style={{ width: 17, height: 17, color: 'var(--text-dim)', flexShrink: 0 }} />
           </button>
         ))}
 
-        {loading && <div className="empty tiny">Suche online weiter…</div>}
+        {loading && <div className="empty tiny">{t("Suche online weiter…")}</div>}
 
         {totalCount === 0 && !loading && (
           <div className="empty">
@@ -246,7 +247,7 @@ export function ExercisePicker({
           onClose={() => setShowCustom(false)}
           onCreate={(exercise) => {
             addExercise(exercise);
-            toast.show(`„${exercise.name}“ angelegt`);
+            toast.show(t('„{name}“ angelegt', { name: exercise.name }));
             setShowCustom(false);
             onPick(exercise);
           }}
@@ -294,44 +295,44 @@ export function CustomExerciseDialog({
   };
 
   return (
-    <Modal title={initial ? 'Übung bearbeiten' : 'Eigene Übung'} onClose={onClose}>
+    <Modal title={initial ? t('Übung bearbeiten') : t('Eigene Übung')} onClose={onClose}>
       <div className="list">
         <div className="field">
-          <label className="field__label">Name</label>
+          <label className="field__label">{t("Name")}</label>
           <input className="input" value={name} onChange={(event) => setName(event.target.value)} autoFocus />
         </div>
 
         <div className="grid-2">
           <div className="field">
-            <label className="field__label">Muskelgruppe</label>
+            <label className="field__label">{t("Muskelgruppe")}</label>
             <select className="select" value={category} onChange={(event) => setCategory(event.target.value as ExerciseCategory)}>
               {(Object.keys(CATEGORY_LABELS) as ExerciseCategory[]).map((key) => (
-                <option key={key} value={key}>{CATEGORY_LABELS[key]}</option>
+                <option key={key} value={key}>{t(CATEGORY_LABELS[key])}</option>
               ))}
             </select>
           </div>
           <div className="field">
-            <label className="field__label">Art</label>
+            <label className="field__label">{t("Art")}</label>
             <select className="select" value={kind} onChange={(event) => setKind(event.target.value as ExerciseKind)}>
               {(Object.keys(KIND_LABELS) as ExerciseKind[]).map((key) => (
-                <option key={key} value={key}>{KIND_LABELS[key]}</option>
+                <option key={key} value={key}>{t(KIND_LABELS[key])}</option>
               ))}
             </select>
           </div>
         </div>
 
         <div className="field">
-          <label className="field__label">Muskeln (mit Komma trennen)</label>
-          <input className="input" value={muscles} placeholder="Brust groß, Trizeps" onChange={(event) => setMuscles(event.target.value)} />
+          <label className="field__label">{t("Muskeln (mit Komma trennen)")}</label>
+          <input className="input" value={muscles} placeholder={t("Brust groß, Trizeps")} onChange={(event) => setMuscles(event.target.value)} />
         </div>
 
         <div className="field">
-          <label className="field__label">Geräte (mit Komma trennen)</label>
-          <input className="input" value={equipment} placeholder="Langhantel, Flachbank" onChange={(event) => setEquipment(event.target.value)} />
+          <label className="field__label">{t("Geräte (mit Komma trennen)")}</label>
+          <input className="input" value={equipment} placeholder={t("Langhantel, Flachbank")} onChange={(event) => setEquipment(event.target.value)} />
         </div>
 
         <div className="field">
-          <label className="field__label">MET-Wert</label>
+          <label className="field__label">{t("MET-Wert")}</label>
           <input className="input" value={met} inputMode="decimal" onChange={(event) => setMet(event.target.value)} />
           <span className="field__hint">
             Anstrengung für die Kalorienberechnung: 3 = leicht, 5 = Krafttraining, 8+ = intensives Cardio.
@@ -344,9 +345,9 @@ export function CustomExerciseDialog({
         </div>
 
         <div className="row" style={{ justifyContent: 'flex-end' }}>
-          <button className="btn" onClick={onClose}>Abbrechen</button>
+          <button className="btn" onClick={onClose}>{t("Abbrechen")}</button>
           <button className="btn btn--primary" onClick={submit} disabled={!name.trim()}>
-            {initial ? 'Speichern' : 'Anlegen'}
+            {initial ? t('Speichern') : t('Anlegen')}
           </button>
         </div>
       </div>

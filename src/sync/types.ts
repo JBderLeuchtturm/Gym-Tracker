@@ -30,3 +30,43 @@ export interface FriendData {
 }
 
 export type SyncStatus = 'disabled' | 'loading' | 'signed-out' | 'signed-in';
+
+export interface Group {
+  id: string;
+  name: string;
+  emoji: string;
+  joinCode: string;
+  ownerId: string;
+  memberCount: number;
+  members: Array<{ userId: string; handle: string; displayName: string; emoji: string }>;
+}
+
+export type ChallengeMetric = 'workouts' | 'sets' | 'volume';
+
+export interface Challenge {
+  id: string;
+  title: string;
+  metric: ChallengeMetric;
+  startsOn: string;
+  endsOn: string;
+  ownerId: string;
+  groupId: string | null;
+  memberIds: string[];
+}
+
+export interface ActivityReaction {
+  id: string;
+  ownerId: string;
+  activityDate: string;
+  authorId: string;
+  emoji: string;
+}
+
+export interface ActivityComment {
+  id: string;
+  ownerId: string;
+  activityDate: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+}

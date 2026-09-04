@@ -1,0 +1,37 @@
+name: Tests
+
+# Typpruefung, Build und die Browser-Testlaeufe bei jedem Push und jedem
+# Pull Request. Die Laeufe benutzen ein nachgebautes Supabase und fassen
+# das echte Projekt nicht an.
+
+on:
+  push:
+    branches-ignore: []
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typprüfung
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Browser installieren
+        run: npx playwright install --with-deps chromium
+
+      - name: Testläufe
+        run: npm test

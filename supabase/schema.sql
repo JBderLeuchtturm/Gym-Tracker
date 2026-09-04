@@ -282,3 +282,338 @@ revoke execute on function public.find_profile_by_handle(text) from public, anon
 grant execute on function public.are_friends(uuid, uuid) to authenticated;
 grant execute on function public.has_link(uuid, uuid) to authenticated;
 grant execute on function public.find_profile_by_handle(text) to authenticated;
+
+-- ============================================================================
+--  Erweiterung: Gruppen, Challenges, Reaktionen und Kommentare
+-- ============================================================================
+
+-- ---------------------------------------------------------------- Gruppen
+
+create table if not exists public.groups (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null check (char_length(trim(name)) between 2 and 60),
+  emoji      text not null default '👥',
+  owner_id   uuid not null references auth.users (id) on delete cascade,
+  -- Kurzer Code zum Beitreten; wird beim Anlegen vergeben.
+  join_code  text not null unique check (join_code ~ '^[a-z0-9]{6,10}$'),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.group_members (
+  group_id  uuid not null references public.groups (id) on delete cascade,
+  user_id   uuid not null references auth.users (id) on delete cascade,
+  role      text not null default 'member' check (role in ('owner', 'member')),
+  joined_at timestamptz not null default now(),
+  primary key (group_id, user_id)
+);
+
+create index if not exists group_members_user_idx on public.group_members (user_id);
+
+-- ------------------------------------------------------------- Challenges
+
+create table if not exists public.challenges (
+  id         uuid primary key default gen_random_uuid(),
+  title      text not null check (char_length(trim(title)) between 2 and 80),
+  -- Woran gemessen wird.
+  metric     text not null check (metric in ('workouts', 'sets', 'volume')),
+  starts_on  date not null,
+  ends_on    date not null,
+  owner_id   uuid not null references auth.users (id) on delete cascade,
+  group_id   uuid references public.groups (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  check (ends_on >= starts_on)
+);
+
+create table if not exists public.challenge_members (
+  challenge_id uuid not null references public.challenges (id) on delete cascade,
+  user_id      uuid not null references auth.users (id) on delete cascade,
+  joined_at    timestamptz not null default now(),
+  primary key (challenge_id, user_id)
+);
+
+create index if not exists challenge_members_user_idx on public.challenge_members (user_id);
+
+-- --------------------------------------------- Reaktionen und Kommentare
+
+-- Beides bezieht sich auf einen Trainingstag einer Person.
+create table if not exists public.activity_reactions (
+  id            uuid primary key default gen_random_uuid(),
+  owner_id      uuid not null references auth.users (id) on delete cascade,
+  activity_date date not null,
+  author_id     uuid not null references auth.users (id) on delete cascade,
+  emoji         text not null check (char_length(emoji) between 1 and 8),
+  created_at    timestamptz not null default now(),
+  unique (owner_id, activity_date, author_id, emoji)
+);
+
+create table if not exists public.activity_comments (
+  id            uuid primary key default gen_random_uuid(),
+  owner_id      uuid not null references auth.users (id) on delete cascade,
+  activity_date date not null,
+  author_id     uuid not null references auth.users (id) on delete cascade,
+  body          text not null check (char_length(trim(body)) between 1 and 500),
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists activity_reactions_owner_idx on public.activity_reactions (owner_id, activity_date);
+create index if not exists activity_comments_owner_idx on public.activity_comments (owner_id, activity_date);
+
+-- --------------------------------------------------------- Hilfsfunktionen
+
+-- Sind zwei Konten in mindestens einer gemeinsamen Gruppe?
+create or replace function public.share_group(a uuid, b uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.group_members ma
+    join public.group_members mb on ma.group_id = mb.group_id
+    where ma.user_id = a and mb.user_id = b and a <> b
+  );
+$$;
+
+-- Verbunden heisst: befreundet oder in derselben Gruppe.
+create or replace function public.are_connected(a uuid, b uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.are_friends(a, b) or public.share_group(a, b);
+$$;
+
+-- Gruppe per Code finden, ohne die Gruppenliste durchblaettern zu koennen.
+create or replace function public.find_group_by_code(p_code text)
+returns table (id uuid, name text, emoji text, member_count bigint)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select g.id, g.name, g.emoji, (select count(*) from public.group_members m where m.group_id = g.id)
+  from public.groups g
+  where g.join_code = lower(trim(p_code))
+  limit 1;
+$$;
+
+-- Wer einer Gruppe beitritt, gibt den anderen Mitgliedern seinen Fortschritt
+-- frei und bekommt umgekehrt deren Fortschritt zu sehen. Das ist der Sinn
+-- einer Gruppe - alles Weitere bleibt bewusst gesperrt.
+create or replace function public.grant_group_shares()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.share_grants (owner_id, viewer_id, scope)
+  select new.user_id, m.user_id, 'progress'
+  from public.group_members m
+  where m.group_id = new.group_id and m.user_id <> new.user_id
+  on conflict do nothing;
+
+  insert into public.share_grants (owner_id, viewer_id, scope)
+  select m.user_id, new.user_id, 'progress'
+  from public.group_members m
+  where m.group_id = new.group_id and m.user_id <> new.user_id
+  on conflict do nothing;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists group_members_grant on public.group_members;
+create trigger group_members_grant
+  after insert on public.group_members
+  for each row execute function public.grant_group_shares();
+
+-- Beim Verlassen verschwinden die Freigaben wieder - ausser die beiden sind
+-- ohnehin befreundet oder noch in einer anderen gemeinsamen Gruppe.
+create or replace function public.revoke_group_shares()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from public.share_grants g
+  where g.scope = 'progress'
+    and ((g.owner_id = old.user_id and g.viewer_id in (
+            select m.user_id from public.group_members m
+            where m.group_id = old.group_id and m.user_id <> old.user_id))
+      or (g.viewer_id = old.user_id and g.owner_id in (
+            select m.user_id from public.group_members m
+            where m.group_id = old.group_id and m.user_id <> old.user_id)))
+    and not public.are_friends(g.owner_id, g.viewer_id)
+    and not public.share_group(g.owner_id, g.viewer_id);
+  return old;
+end;
+$$;
+
+drop trigger if exists group_members_revoke on public.group_members;
+create trigger group_members_revoke
+  after delete on public.group_members
+  for each row execute function public.revoke_group_shares();
+
+-- ------------------------------------------------------------ Zeilenschutz
+
+alter table public.groups              enable row level security;
+alter table public.group_members       enable row level security;
+alter table public.challenges          enable row level security;
+alter table public.challenge_members   enable row level security;
+alter table public.activity_reactions  enable row level security;
+alter table public.activity_comments   enable row level security;
+
+-- Gruppen sieht nur, wer drin ist.
+drop policy if exists groups_select on public.groups;
+create policy groups_select on public.groups
+  for select to authenticated
+  using (exists (
+    select 1 from public.group_members m
+    where m.group_id = groups.id and m.user_id = auth.uid()
+  ));
+
+drop policy if exists groups_insert on public.groups;
+create policy groups_insert on public.groups
+  for insert to authenticated with check (owner_id = auth.uid());
+
+drop policy if exists groups_update on public.groups;
+create policy groups_update on public.groups
+  for update to authenticated
+  using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+drop policy if exists groups_delete on public.groups;
+create policy groups_delete on public.groups
+  for delete to authenticated using (owner_id = auth.uid());
+
+-- Mitglieder sehen einander; beitreten darf man nur selbst.
+drop policy if exists group_members_select on public.group_members;
+create policy group_members_select on public.group_members
+  for select to authenticated
+  using (user_id = auth.uid() or public.share_group(auth.uid(), user_id));
+
+drop policy if exists group_members_insert on public.group_members;
+create policy group_members_insert on public.group_members
+  for insert to authenticated with check (user_id = auth.uid());
+
+-- Austreten darf jeder selbst, entfernen zusaetzlich die Gruppenleitung.
+drop policy if exists group_members_delete on public.group_members;
+create policy group_members_delete on public.group_members
+  for delete to authenticated
+  using (user_id = auth.uid() or exists (
+    select 1 from public.groups g where g.id = group_id and g.owner_id = auth.uid()
+  ));
+
+-- Challenges sieht, wer teilnimmt, wer in der zugehoerigen Gruppe ist - und
+-- wer mit dem Ersteller verbunden ist. Ohne Letzteres koennte niemand einer
+-- Challenge beitreten, die noch keine Teilnehmer hat.
+drop policy if exists challenges_select on public.challenges;
+create policy challenges_select on public.challenges
+  for select to authenticated
+  using (
+    owner_id = auth.uid()
+    or public.are_connected(auth.uid(), owner_id)
+    or exists (select 1 from public.challenge_members c
+               where c.challenge_id = challenges.id and c.user_id = auth.uid())
+    or (group_id is not null and exists (
+          select 1 from public.group_members m
+          where m.group_id = challenges.group_id and m.user_id = auth.uid()))
+  );
+
+drop policy if exists challenges_insert on public.challenges;
+create policy challenges_insert on public.challenges
+  for insert to authenticated with check (owner_id = auth.uid());
+
+drop policy if exists challenges_delete on public.challenges;
+create policy challenges_delete on public.challenges
+  for delete to authenticated using (owner_id = auth.uid());
+
+drop policy if exists challenge_members_select on public.challenge_members;
+create policy challenge_members_select on public.challenge_members
+  for select to authenticated
+  using (user_id = auth.uid() or public.are_connected(auth.uid(), user_id));
+
+drop policy if exists challenge_members_insert on public.challenge_members;
+create policy challenge_members_insert on public.challenge_members
+  for insert to authenticated with check (user_id = auth.uid());
+
+drop policy if exists challenge_members_delete on public.challenge_members;
+create policy challenge_members_delete on public.challenge_members
+  for delete to authenticated using (user_id = auth.uid());
+
+-- Reaktionen und Kommentare: lesen darf, wer verbunden ist; schreiben nur im
+-- eigenen Namen und nur bei Verbundenen.
+drop policy if exists activity_reactions_select on public.activity_reactions;
+create policy activity_reactions_select on public.activity_reactions
+  for select to authenticated
+  using (owner_id = auth.uid() or author_id = auth.uid() or public.are_connected(auth.uid(), owner_id));
+
+drop policy if exists activity_reactions_insert on public.activity_reactions;
+create policy activity_reactions_insert on public.activity_reactions
+  for insert to authenticated
+  with check (author_id = auth.uid() and public.are_connected(auth.uid(), owner_id));
+
+drop policy if exists activity_reactions_delete on public.activity_reactions;
+create policy activity_reactions_delete on public.activity_reactions
+  for delete to authenticated using (author_id = auth.uid());
+
+drop policy if exists activity_comments_select on public.activity_comments;
+create policy activity_comments_select on public.activity_comments
+  for select to authenticated
+  using (owner_id = auth.uid() or author_id = auth.uid() or public.are_connected(auth.uid(), owner_id));
+
+drop policy if exists activity_comments_insert on public.activity_comments;
+create policy activity_comments_insert on public.activity_comments
+  for insert to authenticated
+  with check (author_id = auth.uid() and public.are_connected(auth.uid(), owner_id));
+
+-- Loeschen darf der Verfasser und die Person, um deren Training es geht.
+drop policy if exists activity_comments_delete on public.activity_comments;
+create policy activity_comments_delete on public.activity_comments
+  for delete to authenticated using (author_id = auth.uid() or owner_id = auth.uid());
+
+-- ------------------------------------- Bestehende Regeln auf Gruppen erweitern
+
+-- Profile: zusaetzlich fuer Mitglieder derselben Gruppe sichtbar.
+drop policy if exists profiles_select on public.profiles;
+create policy profiles_select on public.profiles
+  for select to authenticated
+  using (id = auth.uid() or public.has_link(auth.uid(), id) or public.share_group(auth.uid(), id));
+
+-- Geteilte Auswertungen: Freundschaft ODER gemeinsame Gruppe, plus Freigabe.
+drop policy if exists share_payloads_select on public.share_payloads;
+create policy share_payloads_select on public.share_payloads
+  for select to authenticated
+  using (
+    owner_id = auth.uid()
+    or (
+      public.are_connected(share_payloads.owner_id, auth.uid())
+      and exists (
+        select 1 from public.share_grants g
+        where g.owner_id = share_payloads.owner_id
+          and g.viewer_id = auth.uid()
+          and g.scope = share_payloads.scope
+      )
+    )
+  );
+
+drop policy if exists share_grants_write on public.share_grants;
+create policy share_grants_write on public.share_grants
+  for all to authenticated
+  using (owner_id = auth.uid())
+  with check (owner_id = auth.uid() and public.are_connected(owner_id, viewer_id));
+
+-- ------------------------------------------------------------ Ausfuehrrechte
+
+revoke execute on function public.share_group(uuid, uuid) from public, anon;
+revoke execute on function public.are_connected(uuid, uuid) from public, anon;
+revoke execute on function public.find_group_by_code(text) from public, anon;
+
+grant execute on function public.share_group(uuid, uuid) to authenticated;
+grant execute on function public.are_connected(uuid, uuid) to authenticated;
+grant execute on function public.find_group_by_code(text) to authenticated;

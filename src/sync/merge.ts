@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { AppState, Exercise, NutritionEntry, Plan, WeightEntry, Workout } from '../types';
 
 /**
@@ -99,13 +100,25 @@ export function isPristine(state: AppState): boolean {
 export function describeMerge(local: AppState, remote: AppState, merged: AppState): string {
   const parts: string[] = [];
   const added = merged.workouts.length - local.workouts.length;
-  if (added > 0) parts.push(`${added} Training${added === 1 ? '' : 's'} dazugekommen`);
+  if (added > 0) {
+    parts.push(added === 1
+      ? t('1 Training dazugekommen')
+      : t('{count} Trainings dazugekommen', { count: added }));
+  }
   const plans = merged.plans.length - local.plans.length;
-  if (plans > 0) parts.push(`${plans} ${plans === 1 ? 'Plan' : 'Pläne'} dazugekommen`);
+  if (plans > 0) {
+    parts.push(plans === 1
+      ? t('1 Plan dazugekommen')
+      : t('{count} Pläne dazugekommen', { count: plans }));
+  }
   const weights = merged.weightLog.length - local.weightLog.length;
-  if (weights > 0) parts.push(`${weights} ${weights === 1 ? 'Gewichtseintrag' : 'Gewichtseinträge'} dazugekommen`);
+  if (weights > 0) {
+    parts.push(weights === 1
+      ? t('1 Gewichtseintrag dazugekommen')
+      : t('{count} Gewichtseinträge dazugekommen', { count: weights }));
+  }
   if (parts.length === 0) {
-    return remote.workouts.length > 0 ? 'Alles war schon aktuell' : 'Nichts zu übernehmen';
+    return remote.workouts.length > 0 ? t('Alles war schon aktuell') : t('Nichts zu übernehmen');
   }
   return parts.join(', ');
 }

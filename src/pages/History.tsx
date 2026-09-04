@@ -1,3 +1,4 @@
+import { exerciseName, t } from '../i18n';
 import { useMemo, useState } from 'react';
 import { calcWorkoutBurn } from '../lib/calories';
 import { formatDateLong, formatClock } from '../lib/date';
@@ -32,15 +33,15 @@ export function HistoryPage() {
     return (
       <EmptyState
         icon="📒"
-        title="Noch kein Training aufgezeichnet"
-        hint="Hake auf der Startseite ein paar Sätze ab – sie erscheinen dann hier."
+        title={t("Noch kein Training aufgezeichnet")}
+        hint={t("Hake auf der Startseite ein paar Sätze ab – sie erscheinen dann hier.")}
       />
     );
   }
 
   return (
     <>
-      <h2>Verlauf</h2>
+      <h2>{t("Verlauf")}</h2>
       {grouped.map(([month, items]) => (
         <div key={month} className="card card--flush">
           <div className="section-label" style={{ padding: '12px 14px 6px' }}>
@@ -80,7 +81,7 @@ export function HistoryPage() {
               if (done.length === 0) return null;
               return (
                 <div key={logged.id} className="card" style={{ background: 'var(--surface-2)', padding: 11 }}>
-                  <div className="bold small">{exercise?.name ?? 'Unbekannte Übung'}</div>
+                  <div className="bold small">{exerciseName(exercise)}</div>
                   <table className="data" style={{ marginTop: 5 }}>
                     <tbody>
                       {done.map((set, index) => (
@@ -103,7 +104,7 @@ export function HistoryPage() {
 
             {open.notes && (
               <div className="card" style={{ background: 'var(--surface-2)' }}>
-                <div className="section-label" style={{ marginBottom: 4 }}>Notiz</div>
+                <div className="section-label" style={{ marginBottom: 4 }}>{t("Notiz")}</div>
                 <div className="small muted">{open.notes}</div>
               </div>
             )}

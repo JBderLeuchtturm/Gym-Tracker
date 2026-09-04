@@ -4,6 +4,7 @@ import { App } from './App';
 import { StoreProvider } from './storage/store';
 import { SyncProvider } from './sync/SyncProvider';
 import { ToastProvider } from './components/ui';
+import { I18nProvider } from './i18n';
 import './styles.css';
 
 const container = document.getElementById('root');
@@ -11,13 +12,17 @@ if (!container) throw new Error('Wurzelelement #root nicht gefunden');
 
 createRoot(container).render(
   <React.StrictMode>
-    <StoreProvider>
-      <ToastProvider>
-        <SyncProvider>
-          <App />
-        </SyncProvider>
-      </ToastProvider>
-    </StoreProvider>
+    <I18nProvider>
+      {(language) => (
+        <StoreProvider>
+          <ToastProvider>
+            <SyncProvider>
+              <App key={language} />
+            </SyncProvider>
+          </ToastProvider>
+        </StoreProvider>
+      )}
+    </I18nProvider>
   </React.StrictMode>,
 );
 

@@ -1,3 +1,4 @@
+import { currentLanguage } from '../i18n';
 /** Datums-Helfer. Intern wird ueberall das Format yyyy-mm-dd verwendet. */
 
 export const toISODate = (date: Date): string => {
@@ -24,16 +25,19 @@ export const addDays = (iso: string, days: number): string => {
 export const weekdayOf = (iso: string): number => (parseISODate(iso).getDay() + 6) % 7;
 
 export const WEEKDAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+
+/** Das Gebietsschema fuer Datums- und Zahlenformate folgt der Sprachwahl. */
+export const locale = (): string => (currentLanguage() === 'en' ? 'en-GB' : 'de-DE');
 export const WEEKDAY_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 export const formatDateLong = (iso: string): string =>
-  parseISODate(iso).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  parseISODate(iso).toLocaleDateString(locale(), { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 
 export const formatDateShort = (iso: string): string =>
-  parseISODate(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  parseISODate(iso).toLocaleDateString(locale(), { day: '2-digit', month: '2-digit', year: '2-digit' });
 
 export const formatDateTiny = (iso: string): string =>
-  parseISODate(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  parseISODate(iso).toLocaleDateString(locale(), { day: '2-digit', month: '2-digit' });
 
 export function relativeDayLabel(iso: string): string {
   const today = todayISO();
