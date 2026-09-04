@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Exercise } from '../types';
 import { CATEGORY_LABELS } from '../data/catalog';
+import { categoryColor } from '../lib/categoryColors';
 import { addDays, formatDateShort, formatDateTiny, todayISO } from '../lib/date';
 import {
   exerciseHistory, personalRecords, streakInfo, volumeByCategory, weeklySummaries,
@@ -169,12 +170,24 @@ export function ProgressPage() {
                   const max = byCategory[0].sets || 1;
                   return (
                     <div key={entry.category}>
-                      <div className="row row--between tiny" style={{ marginBottom: 3 }}>
-                        <span className="bold">{CATEGORY_LABELS[entry.category as keyof typeof CATEGORY_LABELS] ?? entry.category}</span>
+                      <div className="row row--between tiny" style={{ marginBottom: 4 }}>
+                        <span className="row bold" style={{ gap: 6 }}>
+                          <span
+                            className="cat-dot"
+                            style={{ '--cat': categoryColor(entry.category as never) } as React.CSSProperties}
+                          />
+                          {CATEGORY_LABELS[entry.category as keyof typeof CATEGORY_LABELS] ?? entry.category}
+                        </span>
                         <span className="dim">{entry.sets} Sätze · {fmt(entry.volume)} kg</span>
                       </div>
                       <div className="progress-bar">
-                        <div className="progress-bar__fill" style={{ width: `${(entry.sets / max) * 100}%` }} />
+                        <div
+                          className="progress-bar__fill"
+                          style={{
+                            width: `${(entry.sets / max) * 100}%`,
+                            background: categoryColor(entry.category as never),
+                          }}
+                        />
                       </div>
                     </div>
                   );
@@ -231,6 +244,7 @@ export function ProgressPage() {
             {item.series.length > 1 && (
               <Sparkline
                 values={item.series}
+                width={56}
                 color={item.trend != null && item.trend < 0 ? 'var(--danger)' : 'var(--success)'}
               />
             )}

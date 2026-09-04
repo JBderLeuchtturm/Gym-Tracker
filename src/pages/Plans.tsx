@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import type { Exercise, Plan, PlanExercise, Weekday } from '../types';
+import type { Exercise, ExerciseCategory, Plan, PlanExercise, Weekday } from '../types';
 import { WEEKDAY_NAMES, WEEKDAY_SHORT, weekdayOf, todayISO } from '../lib/date';
 import { CATEGORY_LABELS } from '../data/catalog';
+import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { useStore } from '../storage/store';
 import { emptyDays, uid } from '../storage/defaults';
 import { PLAN_TEMPLATES, buildTemplatePlan } from '../data/templates';
@@ -81,24 +82,28 @@ export function PlansPage() {
               </div>
 
               <div className="day-strip" style={{ margin: '11px 0' }}>
-                {plan.days.map((day, index) => (
-                  <div
-                    key={day.weekday}
-                    className="day-strip__item"
-                    style={{
-                      cursor: 'default',
-                      background: day.isRestDay || day.exercises.length === 0 ? 'var(--surface-2)' : 'var(--accent-soft)',
-                      borderColor: day.isRestDay || day.exercises.length === 0 ? 'var(--border-soft)' : 'transparent',
-                      color: day.isRestDay || day.exercises.length === 0 ? 'var(--text-dim)' : 'var(--accent)',
-                    }}
-                    title={day.isRestDay ? 'Ruhetag' : day.title}
-                  >
-                    <span>{WEEKDAY_SHORT[index]}</span>
-                    <span className="day-strip__num" style={{ fontSize: '0.78rem', color: 'inherit' }}>
-                      {day.isRestDay || day.exercises.length === 0 ? '–' : day.exercises.length}
-                    </span>
-                  </div>
-                ))}
+                {plan.days.map((day, index) => {
+                  const empty = day.isRestDay || day.exercises.length === 0;
+                  const focus = dominantCategory(day, getExercise);
+                  return (
+                    <div
+                      key={day.weekday}
+                      className="day-strip__item"
+                      style={{
+                        cursor: 'default',
+                        background: empty ? 'var(--surface-2)' : categoryTint(focus, 0.16),
+                        borderColor: empty ? 'var(--border-soft)' : 'transparent',
+                        color: empty ? 'var(--text-dim)' : categoryColor(focus),
+                      }}
+                      title={empty ? 'Ruhetag' : `${day.title} · ${CATEGORY_LABELS[focus]}`}
+                    >
+                      <span>{WEEKDAY_SHORT[index]}</span>
+                      <span className="day-strip__num" style={{ fontSize: '0.78rem', color: 'inherit' }}>
+                        {empty ? '–' : day.exercises.length}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="row row--wrap" style={{ gap: 7 }}>
@@ -501,6 +506,24 @@ function TargetEditor({
       </div>
     </Modal>
   );
+}
+
+/** Die Muskelgruppe, die an einem Tag am haeufigsten vorkommt - faerbt den Wochenstreifen. */
+function dominantCategory(
+  day: { exercises: PlanExercise[] },
+  getExercise: (id: string) => Exercise | undefined,
+): ExerciseCategory {
+  const tally = new Map<ExerciseCategory, number>();
+  for (const item of day.exercises) {
+    const category = getExercise(item.exerciseId)?.category;
+    if (category) tally.set(category, (tally.get(category) ?? 0) + 1);
+  }
+  let best: ExerciseCategory = 'other';
+  let bestCount = 0;
+  for (const [category, count] of tally) {
+    if (count > bestCount) { best = category; bestCount = count; }
+  }
+  return best;
 }
 
 /** Schlaegt anhand der ersten Uebung einen Tagesnamen vor. */

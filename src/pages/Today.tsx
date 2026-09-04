@@ -10,7 +10,9 @@ import { useStore } from '../storage/store';
 import { uid } from '../storage/defaults';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { ExerciseDetail } from '../components/ExerciseDetail';
-import { ConfirmDialog, EmptyState, NumberInput, Stat, fmt, useToast } from '../components/ui';
+import { ConfirmDialog, EmptyState, NumberInput, fmt, useToast } from '../components/ui';
+import { ProgressRing } from '../components/ProgressRing';
+import { categoryColor, categoryTint } from '../lib/categoryColors';
 import {
   IconCheck, IconChart, IconChevronDown, IconChevronLeft, IconChevronRight, IconClock,
   IconPlus, IconTrash, IconX,
@@ -245,21 +247,41 @@ export function TodayPage() {
         </button>
       </div>
 
+      {date !== todayISO() && (
+        <button className="btn btn--sm" style={{ alignSelf: 'center' }} onClick={() => setDate(todayISO())}>
+          Zurück zu heute
+        </button>
+      )}
+
       {(stats.sets > 0 || rows.length > 0) && (
-        <div className="card">
-          <div className="row row--between" style={{ marginBottom: 8 }}>
-            <span className="section-label">Tagesübersicht</span>
-            {date !== todayISO() && (
-              <button className="chip chip--button" onClick={() => setDate(todayISO())}>Zu heute</button>
-            )}
-          </div>
-          <div className="progress-bar" style={{ marginBottom: 10 }}>
-            <div className="progress-bar__fill" style={{ width: `${progress}%` }} />
-          </div>
-          <div className="grid-auto">
-            <Stat label="Sätze" value={stats.sets} sub={plannedSets > 0 ? `von ${plannedSets} geplant` : undefined} tone="accent" />
-            <Stat label="Volumen" value={fmt(stats.volume)} unit="kg" />
-            <Stat label="Verbrauch" value={fmt(stats.kcal)} unit="kcal" tone="warn" sub={`≈ ${fmt(stats.minutes)} min aktiv`} />
+        <div className="hero">
+          <ProgressRing value={stats.sets} max={plannedSets || stats.sets || 1} size={92}>
+            <div className="hero__ring-value">
+              {plannedSets > 0 ? `${Math.round(progress)}%` : stats.sets}
+            </div>
+            <div className="hero__ring-unit">{plannedSets > 0 ? 'geschafft' : 'Sätze'}</div>
+          </ProgressRing>
+
+          <div className="hero__facts">
+            <div className="hero__fact">
+              <span className="hero__fact-label">Sätze</span>
+              <span className="hero__fact-value">
+                {stats.sets}
+                {plannedSets > 0 && <span className="hero__fact-unit">von {plannedSets}</span>}
+              </span>
+            </div>
+            <div className="hero__fact">
+              <span className="hero__fact-label">Volumen</span>
+              <span className="hero__fact-value">
+                {fmt(stats.volume)}<span className="hero__fact-unit">kg</span>
+              </span>
+            </div>
+            <div className="hero__fact">
+              <span className="hero__fact-label">Verbrauch</span>
+              <span className="hero__fact-value" style={{ color: 'var(--warn)' }}>
+                {fmt(stats.kcal)}<span className="hero__fact-unit">kcal</span>
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -438,11 +460,21 @@ function ExerciseCard({
     onUpdate(row, (logged) => ({ ...logged, sets: logged.sets.filter((set) => set.id !== setId) }));
   };
 
+  const totalTarget = target?.targetSets ?? row.sets.length;
+  const allDone = doneSets >= totalTarget && totalTarget > 0;
+  const accent = row.exercise ? categoryColor(row.exercise.category) : 'var(--border)';
+
   return (
-    <div className="exercise">
+    <div
+      className={`exercise${allDone ? ' exercise--done' : ''}`}
+      style={{ '--cat': accent, '--cat-tint': row.exercise ? categoryTint(row.exercise.category) : undefined } as React.CSSProperties}
+    >
       <div className="exercise__head" onClick={() => setOpen(!open)}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="exercise__name">{row.exercise?.name ?? 'Unbekannte Übung'}</div>
+          <div className="row" style={{ gap: 7 }}>
+            <span className="cat-dot" />
+            <span className="exercise__name">{row.exercise?.name ?? 'Unbekannte Übung'}</span>
+          </div>
           <div className="exercise__meta">
             {targetText}
             {previous
@@ -452,8 +484,8 @@ function ExerciseCard({
         </div>
         <div className="row" style={{ gap: 6, flexShrink: 0 }}>
           {doneSets > 0 && (
-            <span className={`chip ${doneSets >= (target?.targetSets ?? row.sets.length) ? 'chip--success' : 'chip--accent'}`}>
-              {doneSets}/{target?.targetSets ?? row.sets.length}
+            <span className={`chip ${allDone ? 'chip--success' : 'chip--accent'}`}>
+              {doneSets}/{totalTarget}
             </span>
           )}
           <IconChevronDown
@@ -485,7 +517,7 @@ function ExerciseCard({
           </div>
 
           {row.sets.map((set, index) => (
-            <div className="set-row" key={set.id}>
+            <div className={`set-row${set.done ? ' set-row--done' : ''}`} key={set.id}>
               <button
                 className={`set-row__index ${set.isWarmup ? 'set-row__index--warmup' : ''}`}
                 style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
@@ -628,6 +660,8 @@ function RestTimer({
   onExtend: () => void;
 }) {
   const [remaining, setRemaining] = useState(() => Math.max(0, (endsAt - Date.now()) / 1000));
+  // Gesamtdauer einmal merken, damit der Balken einen festen Bezug hat.
+  const [total] = useState(() => Math.max(1, (endsAt - Date.now()) / 1000));
 
   useEffect(() => {
     const tick = () => setRemaining(Math.max(0, (endsAt - Date.now()) / 1000));
@@ -635,6 +669,8 @@ function RestTimer({
     const timer = window.setInterval(tick, 250);
     return () => window.clearInterval(timer);
   }, [endsAt]);
+
+  const barWidth = Math.min(100, (remaining / Math.max(total, remaining)) * 100);
 
   useEffect(() => {
     if (remaining > 0) return;
@@ -655,6 +691,7 @@ function RestTimer({
       <button className="btn btn--sm btn--ghost" style={{ color: '#fff' }} onClick={onClose} aria-label="Pause beenden">
         <IconX />
       </button>
+      <span className="rest-timer__bar" style={{ width: `${barWidth}%` }} />
     </div>
   );
 }
