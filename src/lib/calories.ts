@@ -73,19 +73,25 @@ export interface WorkoutBurn {
   minutes: number;
   /** true, wenn die Dauer geschaetzt statt gemessen wurde. */
   estimated: boolean;
+  /** true, wenn eine eingetragene Dauer verworfen wurde, weil sie nicht sein kann. */
+  durationImplausible: boolean;
   perExercise: ExerciseBurn[];
 }
 
 /** Angenommene Sekunden pro Wiederholung, je nach Uebungsart. */
 const SECONDS_PER_REP = 3.5;
 
+/** Reine Arbeitszeit eines Satzes in Minuten - ohne Pause. */
+function workMinutes(reps: number | null, durationSec: number | null): number {
+  return (durationSec ?? (reps ?? 10) * SECONDS_PER_REP) / 60;
+}
+
 /**
- * Schaetzt die aktive Zeit eines Satzes in Minuten.
+ * Geschaetzte Zeit eines Satzes in Minuten.
  * Die Pause zaehlt anteilig mit (halb), weil der Puls dabei erhoeht bleibt.
  */
 function setMinutes(reps: number | null, durationSec: number | null, restSec: number): number {
-  const workSec = durationSec ?? (reps ?? 10) * SECONDS_PER_REP;
-  return (workSec + restSec * 0.5) / 60;
+  return workMinutes(reps, durationSec) + (restSec * 0.5) / 60;
 }
 
 /**
@@ -100,24 +106,38 @@ export function calcWorkoutBurn(
   defaultRestSec = 90,
 ): WorkoutBurn {
   const weight = workout.bodyWeightKg ?? bodyWeightKg;
-  const rows: Array<{ exerciseId: string; name: string; met: number; minutes: number }> = [];
+  const rows: Array<{
+    exerciseId: string; name: string; met: number; minutes: number; work: number;
+  }> = [];
 
   for (const logged of workout.exercises) {
     const exercise = getExercise(logged.exerciseId);
     const met = exercise?.met ?? 5;
     const name = exercise?.name ?? 'Unbekannte Übung';
     let minutes = 0;
+    let work = 0;
     for (const set of logged.sets) {
       // Saetze des Partners sind fremde Arbeit und zaehlen nicht in den eigenen Verbrauch.
       if (!set.done || set.forPartner) continue;
       minutes += setMinutes(set.reps, set.durationSec, defaultRestSec);
+      work += workMinutes(set.reps, set.durationSec);
     }
-    if (minutes > 0) rows.push({ exerciseId: logged.exerciseId, name, met, minutes });
+    if (minutes > 0) rows.push({ exerciseId: logged.exerciseId, name, met, minutes, work });
   }
 
   const estimatedMinutes = rows.reduce((sum, row) => sum + row.minutes, 0);
+  const workedMinutes = rows.reduce((sum, row) => sum + row.work, 0);
   const measured = workout.durationMin;
-  const scale = measured && estimatedMinutes > 0 ? measured / estimatedMinutes : 1;
+
+  /*
+   * Eine gemessene Dauer skaliert die Schaetzung. Sie muss aber mindestens so
+   * lang sein wie die reine Hebezeit - sonst ist sie nachweislich falsch,
+   * etwa nach einer versehentlich kurz gestoppten Uhr. Frueher machte das aus
+   * zwoelf Saetzen neun Kilokalorien; jetzt zaehlt in dem Fall die Schaetzung.
+   */
+  const usable = measured != null && measured > 0 && measured >= workedMinutes;
+  const totalMinutes = usable ? measured : estimatedMinutes;
+  const scale = estimatedMinutes > 0 ? totalMinutes / estimatedMinutes : 1;
 
   const perExercise: ExerciseBurn[] = rows.map((row) => {
     const minutes = row.minutes * scale;
@@ -132,7 +152,9 @@ export function calcWorkoutBurn(
   return {
     kcal: perExercise.reduce((sum, row) => sum + row.kcal, 0),
     minutes: perExercise.reduce((sum, row) => sum + row.minutes, 0),
-    estimated: measured == null,
+    estimated: !usable,
+    /** Die eingetragene Dauer war kuerzer als die reine Hebezeit. */
+    durationImplausible: measured != null && measured > 0 && !usable,
     perExercise,
   };
 }

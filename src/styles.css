@@ -715,6 +715,7 @@ table.data tr:last-child td { border-bottom: 0; }
 .hero__fact-label { font-size: 0.76rem; color: var(--text-muted); font-weight: 600; }
 .hero__fact-value { font-size: 1.2rem; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
 .hero__fact-unit { font-size: 0.7rem; font-weight: 600; color: var(--text-dim); margin-left: 2px; }
+.hero__fact-sub { display: block; font-size: 0.66rem; color: var(--text-dim); margin-top: 1px; }
 
 /* --------------------------------------------------- Farbige Muskelgruppen */
 
@@ -1004,4 +1005,55 @@ table.data tr:last-child td { border-bottom: 0; }
 
 .link-row:hover {
   color: var(--accent);
+}
+
+/* Karte innerhalb einer Karte - etwas zurueckgenommen. */
+.card--inset {
+  background: var(--surface-2);
+  box-shadow: none;
+  padding: 12px;
+}
+
+/* --------------------------------------------- Satzzeile: Zusatz und Partner */
+
+.set-more {
+  width: 30px;
+  height: 34px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.set-more--on {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.set-extra {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 0 8px 34px;
+  animation: rise 0.18s var(--ease) both;
+}
+
+.set-extra .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.input--sm {
+  padding: 6px 9px;
+  font-size: 0.82rem;
+}
+
+/* Saetze des Partners sind sichtbar fremde Arbeit. */
+.set-row--partner {
+  opacity: 0.72;
+  border-left: 2px solid var(--violet);
+  padding-left: 4px;
 }

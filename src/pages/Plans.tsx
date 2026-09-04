@@ -1,7 +1,10 @@
 import { exerciseName, t } from '../i18n';
 import { useEffect, useMemo, useState } from 'react';
-import type { Exercise, ExerciseCategory, Plan, PlanExercise, Weekday } from '../types';
-import { WEEKDAY_NAMES, WEEKDAY_SHORT, weekdayOf, todayISO } from '../lib/date';
+import type {
+  Exercise, ExerciseCategory, Plan, PlanCycle, PlanExercise, Weekday,
+} from '../types';
+import { WEEKDAY_NAMES, WEEKDAY_SHORT, startOfWeek, weekdayOf, todayISO } from '../lib/date';
+import { DEFAULT_CYCLE, cycleWeek } from '../lib/cycle';
 import { CATEGORY_LABELS } from '../data/catalog';
 import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { useStore } from '../storage/store';
@@ -264,6 +267,8 @@ function PlanEditor({
           />
         </div>
 
+        <CycleEditor plan={plan} onChange={onChange} />
+
         <div className="divider" />
 
         <div className="day-strip">
@@ -492,6 +497,9 @@ function TargetEditor({
   const [weight, setWeight] = useState<number | null>(planExercise.targetWeightKg);
   const [rest, setRest] = useState<number | null>(planExercise.restSec);
   const [note, setNote] = useState(planExercise.note ?? '');
+  const [progression, setProgression] = useState<number | null>(
+    planExercise.progressionKg ?? null,
+  );
 
   return (
     <Modal title={exerciseName || t('Vorgaben')} onClose={onClose}>
@@ -521,6 +529,21 @@ function TargetEditor({
           </div>
         </div>
         <div className="field">
+          <label className="field__label">{t("Steigerung (kg)")}</label>
+          <NumberInput
+            value={progression}
+            min={0}
+            max={20}
+            step={0.5}
+            onChange={setProgression}
+            placeholder={t("automatisch")}
+          />
+          <span className="field__hint">
+            {t("Schaffst du in allen Sätzen das obere Ende des Wiederholungsbereichs, schlägt die App beim nächsten Mal so viel mehr vor. 0 = keine automatische Steigerung, leer = Faustregel.")}
+          </span>
+        </div>
+
+        <div className="field">
           <label className="field__label">{t("Notiz")}</label>
           <input className="input" value={note} placeholder={t("z. B. langsam ablassen")} onChange={(event) => setNote(event.target.value)} />
         </div>
@@ -534,6 +557,7 @@ function TargetEditor({
               targetRepsMax: repsMax,
               targetWeightKg: weight,
               restSec: rest,
+              progressionKg: progression,
               note: note.trim() || undefined,
             })}
           >
@@ -579,4 +603,137 @@ function suggestTitle(exercise: Exercise): string {
     other: 'Training',
   };
   return map[exercise.category] ?? 'Training';
+}
+
+
+/* ------------------------------------------------------------------ Zyklus */
+
+/**
+ * Mehrwoechiger Zyklus eines Plans. Ohne Zyklus bleibt jede Woche gleich -
+ * das ist voellig in Ordnung und deshalb auch der Standard.
+ */
+function CycleEditor({
+  plan, onChange,
+}: {
+  plan: Plan;
+  onChange: (updater: (plan: Plan) => Plan) => void;
+}) {
+  const cycle = plan.cycle ?? null;
+  const [open, setOpen] = useState(Boolean(cycle));
+
+  const patch = (next: Partial<PlanCycle>) => onChange((current) => ({
+    ...current,
+    cycle: { ...DEFAULT_CYCLE, startDate: startOfWeek(todayISO()), ...(current.cycle ?? {}), ...next },
+  }));
+
+  const enable = (on: boolean) => {
+    if (on) {
+      onChange((current) => ({
+        ...current,
+        cycle: { ...DEFAULT_CYCLE, startDate: startOfWeek(todayISO()) },
+      }));
+      setOpen(true);
+    } else {
+      onChange((current) => ({ ...current, cycle: null }));
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className="card card--inset">
+      <label className="row" style={{ gap: 9, cursor: 'pointer' }}>
+        <input type="checkbox" checked={Boolean(cycle)} onChange={(event) => enable(event.target.checked)} />
+        <span className="small">
+          {t("Zyklus über mehrere Wochen")}
+          <span className="tiny dim" style={{ display: 'block' }}>
+            {t("Die Zielgewichte steigen Woche für Woche und fallen in der Entlastungswoche zurück.")}
+          </span>
+        </span>
+      </label>
+
+      {cycle && open && (
+        <>
+          <div className="grid-2" style={{ marginTop: 10 }}>
+            <div className="field">
+              <label className="field__label">{t("Wochen")}</label>
+              <NumberInput
+                value={cycle.weeks}
+                min={2}
+                max={16}
+                onChange={(value) => patch({ weeks: Math.max(2, value ?? 4) })}
+              />
+            </div>
+            <div className="field">
+              <label className="field__label">{t("Steigerung je Woche (%)")}</label>
+              <NumberInput
+                value={cycle.stepPct}
+                min={0}
+                max={20}
+                step={0.5}
+                onChange={(value) => patch({ stepPct: value ?? 0 })}
+              />
+            </div>
+          </div>
+
+          <div className="grid-2">
+            <div className="field">
+              <label className="field__label">{t("Entlastungswoche")}</label>
+              <select
+                className="select"
+                value={cycle.deloadWeek ?? ''}
+                onChange={(event) => patch({
+                  deloadWeek: event.target.value === '' ? null : Number(event.target.value),
+                })}
+              >
+                <option value="">{t("keine")}</option>
+                {Array.from({ length: cycle.weeks }, (_, index) => index + 1).map((week) => (
+                  <option key={week} value={week}>{t('Woche {week}', { week })}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field__label">{t("Entlastung auf (%)")}</label>
+              <NumberInput
+                value={cycle.deloadPct}
+                min={20}
+                max={100}
+                onChange={(value) => patch({ deloadPct: value ?? 60 })}
+              />
+            </div>
+          </div>
+
+          <div className="field">
+            <label className="field__label">{t("Start des Zyklus")}</label>
+            <input
+              className="input"
+              type="date"
+              value={cycle.startDate}
+              onChange={(event) => patch({ startDate: startOfWeek(event.target.value || todayISO()) })}
+            />
+            <span className="field__hint">
+              {t("Gerechnet wird ab dem Montag dieser Woche. Danach beginnt der Zyklus von vorn.")}
+            </span>
+          </div>
+
+          <div className="row row--wrap" style={{ gap: 6 }}>
+            {Array.from({ length: cycle.weeks }, (_, index) => index + 1).map((week) => {
+              const isDeloadWeek = cycle.deloadWeek === week;
+              const factor = isDeloadWeek
+                ? cycle.deloadPct / 100
+                : 1 + (cycle.stepPct / 100) * (week - 1);
+              const current = cycleWeek(cycle, todayISO()) === week;
+              return (
+                <span
+                  key={week}
+                  className={`chip ${current ? 'chip--accent' : isDeloadWeek ? 'chip--warn' : ''}`}
+                >
+                  {t('W{week}', { week })} · {Math.round(factor * 100)} %
+                </span>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }

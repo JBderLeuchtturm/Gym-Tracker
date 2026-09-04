@@ -1,5 +1,5 @@
 import { exerciseName, t } from '../i18n';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Exercise, LoggedExercise, PlanExercise, SetLog, Workout } from '../types';
 import {
   WEEKDAY_SHORT, addDays, formatClock, formatDateShort, parseISODate, relativeDayLabel,
@@ -7,6 +7,7 @@ import {
 } from '../lib/date';
 import { calcWorkoutBurn } from '../lib/calories';
 import { detectRecord, suggestWeight, warmupSets, type NewRecord } from '../lib/coaching';
+import { cycleLabel, cycleWeight, isDeload } from '../lib/cycle';
 import {
   countsAsWork, exerciseVolume, lastPerformance, workoutSetCount, workoutVolume,
 } from '../lib/stats';
@@ -23,8 +24,9 @@ import { ProgressRing } from '../components/ProgressRing';
 import { CATEGORY_ICONS, categoryColor, categoryTint } from '../lib/categoryColors';
 import {
   IconCheck, IconChart, IconChevronDown, IconChevronLeft, IconChevronRight, IconClock,
-  IconPlus, IconSwap, IconTrash, IconX,
+  IconPlay, IconPlus, IconSwap, IconTrash, IconX,
 } from '../components/icons';
+import { beep } from '../lib/beep';
 
 /* ------------------------------------------------------------ Zeilenmodell */
 
@@ -93,7 +95,9 @@ export function TodayPage() {
         const reference = previous?.sets[index] ?? previous?.sets[previous.sets.length - 1];
         return newSet({
           reps: reference?.reps ?? planExercise.targetRepsMin ?? null,
-          weightKg: reference?.weightKg ?? planExercise.targetWeightKg ?? null,
+          weightKg: reference?.weightKg
+            ?? cycleWeight(planExercise.targetWeightKg, plan?.cycle, date)
+            ?? null,
           durationSec: reference?.durationSec ?? null,
         });
       });
@@ -335,13 +339,16 @@ export function TodayPage() {
   /* ------------------------------------------------------------ Kennzahlen */
 
   const stats = useMemo(() => {
-    if (!workout) return { sets: 0, volume: 0, kcal: 0, minutes: 0 };
+    if (!workout) {
+      return { sets: 0, volume: 0, kcal: 0, minutes: 0, durationImplausible: false };
+    }
     const burn = calcWorkoutBurn(workout, getExercise, state.profile.weightKg, state.settings.restTimerSec);
     return {
       sets: workoutSetCount(workout),
       volume: workoutVolume(workout),
       kcal: burn.kcal,
       minutes: burn.minutes,
+      durationImplausible: burn.durationImplausible,
     };
   }, [workout, getExercise, state.profile.weightKg, state.settings.restTimerSec]);
 
@@ -375,6 +382,14 @@ export function TodayPage() {
         </button>
       )}
 
+      {cycleLabel(plan, date) && (
+        <div className="row" style={{ justifyContent: 'center' }}>
+          <span className={`chip ${isDeload(plan?.cycle, date) ? 'chip--warn' : 'chip--accent'}`}>
+            {cycleLabel(plan, date)}
+          </span>
+        </div>
+      )}
+
       {(stats.sets > 0 || rows.length > 0) && (
         <div className="hero">
           <ProgressRing value={stats.sets} max={plannedSets || stats.sets || 1} size={92}>
@@ -403,6 +418,11 @@ export function TodayPage() {
               <span className="hero__fact-value" style={{ color: 'var(--warn)' }}>
                 {fmt(stats.kcal)}<span className="hero__fact-unit">{t("kcal")}</span>
               </span>
+              {stats.minutes > 0 && (
+                <span className="hero__fact-sub">
+                  {t('{minutes} min gerechnet', { minutes: Math.round(stats.minutes) })}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -468,7 +488,11 @@ export function TodayPage() {
                 placeholder={t("gemessen")}
               />
               <span className="field__hint">
-                {workout.endedAt ? 'Von der Stoppuhr übernommen' : 'Leer lassen = wird geschätzt'}
+                {stats.durationImplausible
+                  ? t('Kürzer als die reine Hebezeit – für den Verbrauch wird geschätzt.')
+                  : workout.endedAt
+                    ? t('Von der Stoppuhr übernommen')
+                    : t('Leer lassen = wird geschätzt')}
               </span>
             </div>
             <div className="field">
@@ -610,6 +634,9 @@ function ExerciseCard({
 
   const doneSets = row.sets.filter(countsAsWork).length;
   const [open, setOpen] = useState(doneSets === 0);
+  /** Welcher Satz zeigt gerade seine Zusatzzeile (Notiz, Partner)? */
+  const [openSet, setOpenSet] = useState<string | null>(null);
+  const partnerName = state.settings.partnerName.trim();
   const isTimed = row.exercise?.kind === 'time' || row.exercise?.kind === 'cardio';
 
   const target = row.planExercise;
@@ -759,7 +786,14 @@ function ExerciseCard({
           </div>
 
           {row.sets.map((set, index) => (
-            <div className={`set-row${set.done ? ' set-row--done' : ''}`} key={set.id}>
+            <Fragment key={set.id}>
+            <div
+              className={[
+                'set-row',
+                set.done ? 'set-row--done' : '',
+                set.forPartner ? 'set-row--partner' : '',
+              ].filter(Boolean).join(' ')}
+            >
               <button
                 className={`set-row__index ${set.isWarmup ? 'set-row__index--warmup' : ''}`}
                 style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
@@ -771,12 +805,21 @@ function ExerciseCard({
 
               {isTimed ? (
                 <>
-                  <NumberInput
-                    value={set.durationSec}
-                    ariaLabel={t('Dauer in Sekunden')}
-                    onChange={(value) => patchSet(set.id, { durationSec: value })}
-                    placeholder={t("Sek.")}
-                  />
+                  <div className="row" style={{ gap: 4 }}>
+                    <NumberInput
+                      value={set.durationSec}
+                      ariaLabel={t('Dauer in Sekunden')}
+                      onChange={(value) => patchSet(set.id, { durationSec: value })}
+                      placeholder={t("Sek.")}
+                    />
+                    {(set.durationSec ?? 0) > 0 && !set.done && (
+                      <HoldCountdown
+                        seconds={set.durationSec ?? 0}
+                        beepOnEnd={state.settings.countdownBeep}
+                        onDone={() => onToggleSet(set.id)}
+                      />
+                    )}
+                  </div>
                   <NumberInput
                     value={set.distanceKm}
                     ariaLabel={t('Distanz in Kilometern')}
@@ -819,8 +862,37 @@ function ExerciseCard({
                 >
                   <IconCheck />
                 </button>
+                <button
+                  className={`set-more ${openSet === set.id ? 'set-more--on' : ''}`}
+                  onClick={() => setOpenSet(openSet === set.id ? null : set.id)}
+                  aria-label={t('Mehr zu diesem Satz')}
+                  aria-expanded={openSet === set.id}
+                >
+                  ⋯
+                </button>
               </div>
             </div>
+
+            {openSet === set.id && (
+              <div className="set-extra" key={`${set.id}-extra`}>
+                <input
+                  className="input input--sm"
+                  placeholder={t("Notiz zum Satz, z. B. enger Griff")}
+                  value={set.note ?? ''}
+                  onChange={(event) => patchSet(set.id, { note: event.target.value || undefined })}
+                />
+                {partnerName && (
+                  <button
+                    className={`chip chip--button ${set.forPartner ? 'chip--accent' : ''}`}
+                    aria-pressed={Boolean(set.forPartner)}
+                    onClick={() => patchSet(set.id, { forPartner: !set.forPartner })}
+                  >
+                    {t('Satz von {name}', { name: partnerName })}
+                  </button>
+                )}
+              </div>
+            )}
+          </Fragment>
           ))}
 
           <div className="row row--wrap" style={{ marginTop: 10, gap: 7 }}>
@@ -1152,5 +1224,68 @@ function SwapDialog({
         ))}
       </div>
     </Modal>
+  );
+}
+
+
+/**
+ * Countdown fuer Halteuebungen. Laeuft rueckwaerts, haelt sich an die Uhr statt
+ * an gezaehlte Ticks - ein Tab im Hintergrund darf die Zeit nicht verschleppen.
+ * Am Ende wird der Satz abgehakt und, wenn gewuenscht, ein Ton gespielt.
+ */
+function HoldCountdown({
+  seconds, beepOnEnd, onDone,
+}: {
+  seconds: number;
+  beepOnEnd: boolean;
+  onDone: () => void;
+}) {
+  const [endsAt, setEndsAt] = useState<number | null>(null);
+  const [left, setLeft] = useState(seconds);
+  const doneRef = useRef(false);
+
+  useEffect(() => {
+    if (endsAt == null) return undefined;
+    doneRef.current = false;
+
+    const tick = () => {
+      const remaining = Math.ceil((endsAt - Date.now()) / 1000);
+      setLeft(Math.max(0, remaining));
+      if (remaining <= 0 && !doneRef.current) {
+        doneRef.current = true;
+        if (beepOnEnd) beep();
+        navigator.vibrate?.([120, 60, 120]);
+        setEndsAt(null);
+        onDone();
+      }
+    };
+
+    tick();
+    const id = window.setInterval(tick, 200);
+    return () => window.clearInterval(id);
+  }, [endsAt, beepOnEnd, onDone]);
+
+  if (endsAt == null) {
+    return (
+      <button
+        className="btn btn--sm btn--icon"
+        onClick={() => { setLeft(seconds); setEndsAt(Date.now() + seconds * 1000); }}
+        aria-label={t('Countdown starten')}
+        title={t('Countdown starten')}
+      >
+        <IconPlay />
+      </button>
+    );
+  }
+
+  return (
+    <button
+      className="btn btn--sm btn--icon btn--accent"
+      onClick={() => setEndsAt(null)}
+      aria-label={t('Countdown abbrechen')}
+      style={{ minWidth: 42, fontVariantNumeric: 'tabular-nums' }}
+    >
+      {left}
+    </button>
   );
 }
