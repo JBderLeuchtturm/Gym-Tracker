@@ -13,18 +13,24 @@ import { PLAN_TEMPLATES, buildTemplatePlan } from '../data/templates';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { ConfirmDialog, EmptyState, Modal, NumberInput, useToast } from '../components/ui';
 import {
-  IconCheck, IconChevronDown, IconCopy, IconEdit, IconPlus, IconTrash,
+  IconCheck, IconChevronDown, IconCopy, IconEdit, IconPlus, IconShare, IconTrash,
 } from '../components/icons';
+import { customToExercises, decodePlan, encodePlan } from '../lib/planShare';
 
 export function PlansPage() {
-  const { state, addPlan, updatePlan, deletePlan, setActivePlan, getExercise } = useStore();
+  const {
+    state, addPlan, updatePlan, deletePlan, setActivePlan, getExercise, addExercise,
+  } = useStore();
   const toast = useToast();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const editing = state.plans.find((plan) => plan.id === editingId) ?? null;
+  const sharing = state.plans.find((plan) => plan.id === sharingId) ?? null;
 
   const createEmpty = () => {
     const now = new Date().toISOString();
@@ -118,6 +124,9 @@ export function PlansPage() {
                 )}
                 <button className="btn btn--sm" onClick={() => setEditingId(plan.id)}><IconEdit /> {t("Bearbeiten")}</button>
                 <button className="btn btn--sm" onClick={() => duplicate(plan)}><IconCopy /> {t("Kopie")}</button>
+                <button className="btn btn--sm" onClick={() => setSharingId(plan.id)}>
+                  <IconShare /> {t("Teilen")}
+                </button>
                 <span className="spacer" />
                 {state.plans.length > 1 && (
                   <button className="btn btn--sm btn--ghost" onClick={() => setDeletingId(plan.id)} aria-label={t("Plan löschen")}>
@@ -133,7 +142,29 @@ export function PlansPage() {
       <div className="grid-2">
         <button className="btn btn--primary" onClick={createEmpty}><IconPlus /> {t("Leerer Plan")}</button>
         <button className="btn" onClick={() => setTemplatesOpen(true)}>{t("Aus Vorlage")}</button>
+        <button className="btn" onClick={() => setImportOpen(true)}>{t("Plan einfügen")}</button>
       </div>
+
+      {sharing && (
+        <SharePlanDialog
+          plan={sharing}
+          getExercise={getExercise}
+          onClose={() => setSharingId(null)}
+        />
+      )}
+
+      {importOpen && (
+        <ImportPlanDialog
+          onClose={() => setImportOpen(false)}
+          onImport={(plan, exercises) => {
+            for (const exercise of exercises) addExercise(exercise);
+            addPlan(plan);
+            setImportOpen(false);
+            setEditingId(plan.id);
+            toast.show(t('„{name}“ übernommen', { name: plan.name }));
+          }}
+        />
+      )}
 
       {editing && (
         <PlanEditor
@@ -735,5 +766,156 @@ function CycleEditor({
         </>
       )}
     </div>
+  );
+}
+
+
+/* --------------------------------------------------------- Plaene weitergeben */
+
+/**
+ * Zeigt den Textbaustein zum Weitergeben. Bewusst ohne Server: Der Baustein
+ * geht per Nachricht raus, der Empfaenger fuegt ihn unter "Plan einfügen" ein.
+ */
+function SharePlanDialog({
+  plan, getExercise, onClose,
+}: {
+  plan: Plan;
+  getExercise: (id: string) => Exercise | undefined;
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const code = useMemo(() => encodePlan(plan, getExercise), [plan, getExercise]);
+  const message = t('Mein Trainingsplan „{name}“ für den Gym-Tracker:', { name: plan.name });
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(`${message}\n\n${code}`);
+      toast.show(t('In die Zwischenablage kopiert'));
+    } catch {
+      toast.show(t('Kopieren hat nicht geklappt – markier den Text von Hand'));
+    }
+  };
+
+  const share = async () => {
+    if (!navigator.share) { void copy(); return; }
+    try {
+      await navigator.share({ title: plan.name, text: `${message}\n\n${code}` });
+    } catch {
+      /* Abgebrochen ist kein Fehler. */
+    }
+  };
+
+  return (
+    <Modal title={t('„{name}“ teilen', { name: plan.name })} onClose={onClose}>
+      <div className="list">
+        <p className="small muted">
+          {t("Schick diesen Baustein per Nachricht weiter. Wer ihn bekommt, fügt ihn unter „Plan einfügen“ ein und hat den Plan samt Vorgaben. Es werden nur der Plan und die darin benutzten eigenen Übungen weitergegeben – keine Trainingsdaten.")}
+        </p>
+
+        <textarea
+          className="textarea mono"
+          readOnly
+          rows={5}
+          value={code}
+          onFocus={(event) => event.currentTarget.select()}
+          style={{ fontSize: '0.72rem' }}
+        />
+
+        <div className="grid-2">
+          <button className="btn" onClick={copy}>{t('Kopieren')}</button>
+          <button className="btn btn--primary" onClick={share}>
+            <IconShare /> {t('Weitergeben')}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/** Nimmt einen Textbaustein entgegen und macht daraus einen eigenen Plan. */
+function ImportPlanDialog({
+  onClose, onImport,
+}: {
+  onClose: () => void;
+  onImport: (plan: Plan, exercises: Exercise[]) => void;
+}) {
+  const { allExercises } = useStore();
+  const [text, setText] = useState('');
+
+  const known = useMemo(() => new Set(allExercises.map((exercise) => exercise.id)), [allExercises]);
+  const decoded = useMemo(
+    () => (text.trim() ? decodePlan(text, (id) => known.has(id), () => uid('pe')) : null),
+    [text, known],
+  );
+
+  const take = () => {
+    if (!decoded) return;
+    const now = new Date().toISOString();
+    const plan: Plan = {
+      id: uid('plan'),
+      name: decoded.name,
+      description: decoded.description,
+      days: decoded.days,
+      cycle: decoded.cycle
+        ? {
+            weeks: decoded.cycle.w,
+            deloadWeek: decoded.cycle.dw,
+            stepPct: decoded.cycle.sp,
+            deloadPct: decoded.cycle.dp,
+            startDate: startOfWeek(todayISO()),
+          }
+        : null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const missing = customToExercises(decoded.custom).filter((item) => !known.has(item.id));
+    onImport(plan, missing);
+  };
+
+  return (
+    <Modal title={t('Plan einfügen')} onClose={onClose}>
+      <div className="list">
+        <p className="small muted">
+          {t("Füge hier den Baustein ein, den dir jemand geschickt hat. Dein eigener Plan bleibt unangetastet – der neue kommt zusätzlich dazu.")}
+        </p>
+
+        <textarea
+          className="textarea"
+          rows={5}
+          placeholder="GTPLAN1:…"
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+        />
+
+        {text.trim() && !decoded && (
+          <div className="tiny" style={{ color: 'var(--danger)' }}>
+            {t("Damit kann ich nichts anfangen. Kopier den Baustein noch einmal vollständig.")}
+          </div>
+        )}
+
+        {decoded && (
+          <div className="card card--inset">
+            <div className="bold">{decoded.name}</div>
+            {decoded.description && <div className="tiny dim">{decoded.description}</div>}
+            <div className="row row--wrap" style={{ gap: 6, marginTop: 8 }}>
+              {decoded.days.map((day) => (
+                <span key={day.weekday} className="chip">
+                  {t(WEEKDAY_SHORT[day.weekday])}: {day.isRestDay ? t('frei') : day.exercises.length}
+                </span>
+              ))}
+            </div>
+            {decoded.unknownCount > 0 && (
+              <div className="tiny" style={{ color: 'var(--warn)', marginTop: 8 }}>
+                {t('{count} Übungen kennst du nicht – die bleiben im Plan leer und lassen sich ersetzen.', { count: decoded.unknownCount })}
+              </div>
+            )}
+          </div>
+        )}
+
+        <button className="btn btn--primary btn--block" disabled={!decoded} onClick={take}>
+          {t('Plan übernehmen')}
+        </button>
+      </div>
+    </Modal>
   );
 }

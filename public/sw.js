@@ -106,3 +106,52 @@ async function trimCache(cache) {
     await cache.delete(key);
   }
 }
+
+/* --------------------------------------------------------- Push-Nachrichten */
+
+/*
+ * Es kommt bewusst nur ein Anstupser ohne Inhalt an: Beim Push-Dienst von
+ * Google oder Apple sollen keine Trainingsdaten liegen. Der Text hier ist
+ * deshalb allgemein gehalten; die Einzelheiten holt sich die App beim Oeffnen.
+ */
+self.addEventListener('push', (event) => {
+  let title = 'Gym-Tracker';
+  let body = 'Bei deinen Freunden hat sich etwas getan.';
+
+  // Falls doch einmal etwas mitgeschickt wird, nehmen wir es entgegen.
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+      title = payload.title || title;
+      body = payload.body || body;
+    } catch (error) {
+      const text = event.data.text();
+      if (text) body = text;
+    }
+  }
+
+  event.waitUntil(self.registration.showNotification(title, {
+    body,
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: 'gym-tracker-friends',
+    renotify: false,
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const scope = new URL(self.registration.scope);
+
+    for (const client of clientList) {
+      if (new URL(client.url).origin === scope.origin && 'focus' in client) {
+        await client.focus();
+        client.postMessage({ type: 'OPEN_FRIENDS' });
+        return;
+      }
+    }
+    await self.clients.openWindow(scope.href);
+  })());
+});

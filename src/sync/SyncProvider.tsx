@@ -6,6 +6,9 @@ import type { SupabaseClient, User } from '@supabase/supabase-js';
 import type { AppState } from '../types';
 import { useStore } from '../storage/store';
 import { loadSyncConfig, type SyncConfig } from './config';
+import {
+  pushState as readPushState, subscribePush, unsubscribePush, type PushState,
+} from '../lib/push';
 import { describeMerge, isPristine, mergeStates } from './merge';
 import {
   buildNutritionShare, buildProgressShare, buildWeightShare, type ShareScope,
@@ -59,6 +62,12 @@ interface SyncValue {
   /** Was ich wem zeige: Freund-ID -> Bereiche. */
   grants: Record<string, ShareScope[]>;
   setGrant: (viewerId: string, scope: ShareScope, enabled: boolean) => Promise<void>;
+
+  /** Push-Nachrichten: Stand, An- und Abmelden, Anstupsen der Freunde. */
+  pushStatus: PushState;
+  enablePush: () => Promise<PushState>;
+  disablePush: () => Promise<void>;
+  nudgeFriends: () => Promise<void>;
 
   loadFriendData: (friendId: string) => Promise<FriendData>;
   /** Geteilte Daten aller angenommenen Freunde, zentral geladen. */
@@ -716,12 +725,67 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pullAndMerge, refreshFriends, refreshSocial]);
 
+  /* ------------------------------------------------------ Push-Nachrichten */
+
+  const [pushStatus, setPushStatus] = useState<PushState>('unsupported');
+
+  useEffect(() => {
+    void readPushState(config?.vapidPublicKey).then(setPushStatus);
+  }, [config?.vapidPublicKey, user?.id]);
+
+  const enablePush = useCallback(async (): Promise<PushState> => {
+    const key = config?.vapidPublicKey;
+    if (!client || !user || !key) return 'unconfigured';
+    try {
+      const subscription = await subscribePush(key);
+      if (!subscription) {
+        const next = Notification.permission === 'denied' ? 'denied' : 'off';
+        setPushStatus(next);
+        return next;
+      }
+      await client.from('push_subscriptions').upsert({
+        user_id: user.id,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
+      });
+      setPushStatus('on');
+      return 'on';
+    } catch {
+      setPushStatus('off');
+      return 'off';
+    }
+  }, [client, user, config?.vapidPublicKey]);
+
+  const disablePush = useCallback(async () => {
+    const endpoint = await unsubscribePush();
+    if (endpoint && client && user) {
+      await client.from('push_subscriptions')
+        .delete().eq('user_id', user.id).eq('endpoint', endpoint);
+    }
+    setPushStatus('off');
+  }, [client, user]);
+
+  /**
+   * Stupst die Freunde an. Fehler bleiben still: Eine Benachrichtigung, die
+   * nicht ankommt, darf das Abgleichen nicht scheitern lassen.
+   */
+  const nudgeFriends = useCallback(async () => {
+    if (!client || !user || !config?.vapidPublicKey) return;
+    try {
+      await client.functions.invoke('notify-friends', { body: {} });
+    } catch {
+      /* Ohne Edge Function passiert eben nichts. */
+    }
+  }, [client, user, config?.vapidPublicKey]);
+
   const value = useMemo<SyncValue>(() => ({
     status, user, profile, error, busy, lastSyncAt, lastMergeNote, pendingInvite, inviteNote,
     signUp, signIn, signOut, saveProfile,
     requestPasswordReset, setNewPassword, recoveryMode, endRecoveryMode,
     friends, refreshFriends, addFriend, acceptFriend, removeFriend,
     grants, setGrant, loadFriendData, friendData, syncNow,
+    pushStatus, enablePush, disablePush, nudgeFriends,
     groups, challenges, reactions, comments, refreshSocial,
     createGroup: doCreateGroup, joinGroup: doJoinGroup, leaveGroup: doLeaveGroup,
     createChallenge: doCreateChallenge, joinChallenge: doJoinChallenge,
@@ -733,6 +797,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     requestPasswordReset, setNewPassword, recoveryMode, endRecoveryMode,
     friends, refreshFriends, addFriend, acceptFriend, removeFriend,
     grants, setGrant, loadFriendData, friendData, syncNow,
+    pushStatus, enablePush, disablePush, nudgeFriends,
     groups, challenges, reactions, comments, refreshSocial,
     doCreateGroup, doJoinGroup, doLeaveGroup,
     doCreateChallenge, doJoinChallenge, doLeaveChallenge, doDeleteChallenge,

@@ -12,6 +12,7 @@ import {
   countsAsWork, exerciseVolume, lastPerformance, workoutSetCount, workoutVolume,
 } from '../lib/stats';
 import { useStore } from '../storage/store';
+import { useSync } from '../sync/SyncProvider';
 import { uid } from '../storage/defaults';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { ExerciseDetail } from '../components/ExerciseDetail';
@@ -65,6 +66,7 @@ export function TodayPage() {
   const [date, setDate] = useState(todayISO());
   const [pickerOpen, setPickerOpen] = useState(false);
   const [swapFor, setSwapFor] = useState<Row | null>(null);
+  const sync = useSync();
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
@@ -326,6 +328,8 @@ export function TodayPage() {
       return { ...current, endedAt: new Date().toISOString(), durationMin: minutes };
     });
     toast.show(t("Training beendet"));
+    // Freunde anstupsen - still, und nur wenn Push eingerichtet ist.
+    void sync.nudgeFriends();
   };
 
   const removeRow = (row: Row) => {
