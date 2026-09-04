@@ -2,6 +2,41 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Ausbau nach der Ideensammlung
+
+*Branch `claude/ausbau`*
+
+Setzt die Ideensammlung aus [#3](https://github.com/JBderLeuchtturm/Gym-Tracker/issues/3)
+um – alles außer dem Abschnitt Ernährung.
+
+**Training**
+- Übungen je Tag umsortieren; die Reihenfolge bleibt erhalten
+- Supersätze: zwei benachbarte Übungen koppeln, Pause erst nach der letzten
+- Aufwärmsätze auf Knopfdruck aus dem Arbeitsgewicht
+- Gewichtsvorschlag aus der letzten Einheit, per Antippen übernehmbar
+- Trainingsdauer per Start/Stopp statt Eintippen
+- Ein Satz, der einen Bestwert schlägt, wird gefeiert
+
+**Auswertung**
+- Rückblick: Zeitraum gegen den gleich langen davor, samt Bestleistungen
+- Gestapeltes Diagramm der Muskelgruppen über die Wochen
+
+**Freunde**
+- Aktivitätsliste mit Reaktionen und Kommentaren
+- Gruppen mit Beitrittscode und gegenseitiger Fortschritts-Freigabe
+- Challenges über einen Zeitraum, nach Trainings, Sätzen oder Volumen
+- Benachrichtigung, wenn ein Freund trainiert hat (ohne Server, solange die
+  App offen ist)
+
+**Technik**
+- Acht Browser-Testläufe unter `tests/`, per `npm test`, zusätzlich in CI
+- Übungsbilder von wger bleiben offline verfügbar
+- Deutsch und Englisch, Umschaltung im Profil
+
+**Design**
+- Zweiter Durchgang: Farbverläufe im Hintergrund, plastischere Karten,
+  größere Typografie, Übungskarten mit Symbolkachel und Fortschrittsring
+
 ## Optischer Feinschliff
 
 *Branch `claude/ui-feinschliff` · [PR #1](https://github.com/JBderLeuchtturm/Gym-Tracker/pull/1)*

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useMemo, useRef, useState } from 'react';
 import type { Goal } from '../types';
 import { ACTIVITY_LABELS, GOAL_ADJUSTMENT, GOAL_LABELS, calcDayEnergy, proteinTarget } from '../lib/calories';
@@ -16,9 +17,9 @@ function isOnTrack(goal: Goal, balance: number): boolean {
 }
 
 function balanceHint(goal: Goal, balance: number): string {
-  if (goal === 'lose') return balance <= 0 ? 'Defizit – passt zum Abnehmen' : 'Überschuss – über dem Verbrauch';
-  if (goal === 'gain') return balance >= 0 ? 'Überschuss – passt zum Aufbauen' : 'Defizit – zu wenig für Aufbau';
-  return Math.abs(balance) <= 200 ? 'Nah am Verbrauch – gut zum Halten' : 'Deutlich vom Verbrauch entfernt';
+  if (goal === 'lose') return balance <= 0 ? t('Defizit – passt zum Abnehmen') : t('Überschuss – über dem Verbrauch');
+  if (goal === 'gain') return balance >= 0 ? t('Überschuss – passt zum Aufbauen') : t('Defizit – zu wenig für Aufbau');
+  return Math.abs(balance) <= 200 ? t('Nah am Verbrauch – gut zum Halten') : t('Deutlich vom Verbrauch entfernt');
 }
 
 export function CaloriesPage() {
@@ -71,45 +72,47 @@ export function CaloriesPage() {
   return (
     <>
       <div className="row row--between">
-        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, -1))} aria-label="Vorheriger Tag">
+        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, -1))} aria-label={t("Vorheriger Tag")}>
           <IconChevronLeft />
         </button>
         <div className="center" style={{ flex: 1 }}>
           <div className="bold">{formatDateShort(date)}</div>
-          <div className="tiny dim">{date === todayISO() ? 'Heute' : 'Anderer Tag'}</div>
+          <div className="tiny dim">{date === todayISO() ? t('Heute') : t('Anderer Tag')}</div>
         </div>
-        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, 1))} aria-label="Nächster Tag">
+        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, 1))} aria-label={t("Nächster Tag")}>
           <IconChevronRight />
         </button>
       </div>
 
       <div className="card">
         <div className="card__header">
-          <div className="card__title">Verbrauch an diesem Tag</div>
-          <button className="btn btn--ghost btn--icon btn--sm" onClick={() => setExplainOpen(true)} aria-label="Erklärung">
+          <div className="card__title">{t("Verbrauch an diesem Tag")}</div>
+          <button className="btn btn--ghost btn--icon btn--sm" onClick={() => setExplainOpen(true)} aria-label={t("Erklärung")}>
             <IconInfo />
           </button>
         </div>
 
         <div className="grid-auto">
-          <Stat label="Grundumsatz" value={fmt(energy.bmr)} unit="kcal" sub="im Ruhezustand" />
-          <Stat label="Alltag (TDEE)" value={fmt(energy.tdee)} unit="kcal" sub={ACTIVITY_LABELS[state.profile.activityLevel].split(' (')[0]} />
+          <Stat label={t("Grundumsatz")} value={fmt(energy.bmr)} unit={t("kcal")} sub={t("im Ruhezustand")} />
+          <Stat label={t("Alltag (TDEE)")} value={fmt(energy.tdee)} unit={t("kcal")} sub={t(ACTIVITY_LABELS[state.profile.activityLevel]).split(' (')[0]} />
           <Stat
-            label="Training"
+            label={t("Training")}
             value={fmt(energy.workoutKcal)}
-            unit="kcal"
+            unit={t("kcal")}
             tone="warn"
             sub={energy.workoutMinutes > 0
               ? `${fmt(energy.workoutMinutes)} min aktiv${energy.estimated ? ' (gesch.)' : ''}`
-              : 'kein Training'}
+              : t('kein Training')}
           />
-          <Stat label="Gesamt" value={fmt(energy.total)} unit="kcal" tone="accent" />
+          <Stat label={t("Gesamt")} value={fmt(energy.total)} unit={t("kcal")} tone="accent" />
         </div>
 
         <div className="divider" style={{ margin: '12px 0' }} />
 
         <div className="row row--between">
-          <span className="small muted">Empfehlung für „{GOAL_LABELS[state.profile.goal]}“</span>
+          <span className="small muted">
+            {t('Empfehlung für „{goal}“', { goal: t(GOAL_LABELS[state.profile.goal]) })}
+          </span>
           <span className="bold mono">
             {fmt(energy.target)} kcal
             {GOAL_ADJUSTMENT[state.profile.goal] !== 0 && (
@@ -120,17 +123,17 @@ export function CaloriesPage() {
           </span>
         </div>
         <div className="row row--between" style={{ marginTop: 4 }}>
-          <span className="small muted">Protein-Ziel</span>
+          <span className="small muted">{t("Protein-Ziel")}</span>
           <span className="bold mono">{proteinTarget(state.profile.weightKg)} g</span>
         </div>
       </div>
 
       {energy.perExercise.length > 0 && (
         <div className="card card--flush">
-          <div className="section-label" style={{ padding: '12px 14px 4px' }}>Verbrauch je Übung</div>
+          <div className="section-label" style={{ padding: '12px 14px 4px' }}>{t("Verbrauch je Übung")}</div>
           <table className="data">
             <thead>
-              <tr><th>Übung</th><th className="right">Aktiv</th><th className="right">kcal</th></tr>
+              <tr><th>{t("Übung")}</th><th className="right">{t("Aktiv")}</th><th className="right">{t("kcal")}</th></tr>
             </thead>
             <tbody>
               {energy.perExercise.map((row) => (
@@ -147,27 +150,27 @@ export function CaloriesPage() {
 
       <div className="card">
         <div className="card__header">
-          <div className="card__title">Zufuhr</div>
+          <div className="card__title">{t("Zufuhr")}</div>
           <button className="btn btn--sm" onClick={() => setYazioOpen(true)}>
-            <IconRefresh /> Yazio
+            <IconRefresh /> {t('Yazio')}
           </button>
         </div>
 
         <div className="grid-2">
           <div className="field">
-            <label className="field__label">Kalorien (kcal)</label>
+            <label className="field__label">{t("Kalorien (kcal)")}</label>
             <NumberInput value={entry?.kcalIn ?? null} min={0} onChange={(value) => patchEntry({ kcalIn: value })} />
           </div>
           <div className="field">
-            <label className="field__label">Protein (g)</label>
+            <label className="field__label">{t("Protein (g)")}</label>
             <NumberInput value={entry?.proteinG ?? null} min={0} onChange={(value) => patchEntry({ proteinG: value })} />
           </div>
           <div className="field">
-            <label className="field__label">Kohlenhydrate (g)</label>
+            <label className="field__label">{t("Kohlenhydrate (g)")}</label>
             <NumberInput value={entry?.carbsG ?? null} min={0} onChange={(value) => patchEntry({ carbsG: value })} />
           </div>
           <div className="field">
-            <label className="field__label">Fett (g)</label>
+            <label className="field__label">{t("Fett (g)")}</label>
             <NumberInput value={entry?.fatG ?? null} min={0} onChange={(value) => patchEntry({ fatG: value })} />
           </div>
         </div>
@@ -181,7 +184,7 @@ export function CaloriesPage() {
             }}
           >
             <div>
-              <div className="small bold">Bilanz</div>
+              <div className="small bold">{t("Bilanz")}</div>
               <div className="tiny dim">{balanceHint(state.profile.goal, balance)}</div>
             </div>
             <span className="bold mono" style={{ color: onTrack ? 'var(--success)' : 'var(--warn)' }}>
@@ -190,19 +193,19 @@ export function CaloriesPage() {
           </div>
         )}
         {entry?.source === 'yazio' && (
-          <div className="tiny dim" style={{ marginTop: 6 }}>Werte stammen aus Yazio.</div>
+          <div className="tiny dim" style={{ marginTop: 6 }}>{t("Werte stammen aus Yazio.")}</div>
         )}
       </div>
 
       <div className="card">
         <div className="card__header">
-          <div className="card__title">Verbrauch der letzten 30 Tage</div>
+          <div className="card__title">{t("Verbrauch der letzten 30 Tage")}</div>
         </div>
-        <LineChart points={history.burn} unit="kcal" color="var(--warn)" />
+        <LineChart points={history.burn} unit={t("kcal")} color="var(--warn)" />
         {history.intake.length > 1 && (
           <>
-            <div className="section-label" style={{ margin: '14px 0 6px' }}>Zufuhr</div>
-            <LineChart points={history.intake} unit="kcal" color="var(--success)" />
+            <div className="section-label" style={{ margin: '14px 0 6px' }}>{t("Zufuhr")}</div>
+            <LineChart points={history.intake} unit={t("kcal")} color="var(--success)" />
           </>
         )}
       </div>
@@ -210,20 +213,20 @@ export function CaloriesPage() {
       {yazioOpen && <YazioDialog date={date} onClose={() => setYazioOpen(false)} />}
 
       {explainOpen && (
-        <Modal title="Wie wird gerechnet?" onClose={() => setExplainOpen(false)}>
+        <Modal title={t("Wie wird gerechnet?")} onClose={() => setExplainOpen(false)}>
           <div className="list small muted">
             <p>
-              <strong style={{ color: 'var(--text)' }}>Grundumsatz</strong> nach der Mifflin-St-Jeor-Formel
+              <strong style={{ color: 'var(--text)' }}>{t("Grundumsatz")}</strong> nach der Mifflin-St-Jeor-Formel
               aus Gewicht, Größe, Alter und Geschlecht. Ist im Profil ein Körperfettanteil hinterlegt,
               wird stattdessen Katch-McArdle benutzt – das ist genauer, weil es die fettfreie Masse nutzt.
             </p>
             <p>
-              <strong style={{ color: 'var(--text)' }}>Alltagsumsatz (TDEE)</strong> ist der Grundumsatz
-              multipliziert mit deinem Aktivitätsfaktor ({ACTIVITY_LABELS[state.profile.activityLevel]}).
-              Wähle die Stufe bewusst <em>ohne</em> Training – das Training kommt separat obendrauf.
+              <strong style={{ color: 'var(--text)' }}>{t("Alltagsumsatz (TDEE)")}</strong> ist der Grundumsatz
+              multipliziert mit deinem Aktivitätsfaktor ({t(ACTIVITY_LABELS[state.profile.activityLevel])}).
+              Wähle die Stufe bewusst <em>{t("ohne")}</em> Training – das Training kommt separat obendrauf.
             </p>
             <p>
-              <strong style={{ color: 'var(--text)' }}>Training</strong> wird über MET-Werte berechnet:
+              <strong style={{ color: 'var(--text)' }}>{t("Training")}</strong> wird über MET-Werte berechnet:
               kcal = MET × 3,5 × Körpergewicht ÷ 200 × Minuten. Jede Übung hat einen eigenen MET-Wert.
               Ohne eingetragene Trainingsdauer wird die Zeit aus Sätzen, Wiederholungen und Pausen geschätzt;
               trägst du eine echte Dauer ein, wird darauf skaliert.
@@ -237,7 +240,7 @@ export function CaloriesPage() {
       )}
 
       <div className="tiny dim center">
-        Aktivitätsstufe, Ziel und Körperdaten änderst du im Profil.
+        {t('Aktivitätsstufe, Ziel und Körperdaten änderst du im Profil.')}
       </div>
     </>
   );
@@ -269,7 +272,7 @@ function YazioDialog({ date, onClose }: { date: string; onClose: () => void }) {
         fatG: day.fatG,
         source: 'yazio',
       });
-      toast.show('Werte aus Yazio übernommen');
+      toast.show(t("Werte aus Yazio übernommen"));
       onClose();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Verbindung fehlgeschlagen');
@@ -286,7 +289,7 @@ function YazioDialog({ date, onClose }: { date: string; onClose: () => void }) {
         return;
       }
       for (const item of entries) setNutrition(item);
-      toast.show(`${entries.length} Tage importiert`);
+      toast.show(t('{count} Tage importiert', { count: entries.length }));
       onClose();
     } catch {
       setError('Datei konnte nicht gelesen werden.');
@@ -294,7 +297,7 @@ function YazioDialog({ date, onClose }: { date: string; onClose: () => void }) {
   };
 
   return (
-    <Modal title="Yazio verbinden" onClose={onClose}>
+    <Modal title={t("Yazio verbinden")} onClose={onClose}>
       <div className="list">
         <div className="card" style={{ background: 'var(--surface-2)' }}>
           <div className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
@@ -306,7 +309,7 @@ function YazioDialog({ date, onClose }: { date: string; onClose: () => void }) {
           </div>
         </div>
 
-        <div className="section-label">1 · CSV-Import (empfohlen)</div>
+        <div className="section-label">{t("1 · CSV-Import (empfohlen)")}</div>
         <div className="small muted">
           In der Yazio-App: Profil → Einstellungen → Konto → Daten exportieren. Die erhaltene CSV-Datei
           hier hochladen – Kalorien und Makros werden je Tag zusammengezählt.
@@ -322,23 +325,23 @@ function YazioDialog({ date, onClose }: { date: string; onClose: () => void }) {
           }}
         />
         <button className="btn btn--primary btn--block" onClick={() => fileRef.current?.click()}>
-          <IconUpload /> CSV-Datei auswählen
+          <IconUpload /> {t('CSV-Datei auswählen')}
         </button>
 
         <div className="divider" />
 
-        <div className="section-label">2 · Eigene Bridge</div>
+        <div className="section-label">{t("2 · Eigene Bridge")}</div>
         <div className="small muted">
           Läuft bei dir ein kleiner Dienst, der sich bei Yazio anmeldet, kann diese App ihn abfragen.
           Erwartet wird <code>GET {'{Adresse}'}/daily?date=JJJJ-MM-TT</code> mit einer Antwort wie
           <code>{' {"energy": 2140, "protein": 155}'}</code>.
         </div>
         <div className="field">
-          <label className="field__label">Adresse der Bridge</label>
-          <input className="input" value={bridgeUrl} placeholder="https://…" onChange={(event) => setBridgeUrl(event.target.value)} />
+          <label className="field__label">{t("Adresse der Bridge")}</label>
+          <input className="input" value={bridgeUrl} placeholder={t("https://…")} onChange={(event) => setBridgeUrl(event.target.value)} />
         </div>
         <div className="field">
-          <label className="field__label">Token (optional)</label>
+          <label className="field__label">{t("Token (optional)")}</label>
           <input className="input" type="password" value={token} onChange={(event) => setToken(event.target.value)} />
         </div>
         <button className="btn btn--block" onClick={sync} disabled={busy || !bridgeUrl.trim()}>

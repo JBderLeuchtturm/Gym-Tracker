@@ -44,6 +44,32 @@ inklusive Tippfehlertoleranz: „latissimus", „kurzhantel", „bench", „bd" 
 die noch einmal mehrere tausend Übungen beisteuert. Findest du trotzdem nichts,
 legst du die Übung in zehn Sekunden selbst an.
 
+## Sprache
+
+Die App erscheint auf Deutsch oder Englisch – beim ersten Start richtet sie sich
+nach der Spracheinstellung des Geräts, umstellen lässt sich das jederzeit unter
+*Profil → Einstellungen → Sprache*. Übungsnamen aus dem eingebauten Katalog
+erscheinen auf Englisch, wo eine englische Bezeichnung hinterlegt ist.
+
+Übersetzt wird über den deutschen Text als Schlüssel: `t('Sätze')` liefert auf
+Englisch „Sets" und sonst den deutschen Text. Eine fehlende Übersetzung führt
+damit nie zu einer leeren Stelle. Die Wörterbuchdatei ist
+[`src/i18n/en.ts`](src/i18n/en.ts).
+
+## Tests
+
+```bash
+npm run build && npm test        # alle Läufe
+npm test training                # nur einen Lauf
+```
+
+Acht Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
+Übungssuche ohne Netz, Layout auf schmalen Geräten, Mehrsprachigkeit, Freunde
+und Freigaben, Gruppen und Challenges sowie Einladungslinks ab. Die Läufe mit
+Konto arbeiten gegen ein nachgebautes Supabase unter
+[`tests/mockBackend.mjs`](tests/mockBackend.mjs) und fassen das echte Projekt
+nie an. Bei jedem Push und Pull Request laufen sie zusätzlich in GitHub Actions.
+
 ## Loslegen
 
 ```bash

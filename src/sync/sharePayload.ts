@@ -43,6 +43,16 @@ export interface SharedExercise {
   series: Array<{ date: string; value: number }>;
 }
 
+export interface RecentSession {
+  date: string;
+  title: string;
+  sets: number;
+  volume: number;
+  minutes: number | null;
+  /** Der schwerste Satz des Tages, kurz beschrieben. */
+  highlight: string | null;
+}
+
 export interface ProgressShare {
   generatedAt: string;
   totals: {
@@ -55,6 +65,8 @@ export interface ProgressShare {
   };
   weekly: Array<{ key: string; workouts: number; sets: number; volume: number }>;
   exercises: SharedExercise[];
+  /** Die letzten Trainingstage - Grundlage fuer die Aktivitaetsliste. */
+  recent: RecentSession[];
 }
 
 export interface WeightShare {
@@ -113,8 +125,33 @@ export function buildProgressShare(
 
   exercises.sort((a, b) => b.sessions - a.sessions || a.name.localeCompare(b.name, 'de'));
 
+  // Die letzten Trainingstage kurz zusammengefasst.
+  const recent: RecentSession[] = done.slice(-40).map((workout) => {
+    let best: { weight: number; reps: number; name: string } | null = null;
+    for (const logged of workout.exercises) {
+      for (const set of logged.sets) {
+        if (!set.done || set.isWarmup) continue;
+        const weight = set.weightKg ?? 0;
+        if (weight > 0 && (!best || weight > best.weight)) {
+          best = { weight, reps: set.reps ?? 0, name: getExercise(logged.exerciseId)?.name ?? '' };
+        }
+      }
+    }
+    return {
+      date: workout.date,
+      title: workout.title || 'Training',
+      sets: workoutSetCount(workout),
+      volume: round(workoutVolume(workout)),
+      minutes: workout.durationMin ?? null,
+      highlight: best && best.name
+        ? `${best.name}: ${round(best.weight)} kg × ${best.reps}`
+        : null,
+    };
+  }).reverse();
+
   return {
     generatedAt: new Date().toISOString(),
+    recent,
     totals: {
       workouts: done.length,
       sets: done.reduce((sum, workout) => sum + workoutSetCount(workout), 0),

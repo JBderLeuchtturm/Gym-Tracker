@@ -1,3 +1,4 @@
+import { exerciseName, t } from '../i18n';
 import { useMemo, useState } from 'react';
 import type { Exercise, ExerciseCategory, Plan, PlanExercise, Weekday } from '../types';
 import { WEEKDAY_NAMES, WEEKDAY_SHORT, weekdayOf, todayISO } from '../lib/date';
@@ -48,15 +49,15 @@ export function PlansPage() {
         exercises: day.exercises.map((exercise) => ({ ...exercise, id: uid('pe') })),
       })),
     });
-    toast.show('Plan kopiert');
+    toast.show(t("Plan kopiert"));
   };
 
   return (
     <>
       <div className="row row--between">
         <div>
-          <h2>Deine Pläne</h2>
-          <div className="tiny dim">Der aktive Plan bestimmt, was dir jeden Tag angezeigt wird.</div>
+          <h2>{t("Deine Pläne")}</h2>
+          <div className="tiny dim">{t("Der aktive Plan bestimmt, was dir jeden Tag angezeigt wird.")}</div>
         </div>
       </div>
 
@@ -72,9 +73,9 @@ export function PlansPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="row" style={{ gap: 7 }}>
                     <span className="bold">{plan.name}</span>
-                    {isActive && <span className="chip chip--accent">aktiv</span>}
+                    {isActive && <span className="chip chip--accent">{t("aktiv")}</span>}
                   </div>
-                  {plan.description && <div className="tiny dim" style={{ marginTop: 2 }}>{plan.description}</div>}
+                  {plan.description && <div className="tiny dim" style={{ marginTop: 2 }}>{t(plan.description)}</div>}
                   <div className="tiny dim" style={{ marginTop: 4 }}>
                     {trainingDays.length} Trainingstage · {totalExercises} Übungen
                   </div>
@@ -95,9 +96,9 @@ export function PlansPage() {
                         borderColor: empty ? 'var(--border-soft)' : 'transparent',
                         color: empty ? 'var(--text-dim)' : categoryColor(focus),
                       }}
-                      title={empty ? 'Ruhetag' : `${day.title} · ${CATEGORY_LABELS[focus]}`}
+                      title={empty ? t('Ruhetag') : `${day.title} · ${t(CATEGORY_LABELS[focus])}`}
                     >
-                      <span>{WEEKDAY_SHORT[index]}</span>
+                      <span>{t(WEEKDAY_SHORT[index])}</span>
                       <span className="day-strip__num" style={{ fontSize: '0.78rem', color: 'inherit' }}>
                         {empty ? '–' : day.exercises.length}
                       </span>
@@ -108,15 +109,15 @@ export function PlansPage() {
 
               <div className="row row--wrap" style={{ gap: 7 }}>
                 {!isActive && (
-                  <button className="btn btn--sm btn--primary" onClick={() => { setActivePlan(plan.id); toast.show(`„${plan.name}“ ist jetzt aktiv`); }}>
-                    <IconCheck /> Aktivieren
+                  <button className="btn btn--sm btn--primary" onClick={() => { setActivePlan(plan.id); toast.show(t('„{name}“ ist jetzt aktiv', { name: plan.name })); }}>
+                    <IconCheck /> {t('Aktivieren')}
                   </button>
                 )}
-                <button className="btn btn--sm" onClick={() => setEditingId(plan.id)}><IconEdit /> Bearbeiten</button>
-                <button className="btn btn--sm" onClick={() => duplicate(plan)}><IconCopy /> Kopie</button>
+                <button className="btn btn--sm" onClick={() => setEditingId(plan.id)}><IconEdit /> {t("Bearbeiten")}</button>
+                <button className="btn btn--sm" onClick={() => duplicate(plan)}><IconCopy /> {t("Kopie")}</button>
                 <span className="spacer" />
                 {state.plans.length > 1 && (
-                  <button className="btn btn--sm btn--ghost" onClick={() => setDeletingId(plan.id)} aria-label="Plan löschen">
+                  <button className="btn btn--sm btn--ghost" onClick={() => setDeletingId(plan.id)} aria-label={t("Plan löschen")}>
                     <IconTrash />
                   </button>
                 )}
@@ -127,8 +128,8 @@ export function PlansPage() {
       </div>
 
       <div className="grid-2">
-        <button className="btn btn--primary" onClick={createEmpty}><IconPlus /> Leerer Plan</button>
-        <button className="btn" onClick={() => setTemplatesOpen(true)}>Aus Vorlage</button>
+        <button className="btn btn--primary" onClick={createEmpty}><IconPlus /> {t("Leerer Plan")}</button>
+        <button className="btn" onClick={() => setTemplatesOpen(true)}>{t("Aus Vorlage")}</button>
       </div>
 
       {editing && (
@@ -141,7 +142,7 @@ export function PlansPage() {
       )}
 
       {templatesOpen && (
-        <Modal title="Vorlage wählen" onClose={() => setTemplatesOpen(false)}>
+        <Modal title={t("Vorlage wählen")} onClose={() => setTemplatesOpen(false)}>
           <div className="list">
             {PLAN_TEMPLATES.map((template) => (
               <button
@@ -153,14 +154,14 @@ export function PlansPage() {
                   addPlan(plan);
                   setTemplatesOpen(false);
                   setEditingId(plan.id);
-                  toast.show(`„${plan.name}“ erstellt`);
+                  toast.show(t('„{name}“ erstellt', { name: plan.name }));
                 }}
               >
-                <div className="bold">{template.name}</div>
-                <div className="tiny dim" style={{ marginTop: 3 }}>{template.description}</div>
+                <div className="bold">{t(template.name)}</div>
+                <div className="tiny dim" style={{ marginTop: 3 }}>{t(template.description)}</div>
                 <div className="row row--wrap tiny" style={{ gap: 5, marginTop: 7 }}>
                   {template.days.filter((day) => day.exercises.length > 0).map((day) => (
-                    <span key={day.weekday} className="chip">{WEEKDAY_SHORT[day.weekday]}: {day.title}</span>
+                    <span key={day.weekday} className="chip">{t(WEEKDAY_SHORT[day.weekday])}: {t(day.title)}</span>
                   ))}
                 </div>
               </button>
@@ -171,10 +172,10 @@ export function PlansPage() {
 
       {deletingId && (
         <ConfirmDialog
-          title="Plan löschen?"
-          message="Bereits aufgezeichnete Trainings bleiben erhalten – nur der Plan verschwindet."
+          title={t("Plan löschen?")}
+          message={t('Bereits aufgezeichnete Trainings bleiben erhalten – nur der Plan verschwindet.')}
           onCancel={() => setDeletingId(null)}
-          onConfirm={() => { deletePlan(deletingId); setDeletingId(null); toast.show('Plan gelöscht'); }}
+          onConfirm={() => { deletePlan(deletingId); setDeletingId(null); toast.show(t("Plan gelöscht")); }}
         />
       )}
     </>
@@ -243,10 +244,10 @@ function PlanEditor({
   };
 
   return (
-    <Modal title="Plan bearbeiten" onClose={onClose}>
+    <Modal title={t("Plan bearbeiten")} onClose={onClose}>
       <div className="list">
         <div className="field">
-          <label className="field__label">Name des Plans</label>
+          <label className="field__label">{t("Name des Plans")}</label>
           <input
             className="input"
             value={plan.name}
@@ -254,11 +255,11 @@ function PlanEditor({
           />
         </div>
         <div className="field">
-          <label className="field__label">Beschreibung (optional)</label>
+          <label className="field__label">{t("Beschreibung (optional)")}</label>
           <input
             className="input"
             value={plan.description ?? ''}
-            placeholder="z. B. 4er-Split, Fokus Oberkörper"
+            placeholder={t("z. B. 4er-Split, Fokus Oberkörper")}
             onChange={(event) => onChange((current) => ({ ...current, description: event.target.value }))}
           />
         </div>
@@ -273,7 +274,7 @@ function PlanEditor({
             ].filter(Boolean).join(' ');
             return (
               <button key={item.weekday} className={classes} onClick={() => setActiveDay(index as Weekday)}>
-                <span>{WEEKDAY_SHORT[index]}</span>
+                <span>{t(WEEKDAY_SHORT[index])}</span>
                 <span className="day-strip__num" style={{ fontSize: '0.8rem' }}>
                   {item.isRestDay || item.exercises.length === 0 ? '–' : item.exercises.length}
                 </span>
@@ -284,7 +285,7 @@ function PlanEditor({
 
         <div className="card">
           <div className="row row--between" style={{ marginBottom: 10 }}>
-            <span className="section-label">{WEEKDAY_NAMES[activeDay]}</span>
+            <span className="section-label">{t(WEEKDAY_NAMES[activeDay])}</span>
             <label className="row tiny" style={{ gap: 6, cursor: 'pointer' }}>
               <input
                 type="checkbox"
@@ -298,17 +299,17 @@ function PlanEditor({
           {!day.isRestDay && (
             <>
               <div className="field" style={{ marginBottom: 12 }}>
-                <label className="field__label">Bezeichnung des Tages</label>
+                <label className="field__label">{t("Bezeichnung des Tages")}</label>
                 <input
                   className="input"
                   value={day.title}
-                  placeholder="z. B. Push, Oberkörper, Beine"
+                  placeholder={t("z. B. Push, Oberkörper, Beine")}
                   onChange={(event) => patchDay({ title: event.target.value })}
                 />
               </div>
 
               {day.exercises.length === 0 ? (
-                <EmptyState icon="➕" title="Noch keine Übungen an diesem Tag" />
+                <EmptyState icon="➕" title={t("Noch keine Übungen an diesem Tag")} />
               ) : (
                 <div className="list">
                   {day.exercises.map((planExercise, index) => {
@@ -319,7 +320,7 @@ function PlanEditor({
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div className="bold small">{exercise?.name ?? 'Unbekannte Übung'}</div>
                             <div className="tiny dim">
-                              {exercise ? CATEGORY_LABELS[exercise.category] : ''}
+                              {exercise ? t(CATEGORY_LABELS[exercise.category]) : ''}
                               {' · '}
                               {planExercise.targetSets} Sätze
                               {planExercise.targetRepsMin ? ` × ${planExercise.targetRepsMin}${
@@ -329,16 +330,16 @@ function PlanEditor({
                             </div>
                           </div>
                           <div className="row" style={{ gap: 3 }}>
-                            <button className="btn btn--ghost btn--icon btn--sm" onClick={() => move(index, -1)} disabled={index === 0} aria-label="Nach oben">
+                            <button className="btn btn--ghost btn--icon btn--sm" onClick={() => move(index, -1)} disabled={index === 0} aria-label={t("Nach oben")}>
                               <IconChevronDown style={{ transform: 'rotate(180deg)' }} />
                             </button>
-                            <button className="btn btn--ghost btn--icon btn--sm" onClick={() => move(index, 1)} disabled={index === day.exercises.length - 1} aria-label="Nach unten">
+                            <button className="btn btn--ghost btn--icon btn--sm" onClick={() => move(index, 1)} disabled={index === day.exercises.length - 1} aria-label={t("Nach unten")}>
                               <IconChevronDown />
                             </button>
-                            <button className="btn btn--ghost btn--icon btn--sm" onClick={() => setEditingExercise(planExercise)} aria-label="Vorgaben bearbeiten">
+                            <button className="btn btn--ghost btn--icon btn--sm" onClick={() => setEditingExercise(planExercise)} aria-label={t("Vorgaben bearbeiten")}>
                               <IconEdit />
                             </button>
-                            <button className="btn btn--ghost btn--icon btn--sm" onClick={() => removeExercise(planExercise.id)} aria-label="Entfernen">
+                            <button className="btn btn--ghost btn--icon btn--sm" onClick={() => removeExercise(planExercise.id)} aria-label={t("Entfernen")}>
                               <IconTrash />
                             </button>
                           </div>
@@ -350,7 +351,7 @@ function PlanEditor({
               )}
 
               <button className="btn btn--block" style={{ marginTop: 11 }} onClick={() => setPickerOpen(true)}>
-                <IconPlus /> Übung zu {WEEKDAY_NAMES[activeDay]} hinzufügen
+                <IconPlus /> {t('Übung zu {day} hinzufügen', { day: t(WEEKDAY_NAMES[activeDay]) })}
               </button>
             </>
           )}
@@ -367,7 +368,7 @@ function PlanEditor({
 
       {pickerOpen && (
         <ExercisePicker
-          title={`Übung für ${WEEKDAY_NAMES[activeDay]}`}
+          title={t('Übung für {day}', { day: t(WEEKDAY_NAMES[activeDay]) })}
           onPick={addExercise}
           onClose={() => setPickerOpen(false)}
           excludeIds={day.exercises.map((item) => item.exerciseId)}
@@ -377,7 +378,7 @@ function PlanEditor({
       {editingExercise && (
         <TargetEditor
           planExercise={editingExercise}
-          exerciseName={getExercise(editingExercise.exerciseId)?.name ?? ''}
+          exerciseName={exerciseName(getExercise(editingExercise.exerciseId))}
           onClose={() => setEditingExercise(null)}
           onSave={(patch) => { patchExercise(editingExercise.id, patch); setEditingExercise(null); }}
         />
@@ -406,8 +407,8 @@ function CopyDayRow({
         value={target}
         onChange={(event) => setTarget(event.target.value === '' ? '' : (Number(event.target.value) as Weekday))}
       >
-        <option value="">Diesen Tag kopieren nach…</option>
-        {options.map((weekday) => <option key={weekday} value={weekday}>{WEEKDAY_NAMES[weekday]}</option>)}
+        <option value="">{t("Diesen Tag kopieren nach…")}</option>
+        {options.map((weekday) => <option key={weekday} value={weekday}>{t(WEEKDAY_NAMES[weekday])}</option>)}
       </select>
       <button
         className="btn"
@@ -457,38 +458,38 @@ function TargetEditor({
   const [note, setNote] = useState(planExercise.note ?? '');
 
   return (
-    <Modal title={exerciseName || 'Vorgaben'} onClose={onClose}>
+    <Modal title={exerciseName || t('Vorgaben')} onClose={onClose}>
       <div className="list">
         <div className="grid-3">
           <div className="field">
-            <label className="field__label">Sätze</label>
+            <label className="field__label">{t("Sätze")}</label>
             <NumberInput value={sets} min={1} max={20} onChange={setSets} />
           </div>
           <div className="field">
-            <label className="field__label">Wdh von</label>
+            <label className="field__label">{t("Wdh von")}</label>
             <NumberInput value={repsMin} min={0} onChange={setRepsMin} />
           </div>
           <div className="field">
-            <label className="field__label">Wdh bis</label>
+            <label className="field__label">{t("Wdh bis")}</label>
             <NumberInput value={repsMax} min={0} onChange={setRepsMax} />
           </div>
         </div>
         <div className="grid-2">
           <div className="field">
-            <label className="field__label">Zielgewicht (kg)</label>
-            <NumberInput value={weight} min={0} onChange={setWeight} placeholder="optional" />
+            <label className="field__label">{t("Zielgewicht (kg)")}</label>
+            <NumberInput value={weight} min={0} onChange={setWeight} placeholder={t("optional")} />
           </div>
           <div className="field">
-            <label className="field__label">Pause (Sekunden)</label>
+            <label className="field__label">{t("Pause (Sekunden)")}</label>
             <NumberInput value={rest} min={0} max={600} onChange={setRest} />
           </div>
         </div>
         <div className="field">
-          <label className="field__label">Notiz</label>
-          <input className="input" value={note} placeholder="z. B. langsam ablassen" onChange={(event) => setNote(event.target.value)} />
+          <label className="field__label">{t("Notiz")}</label>
+          <input className="input" value={note} placeholder={t("z. B. langsam ablassen")} onChange={(event) => setNote(event.target.value)} />
         </div>
         <div className="row" style={{ justifyContent: 'flex-end' }}>
-          <button className="btn" onClick={onClose}>Abbrechen</button>
+          <button className="btn" onClick={onClose}>{t("Abbrechen")}</button>
           <button
             className="btn btn--primary"
             onClick={() => onSave({
