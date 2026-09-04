@@ -301,3 +301,127 @@ export function Sparkline({
     </svg>
   );
 }
+
+/* ------------------------------------------------- Gestapeltes Balkendiagramm */
+
+export interface StackedPoint {
+  label: string;
+  /** Reihenname -> Wert. */
+  values: Record<string, number>;
+  detail?: string;
+}
+
+/**
+ * Zeigt mehrere Reihen uebereinander - hier: Saetze je Muskelgruppe und Woche.
+ * So sieht man Gesamtumfang und Verteilung in einem Bild.
+ */
+export function StackedBarChart({
+  points, series, colors, height = 200, unit = '',
+}: {
+  points: StackedPoint[];
+  /** Reihenfolge der Reihen von unten nach oben. */
+  series: string[];
+  colors: Record<string, string>;
+  height?: number;
+  unit?: string;
+}) {
+  const [ref, width] = useWidth();
+  const [hover, setHover] = useState<number | null>(null);
+
+  const padding = { top: 12, right: 8, bottom: 22, left: 34 };
+  const innerWidth = Math.max(10, width - padding.left - padding.right);
+  const innerHeight = height - padding.top - padding.bottom;
+
+  const totals = points.map((point) =>
+    series.reduce((sum, name) => sum + (point.values[name] ?? 0), 0));
+  const max = Math.max(1, ...totals);
+  const ticks = niceTicks(0, max, 3);
+  const top = Math.max(max, ticks[ticks.length - 1]);
+
+  if (points.length === 0) {
+    return <div ref={ref} className="empty tiny">Noch keine Daten</div>;
+  }
+
+  const slot = innerWidth / points.length;
+  const barWidth = Math.max(4, Math.min(32, slot * 0.66));
+  const labelStep = Math.max(1, Math.ceil(34 / slot));
+
+  return (
+    <div ref={ref} style={{ position: 'relative', width: '100%' }}>
+      <svg width={width} height={height} onMouseLeave={() => setHover(null)}>
+        {ticks.map((tick) => (
+          <g key={tick}>
+            <line
+              x1={padding.left} x2={width - padding.right}
+              y1={padding.top + innerHeight - (tick / top) * innerHeight}
+              y2={padding.top + innerHeight - (tick / top) * innerHeight}
+              stroke="var(--border-soft)"
+            />
+            <text
+              x={padding.left - 6}
+              y={padding.top + innerHeight - (tick / top) * innerHeight + 3.5}
+              textAnchor="end" fontSize="9.5" fill="var(--text-dim)"
+            >
+              {formatTick(tick)}
+            </text>
+          </g>
+        ))}
+
+        {points.map((point, index) => {
+          const x = padding.left + slot * index + (slot - barWidth) / 2;
+          let cursor = padding.top + innerHeight;
+          return (
+            <g key={`${point.label}-${index}`} onMouseEnter={() => setHover(index)}>
+              <rect
+                x={padding.left + slot * index} y={padding.top}
+                width={slot} height={innerHeight} fill="transparent"
+              />
+              {series.map((name) => {
+                const value = point.values[name] ?? 0;
+                if (value <= 0) return null;
+                const segment = (value / top) * innerHeight;
+                cursor -= segment;
+                return (
+                  <rect
+                    key={name}
+                    x={x} y={cursor} width={barWidth} height={Math.max(1, segment - 0.5)}
+                    fill={colors[name] ?? 'var(--text-dim)'}
+                    opacity={hover == null || hover === index ? 1 : 0.4}
+                    rx={1.5}
+                  />
+                );
+              })}
+              {index % labelStep === 0 && (
+                <text
+                  x={x + barWidth / 2} y={height - 6}
+                  textAnchor="middle" fontSize="9" fill="var(--text-dim)"
+                >
+                  {point.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+
+      {hover != null && (
+        <div
+          className="chart-tooltip"
+          style={{
+            left: Math.min(Math.max(4, padding.left + slot * hover - 40), Math.max(4, width - 150)),
+            top: 2,
+          }}
+        >
+          <div className="bold">{points[hover].detail ?? points[hover].label}</div>
+          {series
+            .filter((name) => (points[hover].values[name] ?? 0) > 0)
+            .map((name) => (
+              <div key={name} className="tiny" style={{ color: colors[name] }}>
+                {name}: {points[hover].values[name]}{unit && ` ${unit}`}
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
