@@ -1,6 +1,7 @@
 import { t } from '../i18n';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { IconX } from './icons';
+import { formatDateLong } from '../lib/date';
 
 /* ---------------------------------------------------------------- Modal */
 
@@ -64,23 +65,68 @@ export function ConfirmDialog({
 
 /* ---------------------------------------------------------------- Toast */
 
-interface ToastValue { show: (message: string) => void; }
+/**
+ * Kurze Rueckmeldung, wahlweise mit einem Handgriff daneben.
+ *
+ * Der Handgriff ist fast immer "Rueckgaengig". Loeschen ohne Umkehr ist in
+ * einer App, die man mit feuchten Fingern neben der Hantelbank bedient, die
+ * haerteste Strafe fuer einen Fehlgriff - und eine Rueckfrage vor jedem
+ * Handgriff waere die zweithaerteste. Deshalb: erst tun, dann anbieten,
+ * es zurueckzunehmen.
+ */
+export interface ToastAction {
+  label: string;
+  run: () => void;
+}
+
+interface ToastValue {
+  show: (message: string, action?: ToastAction) => void;
+}
+
 const ToastContext = createContext<ToastValue>({ show: () => {} });
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [message, setMessage] = useState<string | null>(null);
+/** Wie lange ein Rueckgaengig angeboten wird. */
+const UNDO_MS = 7000;
+const PLAIN_MS = 2400;
 
-  const show = useCallback((text: string) => {
-    setMessage(text);
-    window.setTimeout(() => setMessage((current) => (current === text ? null : current)), 2400);
+export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const [toast, setToast] = useState<{ text: string; action?: ToastAction; id: number } | null>(null);
+  const timer = React.useRef<number | null>(null);
+
+  const show = useCallback((text: string, action?: ToastAction) => {
+    if (timer.current) window.clearTimeout(timer.current);
+    const id = Date.now();
+    setToast({ text, action, id });
+    timer.current = window.setTimeout(
+      () => setToast((current) => (current?.id === id ? null : current)),
+      action ? UNDO_MS : PLAIN_MS,
+    );
   }, []);
+
+  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
 
   const value = useMemo(() => ({ show }), [show]);
 
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {message && <div className="toast" role="status">{message}</div>}
+      {toast && (
+        <div className="toast" role="status">
+          <span className="toast__text">{toast.text}</span>
+          {toast.action && (
+            <button
+              className="toast__action"
+              onClick={() => {
+                toast.action?.run();
+                if (timer.current) window.clearTimeout(timer.current);
+                setToast(null);
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
+        </div>
+      )}
     </ToastContext.Provider>
   );
 }
@@ -140,6 +186,42 @@ export function NumberInput({
           {suffix}
         </span>
       )}
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- Datum */
+
+/**
+ * Datumsfeld mit Klartext daneben.
+ *
+ * Das native Feld richtet sich nach der Sprache des Browsers, nicht nach der
+ * der App - auf einem englisch eingestellten Geraet steht dort mm/dd/yyyy und
+ * man liest den 9. April statt den 4. September. Ein eigener Kalender waere
+ * schlechter als der des Systems, deshalb bleibt das Feld und bekommt die
+ * gelesene Fassung daneben gestellt.
+ */
+export function DateInput({
+  value, onChange, max, min, ariaLabel,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  max?: string;
+  min?: string;
+  ariaLabel?: string;
+}) {
+  return (
+    <div className="datefield">
+      <input
+        className="input"
+        type="date"
+        value={value}
+        max={max}
+        min={min}
+        aria-label={ariaLabel}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {value && <span className="datefield__read">{formatDateLong(value)}</span>}
     </div>
   );
 }

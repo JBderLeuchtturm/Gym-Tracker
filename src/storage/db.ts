@@ -38,6 +38,7 @@ export function migrate(raw: unknown): AppState {
   const state: AppState = {
     version: SCHEMA_VERSION,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date(0).toISOString(),
+    settingsUpdatedAt: typeof raw.settingsUpdatedAt === 'string' ? raw.settingsUpdatedAt : undefined,
     profile: { ...DEFAULT_PROFILE, ...(profile as object) },
     exercises: asArray(raw.exercises),
     plans: asArray(raw.plans),

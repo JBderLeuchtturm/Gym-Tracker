@@ -48,6 +48,48 @@ const formatTick = (value: number): string => {
 
 /* ------------------------------------------------------------- Liniendiagramm */
 
+
+/**
+ * Zu wenig fuer einen Verlauf.
+ *
+ * Ein Diagramm mit einem einzigen Balken oder Punkt sieht kaputt aus und sagt
+ * nichts, was die Zahl nicht selbst sagen wuerde. Ab drei Messpunkten wird
+ * gezeichnet, darunter steht die Zahl im Klartext.
+ */
+export const MIN_POINTS = 3;
+
+function SparseNote({
+  points, unit, formatValue,
+}: {
+  points: Point[];
+  unit?: string;
+  formatValue?: (value: number) => string;
+}) {
+  const show = (value: number) => (formatValue ? formatValue(value) : String(Math.round(value * 10) / 10));
+
+  if (points.length === 0) {
+    return <div className="sparse">{t("Noch keine Daten")}</div>;
+  }
+
+  return (
+    <div className="sparse">
+      <div className="sparse__rows">
+        {points.map((point) => (
+          <div className="sparse__row" key={`${point.label}-${point.value}`}>
+            <span className="sparse__label">{point.detail ?? point.label}</span>
+            <span className="sparse__value">{show(point.value)}{unit ? ` ${unit}` : ''}</span>
+          </div>
+        ))}
+      </div>
+      <div className="sparse__hint">
+        {points.length === 1
+          ? t('Ein Messpunkt – für einen Verlauf braucht es mindestens drei.')
+          : t('{count} Messpunkte – für einen Verlauf braucht es mindestens drei.', { count: points.length })}
+      </div>
+    </div>
+  );
+}
+
 export function LineChart({
   points, height = 190, color = 'var(--accent)', unit = '', showArea = true, formatValue,
 }: {
@@ -62,6 +104,7 @@ export function LineChart({
   const [hover, setHover] = useState<number | null>(null);
 
   const padding = { top: 12, right: 10, bottom: 24, left: 38 };
+  const sparse = points.length < MIN_POINTS;
   const innerWidth = Math.max(10, width - padding.left - padding.right);
   const innerHeight = height - padding.top - padding.bottom;
 
@@ -93,6 +136,10 @@ export function LineChart({
 
   const active = hover != null ? points[hover] : null;
   const show = (value: number) => (formatValue ? formatValue(value) : formatTick(value));
+
+  if (sparse) {
+    return <div ref={ref}><SparseNote points={points} unit={unit} formatValue={formatValue} /></div>;
+  }
 
   return (
     <div ref={ref} style={{ position: 'relative', width: '100%' }}>
@@ -194,8 +241,8 @@ export function BarChart({
   const [ref, width] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
 
-  if (points.length === 0) {
-    return <div ref={ref} className="empty tiny">{t("Noch keine Daten")}</div>;
+  if (points.length < MIN_POINTS) {
+    return <div ref={ref}><SparseNote points={points} unit={unit} /></div>;
   }
 
   const padding = { top: 12, right: 8, bottom: 22, left: 38 };

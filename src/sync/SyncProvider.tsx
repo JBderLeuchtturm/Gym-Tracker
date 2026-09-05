@@ -389,6 +389,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
     if (inserted.error) {
       if (inserted.error.code === '23505') throw new Error(t('Mit diesem Konto besteht schon eine Verbindung'));
+      // Die Bremse aus schema.sql meldet sich mit einem eigenen Fehlercode.
+      if (inserted.error.code === 'P0001' || /Zu viele Anfragen/i.test(inserted.error.message)) {
+        throw new Error(t('Zu viele Anfragen in kurzer Zeit. Versuch es später noch einmal.'));
+      }
       throw new Error(inserted.error.message);
     }
     await refreshFriends();

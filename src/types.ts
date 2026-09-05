@@ -212,6 +212,14 @@ export interface AppState {
   version: number;
   /** Zeitpunkt der letzten Aenderung - entscheidet beim Zusammenfuehren zweier Geraete. */
   updatedAt: string;
+  /**
+   * Eigener Zeitstempel fuer Einstellungen und Profil.
+   *
+   * Ohne ihn gewinnt beim Abgleich pauschal die Seite, die zuletzt irgendetwas
+   * getan hat: Wer am Handy die Wochenziele aendert und danach am Rechner
+   * einen Satz eintraegt, verliert die Ziele stillschweigend.
+   */
+  settingsUpdatedAt?: string;
   profile: Profile;
   exercises: Exercise[];
   plans: Plan[];

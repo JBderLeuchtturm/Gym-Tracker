@@ -5,7 +5,7 @@ import { useSync } from '../../sync/SyncProvider';
 import type { Challenge, ChallengeMetric, Friend } from '../../sync/types';
 import { buildProgressShare } from '../../sync/sharePayload';
 import { addDays, formatDateShort, todayISO } from '../../lib/date';
-import { EmptyState, Modal, fmt, useToast } from '../../components/ui';
+import { DateInput, EmptyState, Modal, fmt, useToast } from '../../components/ui';
 import { IconPlus, IconTrash, IconTrophy } from '../../components/icons';
 
 const METRIC_LABELS: Record<ChallengeMetric, string> = {
@@ -199,11 +199,11 @@ function ChallengeDialog({ onClose }: { onClose: () => void }) {
         <div className="grid-2">
           <div className="field">
             <label className="field__label">{t("Von")}</label>
-            <input className="input" type="date" value={startsOn} onChange={(event) => setStartsOn(event.target.value)} />
+            <DateInput value={startsOn} onChange={setStartsOn} />
           </div>
           <div className="field">
             <label className="field__label">{t("Bis")}</label>
-            <input className="input" type="date" value={endsOn} onChange={(event) => setEndsOn(event.target.value)} />
+            <DateInput value={endsOn} onChange={setEndsOn} />
           </div>
         </div>
 
