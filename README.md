@@ -97,6 +97,17 @@ inklusive Tippfehlertoleranz: „latissimus", „kurzhantel", „bench", „bd" 
 die noch einmal mehrere tausend Übungen beisteuert. Findest du trotzdem nichts,
 legst du die Übung in zehn Sekunden selbst an.
 
+## Gestaltung
+
+Die Oberfläche folgt dem Bild eines Trainingsbuchs, nicht dem einer
+Software-Oberfläche: warme Graustufen, ein einziger Akzent, Haarlinien statt
+Schatten, kleine Radien. Farbe bedeutet etwas – erledigt, Warnung, aktiv – und
+ist nie Dekoration. Das helle Thema ist Papier, kein Weiß.
+
+Symbole sind gezeichnet, nicht aus Emoji zusammengesetzt. Wo ein Emoji auftaucht,
+hat es jemand selbst gewählt: das Profilbild, das Zeichen einer Gruppe, eine
+Reaktion auf ein Training.
+
 ## Sprache
 
 Die App erscheint auf Deutsch oder Englisch – beim ersten Start richtet sie sich

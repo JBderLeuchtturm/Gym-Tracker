@@ -2,6 +2,39 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Oberfläche von Hand nachgezogen
+
+*Branch `claude/ui-handarbeit`*
+
+Leitbild: ein Trainingsbuch, keine Software-Oberfläche. Was zählt, sind Namen
+und Zahlen — alles andere tritt zurück.
+
+**Farben und Flächen**
+- Warme Graustufen statt kühlem Blau-Violett, ein Messing-Akzent statt einer
+  Palette. Das helle Thema ist jetzt Papier, kein Weiß.
+- Hintergrundverläufe, Glanzkanten und Schlagschatten entfernt
+- Radien von 16 auf 8 Pixel, Knöpfe ohne Verlauf und Schein
+- Muskelgruppen-Farben gedämpft
+
+**Emoji raus, wo sie Dekoration waren**
+- Die Kategorie-Emoji (eine Lunge für Brust, ein Rückwärts-Pfeil für Rücken)
+  sind durch den Namen der Muskelgruppe in ihrer Farbe ersetzt
+- Leere Zustände ohne Symbol, Bestenlisten mit Platzziffer statt Medaille
+- Nutzer-Emoji bleiben: Profilbild, Gruppenzeichen und Reaktionen sind Inhalt
+
+**Dichte und Rangfolge**
+- Der Donut mit Prozentzahl ist drei Zahlen nebeneinander und einem dünnen
+  Balken gewichen
+- Der Zähler an der Übung zeigt einen Bruch statt eines kleinen Rings
+- Sieben gleichwertige Knöpfe je Übung sind auf drei geschrumpft
+- Kennzahlen ohne Kasten: Beschriftung, Linie, Zahl
+
+**Behoben**
+- Der Tagesstreifen war im hellen Thema praktisch unsichtbar
+- Der Trainingskalender hatte keine Orientierung – jetzt mit Monatsmarken
+- Haken und Schieber folgten dem Browser-Blau statt dem Akzent
+- Zwei Bedienelemente hießen für Screenreader gleich
+
 ## Zweite Runde aus der Ideensammlung
 
 *Branch `claude/zweite-runde`*
