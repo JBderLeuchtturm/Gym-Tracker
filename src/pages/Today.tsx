@@ -6,6 +6,7 @@ import {
   startOfWeek, todayISO, weekdayOf,
 } from '../lib/date';
 import { calcWorkoutBurn } from '../lib/calories';
+import { formatSet } from '../lib/setFormat';
 import { detectRecord, suggestWeight, warmupSets, type NewRecord } from '../lib/coaching';
 import { cycleLabel, cycleWeight, isDeload } from '../lib/cycle';
 import {
@@ -38,7 +39,7 @@ import {
   REGION_LABELS, fitsEquipment, regionsOf, suggestForRegion, type MuscleRegion,
 } from '../lib/muscles';
 import {
-  ConfirmDialog, DateInput, EmptyState, Modal, NumberInput, fmt, useToast,
+  ConfirmDialog, DateInput, EmptyState, Modal, NumberInput, Section, fmt, useToast,
 } from '../components/ui';
 import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { CATEGORY_LABELS } from '../data/catalog';
@@ -77,7 +78,7 @@ const newSet = (partial: Partial<SetLog> = {}): SetLog => ({
 
 /* ------------------------------------------------------------------ Seite */
 
-export function TodayPage() {
+export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void }) {
   const {
     state, getExercise, upsertWorkout, deleteWorkout, snapshot, replaceState, updateSettings,
   } = useStore();
@@ -93,6 +94,7 @@ export function TodayPage() {
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
   const [sortMode, setSortMode] = useState(false);
   const [record, setRecord] = useState<{ name: string; record: NewRecord } | null>(null);
+  const [flashSet, setFlashSet] = useState<string | null>(null);
 
   const plan = state.plans.find((item) => item.id === state.activePlanId) ?? null;
   const planDay = plan?.days[weekdayOf(date)] ?? null;
@@ -221,9 +223,11 @@ export function TodayPage() {
     navigator.vibrate?.(18);
 
     // Ist der Satz eine Bestleistung? Dann kurz feiern.
-    const beaten = detectRecord(state, row.exerciseId, target, date);
+    const beaten = detectRecord(state, row.exerciseId, target, date, row.exercise?.kind);
     if (beaten) {
       setRecord({ name: exerciseName(row.exercise), record: beaten });
+      setFlashSet(setId);
+      window.setTimeout(() => setFlashSet((current) => (current === setId ? null : current)), 1400);
       navigator.vibrate?.([25, 40, 25]);
     }
 
@@ -465,36 +469,37 @@ export function TodayPage() {
 
   return (
     <>
-      <WeekStrip date={date} onSelect={setDate} workouts={state.workouts} />
+      {/*
+        * Wochenleiste und Tagesnavigation sagten dasselbe: beide wechseln den
+        * Tag. Jetzt eine Zeile - die Pfeile springen eine ganze Woche, jeder
+        * Tag darin ist ohnehin einen Tipper weit weg.
+        */}
+      <WeekStrip
+        date={date}
+        onSelect={setDate}
+        workouts={state.workouts}
+        onShiftWeek={(direction) => setDate(addDays(date, direction * 7))}
+      />
 
-      <div className="row row--between">
-        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, -1))} aria-label={t("Vorheriger Tag")}>
-          <IconChevronLeft />
-        </button>
-        <div className="center" style={{ flex: 1, minWidth: 0 }}>
-          <div className="bold">{relativeDayLabel(date)}</div>
-          <div className="tiny dim">
-            {planDay && !planDay.isRestDay ? t(planDay.title) : planDay ? t('Ruhetag laut Plan') : t('Kein Plan aktiv')}
-          </div>
-        </div>
-        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, 1))} aria-label={t("Nächster Tag")}>
-          <IconChevronRight />
-        </button>
-      </div>
-
-      {date !== todayISO() && (
-        <button className="btn btn--sm" style={{ alignSelf: 'center' }} onClick={() => setDate(todayISO())}>
-          {t('Zurück zu heute')}
-        </button>
-      )}
-
-      {cycleLabel(plan, date) && (
-        <div className="row" style={{ justifyContent: 'center' }}>
-          <span className={`chip ${isDeload(plan?.cycle, date) ? 'chip--warn' : 'chip--accent'}`}>
+      <div className="dayline">
+        <span className="dayline__name">{relativeDayLabel(date)}</span>
+        <span className="dayline__plan">
+          {planDay && !planDay.isRestDay ? t(planDay.title) : planDay ? t('Ruhetag laut Plan') : t('Kein Plan aktiv')}
+        </span>
+        {cycleLabel(plan, date) && (
+          <span className={`chip ${isDeload(plan?.cycle, date) ? 'chip--warn' : ''}`}>
             {cycleLabel(plan, date)}
           </span>
-        </div>
-      )}
+        )}
+        {date !== todayISO() && (
+          <button className="btn btn--sm btn--ghost" onClick={() => setDate(todayISO())}>
+            {t('Zurück zu heute')}
+          </button>
+        )}
+      </div>
+
+      <div className="split">
+      <div className="split__main">
 
       {(stats.sets > 0 || rows.length > 0) && (
         <div className="tally">
@@ -554,6 +559,8 @@ export function TodayPage() {
         <EmptyState
           title={planDay?.isRestDay ? t('Heute ist Ruhetag') : t('Für heute ist nichts geplant')}
           hint={t('Du kannst trotzdem jederzeit eine Übung hinzufügen.')}
+          actionLabel={onNavigate ? t('Plan für heute anlegen') : undefined}
+          onAction={onNavigate ? () => onNavigate('plans') : undefined}
         />
       )}
 
@@ -567,6 +574,7 @@ export function TodayPage() {
             date={date}
             sortMode={sortMode}
             groupedWithAbove={index > 0 && !!row.groupId && row.groupId === rows[index - 1].groupId}
+            flashSet={flashSet}
             onToggleSet={(setId) => toggleSet(row, setId)}
             onUpdate={updateRow}
             onAddSet={() => addSet(row)}
@@ -584,15 +592,17 @@ export function TodayPage() {
         <IconPlus /> {t('Übung hinzufügen')}
       </button>
 
-      <WeatherNote rows={rows} date={date} />
+      </div>
+      <div className="split__side">
 
-      <GuidePrefetch rows={rows} />
+      <WeatherNote rows={rows} date={date} />
 
       <SessionMuscles rows={rows} />
 
+      <GuidePrefetch rows={rows} />
+
       {workout && (
-        <div className="card">
-          <div className="section-label" style={{ marginBottom: 10 }}>{t("Training")}</div>
+        <Section title={t("Training")}>
           <div className="grid-2">
             <div className="field">
               <label className="field__label">{t("Dauer (min)")}</label>
@@ -637,8 +647,11 @@ export function TodayPage() {
             <IconTrash /> {t('Training löschen')}
           </button>
           </div>
-        </div>
+        </Section>
       )}
+
+      </div>
+      </div>
 
       {moveOpen && workout && (
         <MoveWorkoutDialog
@@ -715,11 +728,12 @@ export function TodayPage() {
 /* ----------------------------------------------------------- Wochenleiste */
 
 function WeekStrip({
-  date, onSelect, workouts,
+  date, onSelect, workouts, onShiftWeek,
 }: {
   date: string;
   onSelect: (date: string) => void;
   workouts: Workout[];
+  onShiftWeek: (direction: -1 | 1) => void;
 }) {
   const monday = startOfWeek(date);
   const today = todayISO();
@@ -730,6 +744,14 @@ function WeekStrip({
 
   return (
     <div className="day-strip">
+      <button
+        className="day-strip__arrow"
+        onClick={() => onShiftWeek(-1)}
+        aria-label={t('Woche zurück')}
+      >
+        <IconChevronLeft />
+      </button>
+
       {Array.from({ length: 7 }, (_, index) => {
         const day = addDays(monday, index);
         const classes = [
@@ -745,6 +767,14 @@ function WeekStrip({
           </button>
         );
       })}
+
+      <button
+        className="day-strip__arrow"
+        onClick={() => onShiftWeek(1)}
+        aria-label={t('Woche vor')}
+      >
+        <IconChevronRight />
+      </button>
     </div>
   );
 }
@@ -752,7 +782,7 @@ function WeekStrip({
 /* ------------------------------------------------------------- Übungskarte */
 
 function ExerciseCard({
-  row, index, total, date, sortMode, groupedWithAbove,
+  row, index, total, date, sortMode, groupedWithAbove, flashSet,
   onToggleSet, onUpdate, onAddSet, onRemove, onOpenDetail, onSwap, onStartRest, onMove, onToggleSuperset,
 }: {
   row: Row;
@@ -770,6 +800,8 @@ function ExerciseCard({
   onStartRest: (seconds: number) => void;
   onMove: (direction: -1 | 1) => void;
   onToggleSuperset: () => void;
+  /** Satz, an dem gerade eine Bestleistung passiert ist. */
+  flashSet?: string | null;
 }) {
   const { state, snapshot, replaceState } = useStore();
   const toast = useToast();
@@ -900,13 +932,18 @@ function ExerciseCard({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="exercise__name">{exerciseName(row.exercise)}</div>
           <div className="exercise__meta">
-            {/* Die Muskelgruppe traegt ihre Farbe - das ordnet ein, ohne ein Symbol zu erfinden. */}
-            <span style={{ color: accent, fontWeight: 600 }}>
+            {/*
+              * Die Muskelgruppe bekommt einen Punkt in ihrer Farbe, der Name
+              * bleibt neutral. Farbe im Text traegt sonst eine Bedeutung, die
+              * sie hier nicht hat - "Brust" sah aus wie eine Fehlermeldung.
+              */}
+            <span className="cat-dot" style={{ '--cat': accent } as React.CSSProperties} />
+            <span style={{ fontWeight: 550 }}>
               {t(CATEGORY_LABELS[row.exercise?.category ?? 'other'])}
             </span>
             {` · ${targetText}`}
             {previous
-              ? ` · ${t('zuletzt')} ${formatDateShort(previous.date)}: ${summarizeSets(previous.sets, isTimed)}`
+              ? ` · ${t('zuletzt')} ${formatDateShort(previous.date)}: ${summarizeSets(previous.sets, isTimed, row.exercise?.kind)}`
               : ` · ${t('noch keine Vorleistung')}`}
           </div>
         </div>
@@ -926,11 +963,17 @@ function ExerciseCard({
         </div>
       </div>
 
-      {open && (
+      {/*
+        * Die Karte klappt auf, statt zu erscheinen. Animiert wird die Zeilenhoehe
+        * eines Rasters von 0fr auf 1fr - der einzige Weg, in reinem CSS auf eine
+        * Hoehe zu blenden, die man vorher nicht kennt.
+        */}
+      <div className={`reveal ${open ? 'reveal--open' : ''}`}>
+      <div className="reveal__inner">
         <div className="exercise__body">
           {previous && (
             <div className="row row--wrap tiny" style={{ gap: 6, padding: '10px 0 2px' }}>
-              <span className="chip">Letztes Mal: {summarizeSets(previous.sets, isTimed)}</span>
+              <span className="chip">Letztes Mal: {summarizeSets(previous.sets, isTimed, row.exercise?.kind)}</span>
               {previous.best1RM > 0 && <span className="chip">1RM ≈ {fmt(previous.best1RM, 1)} kg</span>}
               {suggestion && suggestion.direction !== 'hold' && (
                 <button
@@ -949,6 +992,7 @@ function ExerciseCard({
             </div>
           )}
 
+          {/* Die Einheit steht einmal ueber der Spalte, nicht in jedem Feld. */}
           <div className="set-header">
             <span>#</span>
             <span>{isTimed ? t('Sek.') : t('kg')}</span>
@@ -964,6 +1008,12 @@ function ExerciseCard({
                 'set-row',
                 set.done ? 'set-row--done' : '',
                 set.forPartner ? 'set-row--partner' : '',
+                // Genau eine Zeile ist die naechste - wer zwischen zwei
+                // Saetzen aufs Handy schaut, sucht sie.
+                set.id === currentSet?.id && !set.done ? 'set-row--next' : '',
+                // Kurzes Aufblitzen dort, wo die Bestleistung passiert ist -
+                // die Meldung am unteren Rand sieht man sonst gar nicht.
+                set.id === flashSet ? 'set-row--record' : '',
               ].filter(Boolean).join(' ')}
             >
               <button
@@ -982,7 +1032,6 @@ function ExerciseCard({
                       value={set.durationSec}
                       ariaLabel={t('Dauer in Sekunden')}
                       onChange={(value) => patchSet(set.id, { durationSec: value })}
-                      placeholder={t("Sek.")}
                     />
                     {(set.durationSec ?? 0) > 0 && !set.done && (
                       <HoldCountdown
@@ -996,7 +1045,6 @@ function ExerciseCard({
                     value={set.distanceKm}
                     ariaLabel={t('Distanz in Kilometern')}
                     onChange={(value) => patchSet(set.id, { distanceKm: value })}
-                    placeholder={t("km")}
                   />
                 </>
               ) : (
@@ -1005,14 +1053,12 @@ function ExerciseCard({
                     value={set.weightKg}
                     ariaLabel={t('Gewicht in Kilogramm')}
                     onChange={(value) => patchSet(set.id, { weightKg: value })}
-                    placeholder={t("kg")}
                     step={2.5}
                   />
                   <NumberInput
                     value={set.reps}
                     ariaLabel={t('Wiederholungen')}
                     onChange={(value) => patchSet(set.id, { reps: value })}
-                    placeholder={t("Wdh")}
                   />
                 </>
               )}
@@ -1162,7 +1208,8 @@ function ExerciseCard({
             </div>
           )}
         </div>
-      )}
+      </div>
+      </div>
     </div>
   );
 }
@@ -1188,7 +1235,7 @@ function PlateHint({ exercise, weightKg }: { exercise: Exercise | undefined; wei
 }
 
 /** Fasst Sätze kompakt zusammen, z. B. "3 × 80 kg × 8". */
-function summarizeSets(sets: SetLog[], isTimed: boolean): string {
+function summarizeSets(sets: SetLog[], isTimed: boolean, kind?: Exercise['kind']): string {
   if (sets.length === 0) return '–';
   if (isTimed) {
     return sets
@@ -1208,7 +1255,7 @@ function summarizeSets(sets: SetLog[], isTimed: boolean): string {
 
   return groups
     .slice(0, 3)
-    .map((group) => `${group.count > 1 ? `${group.count}× ` : ''}${fmt(group.weight, group.weight % 1 === 0 ? 0 : 1)} kg × ${group.reps}`)
+    .map((group) => `${group.count > 1 ? `${group.count}× ` : ''}${formatSet(group.weight, group.reps, kind)}`)
     .join(', ');
 }
 
@@ -1478,6 +1525,8 @@ function GuidePrefetch({ rows }: { rows: Row[] }) {
  * was schon abgehakt wurde, blass das, was noch aussteht.
  */
 function SessionMuscles({ rows }: { rows: Row[] }) {
+  const [mapOpen, setMapOpen] = useState(false);
+
   const { done, planned } = useMemo(() => {
     const doneRegions = new Set<MuscleRegion>();
     const plannedRegions = new Set<MuscleRegion>();
@@ -1501,21 +1550,49 @@ function SessionMuscles({ rows }: { rows: Row[] }) {
   };
 
   return (
-    <div className="card">
-      <div className="card__header">
-        <div className="card__title">{t("Heute beansprucht")}</div>
-        <span className="tiny dim">{t("kräftig = schon trainiert")}</span>
-      </div>
-      <BodyMap intensity={intensity} size={130} />
-      <div className="muscle-legend" style={{ marginTop: 10 }}>
-        {[...done].map((region) => (
-          <span key={region} className="chip chip--accent">{t(REGION_LABELS[region])}</span>
-        ))}
-        {[...planned].map((region) => (
-          <span key={region} className="chip">{t(REGION_LABELS[region])}</span>
-        ))}
-      </div>
-    </div>
+    <Section
+      title={t("Heute beansprucht")}
+      note={(
+        <button
+          className="btn btn--sm btn--ghost"
+          onClick={() => setMapOpen(!mapOpen)}
+          aria-expanded={mapOpen}
+        >
+          {mapOpen ? t('Liste') : t('Karte')}
+        </button>
+      )}
+    >
+
+      {/*
+        * Zwei ganze Koerper unter der Satzliste waren auf dem Handy fast ein
+        * Bildschirm. Als Zeile mit Punkten steht dieselbe Auskunft in einem
+        * Zehntel des Platzes; die grosse Ansicht ist einen Tipper entfernt und
+        * bleibt in der Uebungsansicht ohnehin.
+        */}
+      {mapOpen ? (
+        <>
+          <BodyMap intensity={intensity} size={130} />
+          <div className="tiny dim center" style={{ marginTop: 8 }}>
+            {t("kräftig = schon trainiert")}
+          </div>
+        </>
+      ) : (
+        <div className="muscle-strip">
+          {[...done].map((region) => (
+            <span key={region} className="muscle-strip__item muscle-strip__item--done">
+              <span className="muscle-strip__dot" />
+              {t(REGION_LABELS[region])}
+            </span>
+          ))}
+          {[...planned].map((region) => (
+            <span key={region} className="muscle-strip__item">
+              <span className="muscle-strip__dot" />
+              {t(REGION_LABELS[region])}
+            </span>
+          ))}
+        </div>
+      )}
+    </Section>
   );
 }
 
@@ -1584,9 +1661,11 @@ function SwapDialog({
             <span style={{ flex: 1, minWidth: 0 }}>
               <span className="search-result__name">{exerciseName(exercise)}</span>
               <span className="search-result__meta" style={{ display: 'block' }}>
-                <span style={{ color: categoryColor(exercise.category), fontWeight: 600 }}>
-                  {t(CATEGORY_LABELS[exercise.category])}
-                </span>
+                <span
+                  className="cat-dot"
+                  style={{ '--cat': categoryColor(exercise.category) } as React.CSSProperties}
+                />
+                <span style={{ fontWeight: 550 }}>{t(CATEGORY_LABELS[exercise.category])}</span>
                 {` · ${exercise.equipment.length > 0 ? exercise.equipment.join(', ') : t('ohne Gerät')}`}
               </span>
             </span>

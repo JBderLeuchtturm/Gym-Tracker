@@ -115,7 +115,7 @@ export function MuscleMap({
       aria-label={view === 'front' ? t('Körper von vorne') : t('Körper von hinten')}
       style={{ maxWidth: '100%', height: 'auto' }}
     >
-      <g fill="var(--surface-2)" stroke="var(--border)" strokeWidth="1.1" pointerEvents="none">
+      <g fill="var(--body-fill)" stroke="var(--body-line)" strokeWidth="1.2" pointerEvents="none">
         {SILHOUETTE_CENTER.map((d, index) => <path key={`c${index}`} d={d} />)}
         {SILHOUETTE_CENTER.map((d, index) => (
           <path key={`cm${index}`} d={d} transform="translate(200,0) scale(-1,1)" />
@@ -150,7 +150,7 @@ export function MuscleMap({
               d={shape.d}
               fill={fill}
               fillOpacity={opacity}
-              stroke={isSelected ? 'var(--text)' : 'var(--border)'}
+              stroke={isSelected ? 'var(--text)' : 'var(--body-line)'}
               strokeWidth={isSelected ? 1.6 : 0.7}
             />
             {shape.mirror && (
@@ -159,7 +159,7 @@ export function MuscleMap({
                 transform="translate(200,0) scale(-1,1)"
                 fill={fill}
                 fillOpacity={opacity}
-                stroke={isSelected ? 'var(--text)' : 'var(--border)'}
+                stroke={isSelected ? 'var(--text)' : 'var(--body-line)'}
                 strokeWidth={isSelected ? 1.6 : 0.7}
               />
             )}

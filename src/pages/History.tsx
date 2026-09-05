@@ -5,6 +5,7 @@ import {
   WEEKDAY_SHORT, addDays, formatDateLong, formatClock, parseISODate, startOfWeek, todayISO,
 } from '../lib/date';
 import { workoutSetCount, workoutVolume } from '../lib/stats';
+import { formatSet } from '../lib/setFormat';
 import { useStore } from '../storage/store';
 import { EmptyState, Modal, fmt } from '../components/ui';
 import { IconChevronRight, IconFlame, IconTrash } from '../components/icons';
@@ -183,7 +184,7 @@ export function HistoryPage() {
                           <td className="mono">
                             {set.durationSec
                               ? formatClock(set.durationSec)
-                              : `${fmt(set.weightKg ?? 0, 1)} kg × ${set.reps ?? 0}`}
+                              : formatSet(set.weightKg, set.reps, getExercise(logged.exerciseId)?.kind)}
                           </td>
                           <td className="right dim">{set.rpe ? `RPE ${set.rpe}` : ''}</td>
                         </tr>

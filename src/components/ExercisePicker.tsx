@@ -242,9 +242,11 @@ export function ExercisePicker({
             <span style={{ flex: 1, minWidth: 0 }}>
               <span className="search-result__name">{exerciseName(exercise)}</span>
               <span className="search-result__meta" style={{ display: 'block' }}>
-                <span style={{ color: categoryColor(exercise.category), fontWeight: 600 }}>
-                  {t(CATEGORY_LABELS[exercise.category])}
-                </span>
+                <span
+                  className="cat-dot"
+                  style={{ '--cat': categoryColor(exercise.category) } as React.CSSProperties}
+                />
+                <span style={{ fontWeight: 550 }}>{t(CATEGORY_LABELS[exercise.category])}</span>
                 {describeRest(exercise)}
               </span>
             </span>
@@ -271,9 +273,11 @@ export function ExercisePicker({
             <span style={{ flex: 1, minWidth: 0 }}>
               <span className="search-result__name">{exerciseName(exercise)}</span>
               <span className="search-result__meta" style={{ display: 'block' }}>
-                <span style={{ color: categoryColor(exercise.category), fontWeight: 600 }}>
-                  {t(CATEGORY_LABELS[exercise.category])}
-                </span>
+                <span
+                  className="cat-dot"
+                  style={{ '--cat': categoryColor(exercise.category) } as React.CSSProperties}
+                />
+                <span style={{ fontWeight: 550 }}>{t(CATEGORY_LABELS[exercise.category])}</span>
                 {describeRest(exercise)}{reason ? ` · ${reason}` : ''}
               </span>
             </span>
@@ -303,9 +307,11 @@ export function ExercisePicker({
             <span style={{ flex: 1, minWidth: 0 }}>
               <span className="search-result__name">{exerciseName(exercise)}</span>
               <span className="search-result__meta" style={{ display: 'block' }}>
-                <span style={{ color: categoryColor(exercise.category), fontWeight: 600 }}>
-                  {t(CATEGORY_LABELS[exercise.category])}
-                </span>
+                <span
+                  className="cat-dot"
+                  style={{ '--cat': categoryColor(exercise.category) } as React.CSSProperties}
+                />
+                <span style={{ fontWeight: 550 }}>{t(CATEGORY_LABELS[exercise.category])}</span>
                 {` · ${t('online')}`}
               </span>
             </span>

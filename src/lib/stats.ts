@@ -1,5 +1,6 @@
-import type { AppState, ID, LoggedExercise, SetLog, Workout } from '../types';
+import type { AppState, Exercise, ID, LoggedExercise, SetLog, Workout } from '../types';
 import { weekKey } from './date';
+import { formatSet } from './setFormat';
 
 /** Volumen eines Satzes (Gewicht x Wiederholungen). */
 /**
@@ -326,8 +327,9 @@ export function buildReview(
   fromDate: string,
   toDate: string,
   previousFrom: string,
-  getName: (id: ID) => string | undefined,
-  getCategory: (id: ID) => string,
+  /* Ein Nachschlagen statt drei Rueckrufe - Name, Kategorie und Art kommen
+   * alle aus derselben Uebung. */
+  lookup: (id: ID) => Exercise | undefined,
 ): Review {
   const done = state.workouts.filter((workout) => workoutSetCount(workout) > 0);
   const current = done.filter((workout) => workout.date >= fromDate && workout.date <= toDate);
@@ -344,8 +346,8 @@ export function buildReview(
     const peak = best.maxWeight ?? null;
     if (peak && peak.date >= fromDate && peak.date <= toDate) {
       records.push({
-        name: getName(id) ?? 'Übung',
-        value: `${peak.value.toLocaleString('de-DE', { maximumFractionDigits: 1 })} kg × ${peak.reps}`,
+        name: lookup(id)?.name ?? 'Übung',
+        value: formatSet(peak.value, peak.reps, lookup(id)?.kind),
         date: peak.date,
       });
     }
@@ -355,7 +357,7 @@ export function buildReview(
   const focusMap = new Map<string, number>();
   for (const workout of current) {
     for (const logged of workout.exercises) {
-      const category = getCategory(logged.exerciseId);
+      const category = (lookup(logged.exerciseId)?.category ?? 'other');
       const sets = logged.sets.filter(countsAsWork).length;
       if (sets > 0) focusMap.set(category, (focusMap.get(category) ?? 0) + sets);
     }

@@ -8,6 +8,7 @@ import {
 } from '../sync/sharePayload';
 import { hasOverride, saveOverride } from '../sync/config';
 import { categoryColor } from '../lib/categoryColors';
+import { formatSet } from '../lib/setFormat';
 import { ActivityFeed } from './friends/ActivityFeed';
 import { GroupsSection } from './friends/GroupsSection';
 import { ChallengesSection } from './friends/ChallengesSection';
@@ -18,7 +19,7 @@ import { BarChart, LineChart, Sparkline } from '../components/charts/Charts';
 import { EmptyState, Modal, Stat, fmt, useToast } from '../components/ui';
 import {
   IconBell, IconCheck, IconChevronRight, IconCopy, IconPlus, IconRefresh,
-  IconTrash, IconTrophy, IconUser, IconX,
+  IconTrash, IconTrophy, IconUser, IconUsers, IconX,
 } from '../components/icons';
 
 const SCOPES: ShareScope[] = ['progress', 'weight', 'nutrition'];
@@ -43,20 +44,82 @@ export function FriendsPage() {
 
 /* ------------------------------------------------- Noch nicht eingerichtet */
 
+/** Was die Funktion kann - in einem Satz je Punkt. */
+const WHAT_YOU_GET: Array<{ title: string; text: string }> = [
+  {
+    title: 'Sehen, wie es bei den anderen läuft',
+    text: 'Trainings der Freunde in einer Liste, mit Reaktion und Kommentar.',
+  },
+  {
+    title: 'Vergleichen, wo es sich lohnt',
+    text: 'Gemeinsame Übungen nebeneinander – wer bei was gerade wo steht.',
+  },
+  {
+    title: 'Gemeinsame Ziele über ein paar Wochen',
+    text: 'Challenges auf Anzahl Trainings, Sätze oder bewegtes Gewicht.',
+  },
+  {
+    title: 'Pläne weitergeben',
+    text: 'Einen Wochenplan als Baustein verschicken, samt eigener Übungen.',
+  },
+  {
+    title: 'Deine Daten auf allen Geräten',
+    text: 'Handy und Rechner führen ihre Stände zusammen, ohne dass etwas verloren geht.',
+  },
+  {
+    title: 'Du entscheidest, was sichtbar ist',
+    text: 'Fortschritt, Gewicht und Kalorien werden einzeln freigegeben – je Freund.',
+  },
+];
+
+/**
+ * Der erste Bildschirm, wenn noch kein Konto eingerichtet ist.
+ *
+ * Vorher standen hier sofort vier Schritte mit SQL-Editor und anon-Schluessel -
+ * eine Einrichtungsanleitung fuer etwas, von dem man noch gar nicht weiss, was
+ * es kann. Deshalb erst, wozu es gut ist, und die Anleitung dahinter.
+ */
 function SetupNotice() {
   const toast = useToast();
   const [url, setUrl] = useState('');
   const [key, setKey] = useState('');
+  const [howOpen, setHowOpen] = useState(false);
 
   return (
     <>
       <div className="card">
-        <div className="card__title" style={{ marginBottom: 8 }}><IconUser /> {t("Freunde & Synchronisierung")}</div>
-        <p className="small muted">
-          Damit du Trainings mit Freunden teilen kannst, braucht die App einen gemeinsamen
-          Speicherort. Dafür ist ein kostenloses Supabase-Projekt vorgesehen – ohne Kreditkarte,
-          und du bleibst Eigentümer der Daten.
+        <div className="card__title" style={{ marginBottom: 8 }}><IconUsers /> {t("Zu zweit macht es mehr her")}</div>
+        <p className="small muted" style={{ marginTop: 0 }}>
+          {t('Der Tracker läuft ohne Konto vollständig. Mit einem kommt dazu:')}
         </p>
+
+        <div className="list" style={{ marginTop: 12, gap: 11 }}>
+          {WHAT_YOU_GET.map((item) => (
+            <div key={item.title}>
+              <div className="small bold">{t(item.title)}</div>
+              <div className="tiny dim" style={{ marginTop: 2 }}>{t(item.text)}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hint-box" style={{ marginTop: 14 }}>
+          <div className="small">
+            {t('Dafür braucht es einen gemeinsamen Speicherort. Vorgesehen ist ein kostenloses Supabase-Projekt – ohne Kreditkarte, und die Daten gehören weiter dir.')}
+          </div>
+          <button
+            className="btn btn--sm"
+            style={{ marginTop: 10 }}
+            onClick={() => setHowOpen(!howOpen)}
+            aria-expanded={howOpen}
+          >
+            {howOpen ? t('Anleitung ausblenden') : t('Wie richte ich das ein?')}
+          </button>
+        </div>
+      </div>
+
+      {howOpen && (
+      <div className="card">
+        <div className="card__title" style={{ marginBottom: 8 }}><IconUser /> {t("Einrichten, etwa fünf Minuten")}</div>
         <ol className="small muted" style={{ paddingLeft: 18, margin: '10px 0 0' }}>
           <li style={{ marginBottom: 6 }}>
             Auf <strong>{t("supabase.com")}</strong> anmelden und ein neues Projekt anlegen.
@@ -75,7 +138,9 @@ function SetupNotice() {
           </li>
         </ol>
       </div>
+      )}
 
+      {howOpen && (
       <div className="card">
         <div className="card__title" style={{ marginBottom: 4 }}>{t("Nur zum Ausprobieren")}</div>
         <div className="tiny dim" style={{ marginBottom: 10 }}>
@@ -111,6 +176,7 @@ function SetupNotice() {
           )}
         </div>
       </div>
+      )}
     </>
   );
 }
@@ -855,10 +921,10 @@ function FriendDetail({
                             <span className="search-result__name">{exercise.name}</span>
                             <span className="search-result__meta" style={{ display: 'block' }}>
                               {exercise.sessions} Einheiten
-                              {exercise.bestWeight > 0
-                                ? ` · ${fmt(exercise.bestWeight, 1)} kg × ${exercise.bestReps}`
-                                : exercise.bestDurationSec > 0
-                                  ? ` · ${formatClock(exercise.bestDurationSec)}`
+                              {exercise.bestDurationSec > 0
+                                ? ` · ${formatClock(exercise.bestDurationSec)}`
+                                : exercise.bestWeight > 0 || exercise.bestReps > 0
+                                  ? ` · ${formatSet(exercise.bestWeight, exercise.bestReps)}`
                                   : ''}
                             </span>
                           </span>

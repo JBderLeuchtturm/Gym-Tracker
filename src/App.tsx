@@ -20,6 +20,7 @@ import { useSync } from './sync/SyncProvider';
 import { applyUpdate, onUpdateAvailable } from './lib/appUpdate';
 import { workoutSetCount } from './lib/stats';
 import { formatDateLong, todayISO, weekdayOf } from './lib/date';
+import { PageSkeleton } from './components/ui';
 import { IconCalendar, IconChart, IconDumbbell, IconFlame, IconUser } from './components/icons';
 import { IconUsers } from './components/icons';
 
@@ -140,8 +141,17 @@ export function App() {
         </div>
       )}
 
-      <main className="page" id="inhalt" tabIndex={-1}>
-        <Suspense fallback={<div className="loading-note">{t('einen Moment …')}</div>}>
+      {/*
+        * Training und Auswertung stellen auf breiten Fenstern zwei Spalten
+        * nebeneinander und duerfen dafuer breiter sein. Alles andere bleibt
+        * auf Lesebreite.
+        */}
+      <main
+        className={`page ${!historyOpen && (tab === 'today' || tab === 'progress') ? 'page--split' : ''}`}
+        id="inhalt"
+        tabIndex={-1}
+      >
+        <Suspense fallback={<PageSkeleton />}>
           {historyOpen ? (
             <>
               <button className="btn btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => setHistoryOpen(false)}>
@@ -151,7 +161,7 @@ export function App() {
             </>
           ) : (
             <>
-              {tab === 'today' && <TodayPage />}
+              {tab === 'today' && <TodayPage onNavigate={setTab} />}
               {tab === 'plans' && <PlansPage />}
               {tab === 'progress' && <ProgressPage />}
               {tab === 'calories' && <CaloriesPage />}

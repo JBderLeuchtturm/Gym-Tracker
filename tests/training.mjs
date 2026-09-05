@@ -88,12 +88,12 @@ export async function run() {
       await page.waitForTimeout(650);
     };
 
-    for (let i = 0; i < 7; i += 1) { await page.getByLabel('Vorheriger Tag').click(); await page.waitForTimeout(110); }
+    await page.getByLabel('Woche zurück').click();
     await page.waitForTimeout(600);
     await log(60, 5);
     if (await page.locator('.record-banner').count() > 0) throw new Error('Erste Einheit darf nichts melden');
 
-    for (let i = 0; i < 7; i += 1) { await page.getByLabel('Nächster Tag').click(); await page.waitForTimeout(110); }
+    await page.getByLabel('Woche vor').click();
     await page.waitForTimeout(700);
     await log(100, 5);
     if (await page.locator('.record-banner').count() === 0) throw new Error('Keine Meldung');
@@ -107,7 +107,7 @@ export async function run() {
     errors.push(...fresh.errors);
     await toMonday();
 
-    for (let i = 0; i < 7; i += 1) { await page.getByLabel('Vorheriger Tag').click(); await page.waitForTimeout(110); }
+    await page.getByLabel('Woche zurück').click();
     await page.waitForTimeout(600);
 
     const card = bench();
@@ -123,7 +123,7 @@ export async function run() {
       await page.waitForTimeout(240);
     }
 
-    for (let i = 0; i < 7; i += 1) { await page.getByLabel('Nächster Tag').click(); await page.waitForTimeout(110); }
+    await page.getByLabel('Woche vor').click();
     await page.waitForTimeout(700);
     await openCard(bench(), page);
 

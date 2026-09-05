@@ -18,6 +18,7 @@ import { BodyMap, type Intensity } from '../components/MuscleMap';
 import { ALL_REGIONS, REGION_LABELS, suggestForRegion, type MuscleRegion } from '../lib/muscles';
 import { daysSince, loadStatus, regionLoad, targetFor } from '../lib/muscleLoad';
 import { Block, EmptyState, Section, Stat, fmt, useToast } from '../components/ui';
+import { formatSet } from '../lib/setFormat';
 import { formatClock } from '../lib/date';
 import {
   IconChevronRight, IconDownload, IconPrinter, IconSearch, IconTrophy,
@@ -41,7 +42,7 @@ function bestLabel(exercise: Exercise, records: ReturnType<typeof personalRecord
   const timed = exercise.kind === 'time' || exercise.kind === 'cardio';
   if (timed && records.maxDurationSec) return ` · Bestzeit ${formatClock(records.maxDurationSec.value)}`;
   if (!timed && records.maxWeight) {
-    return ` · Bestwert ${fmt(records.maxWeight.value, 1)} kg × ${records.maxWeight.reps}`;
+    return ` · ${t('Bestwert')} ${formatSet(records.maxWeight.value, records.maxWeight.reps, exercise.kind)}`;
   }
   if (records.maxReps) return ` · max. ${records.maxReps.value} Wdh`;
   return '';
@@ -94,7 +95,7 @@ export function ProgressPage() {
           heading: t('Fortschritt je Übung'),
           rows: trackedExercises.slice(0, 40).map((item) => [
             `${item.exercise!.name} (${item.sessions} ${t('Einheiten')})`,
-            `${item.records.maxWeight ? `${fmt(item.records.maxWeight.value, 1)} kg × ${item.records.maxWeight.reps}` : '–'}${
+            `${item.records.maxWeight ? formatSet(item.records.maxWeight.value, item.records.maxWeight.reps, item.exercise?.kind) : '–'}${
               item.trend != null ? ` · ${item.trend >= 0 ? '+' : ''}${fmt(item.trend, 0)} %` : ''}`,
           ]),
         },
@@ -155,8 +156,7 @@ export function ProgressPage() {
       addDays(todayISO(), -span),
       todayISO(),
       addDays(todayISO(), -span * 2),
-      (id) => getExercise(id)?.name,
-      (id) => getExercise(id)?.category ?? 'other',
+      getExercise,
     );
   }, [state, range, getExercise]);
 
@@ -233,18 +233,24 @@ export function ProgressPage() {
         <EmptyState
           title={t("Noch keine Trainings im Zeitraum")}
           hint={t("Sobald du Sätze abhakst, entstehen hier automatisch Auswertungen.")}
+          actionLabel={range !== 0 ? t('Ganzen Zeitraum zeigen') : undefined}
+          onAction={range !== 0 ? () => setRange(0) : undefined}
         />
       ) : (
-        <>
-          <ReviewCard review={review} label={RANGE_LABELS[range]} />
-
+        <div className="split">
+          <div className="split__main">
           <Section title={t('Woche für Woche')} note={RANGE_LABELS[range]}>
           <Block title={t("Volumen je Woche")} note={t("kg gesamt")}>
-            <BarChart points={weeklyVolumePoints} unit={t("kg")} label={t("Volumen je Woche")} />
+            <BarChart points={weeklyVolumePoints} unit={t("kg")} color="var(--time)" label={t("Volumen je Woche")} />
           </Block>
 
           <Block title={t("Sätze je Woche")} note={t("abgehakte Arbeitssätze")}>
-            <BarChart points={weeklySetPoints} color="var(--text-muted)" label={t("Sätze je Woche")} />
+            {/* Dieselbe Familie wie das Volumen, eine Stufe blasser. */}
+            <BarChart
+              points={weeklySetPoints}
+              color="color-mix(in srgb, var(--time) 52%, var(--surface-3))"
+              label={t("Sätze je Woche")}
+            />
           </Block>
 
           {trend.length > 1 && trendSeries.length > 0 && (
@@ -333,17 +339,22 @@ export function ProgressPage() {
               </div>
             )}
           </Section>
+          </div>
 
-          <MuscleLoadCard
-            workouts={workouts}
-            weekWorkouts={weekWorkouts}
-            targets={state.settings.weeklySetTargets}
-            getExercise={getExercise}
-            allExercises={allExercises}
-            rangeLabel={RANGE_LABELS[range]}
-            onOpen={setDetail}
-          />
-        </>
+          <div className="split__side">
+            <ReviewCard review={review} label={RANGE_LABELS[range]} />
+
+            <MuscleLoadCard
+              workouts={workouts}
+              weekWorkouts={weekWorkouts}
+              targets={state.settings.weeklySetTargets}
+              getExercise={getExercise}
+              allExercises={allExercises}
+              rangeLabel={RANGE_LABELS[range]}
+              onOpen={setDetail}
+            />
+          </div>
+        </div>
       )}
 
       {weightPoints.length > 1 && (
@@ -354,7 +365,7 @@ export function ProgressPage() {
           <LineChart
             points={weightPoints}
             unit={t("kg")}
-            color="var(--success)"
+            color="var(--time)"
             label={t("Körpergewicht")}
             formatValue={(value) => fmt(value, 1)}
           />
@@ -478,16 +489,23 @@ function ReviewCard({ review, label }: { review: ReturnType<typeof buildReview>;
     { name: 'Volumen', now: review.current.volume, before: review.previous.volume, unit: 'kg' },
   ];
 
-  return (
-    <div className="card">
-      <div className="card__header">
-        <div className="card__title">{t("Rückblick")}</div>
-        <span className="tiny dim">{label} gegen den Zeitraum davor</span>
-      </div>
+  /*
+   * Stand im Vorzeitraum ueberhaupt nichts, bekam vorher jede Zeile ein
+   * eigenes "neu" - dreimal dieselbe Auskunft untereinander. Einmal darueber
+   * gesagt reicht.
+   */
+  const noComparison = review.previous.workouts === 0
+    && review.previous.sets === 0
+    && review.previous.volume === 0;
 
+  return (
+    <Section
+      title={t("Rückblick")}
+      note={noComparison ? t('kein Vergleichszeitraum') : t('{label} gegen den Zeitraum davor', { label })}
+    >
       <div className="list">
         {rows.map((row) => {
-          const change = describeChange(row.now, row.before);
+          const change = noComparison ? null : describeChange(row.now, row.before);
           return (
             <div key={row.name} className="row row--between">
               <span className="small muted">{row.name}</span>
@@ -523,7 +541,7 @@ function ReviewCard({ review, label }: { review: ReturnType<typeof buildReview>;
           </div>
         </>
       )}
-    </div>
+    </Section>
   );
 }
 
@@ -617,10 +635,10 @@ function MuscleLoadCard({
   if (rangeLoad.size === 0) return null;
 
   return (
-    <div className="card">
-      <div className="card__header">
-        <div className="card__title">{t("Muskelkarte")}</div>
-        <div className="row" style={{ gap: 6 }}>
+    <Section
+      title={t("Muskelkarte")}
+      note={(
+        <span className="row" style={{ gap: 6 }}>
           <button
             className={`chip chip--button ${mode === 'week' ? 'chip--accent' : ''}`}
             onClick={() => setMode('week')}
@@ -633,9 +651,9 @@ function MuscleLoadCard({
           >
             {rangeLabel}
           </button>
-        </div>
-      </div>
-
+        </span>
+      )}
+    >
       <BodyMap
         size={150}
         selected={selected}
@@ -740,6 +758,6 @@ function MuscleLoadCard({
           )).join(', ')}
         </div>
       )}
-    </div>
+    </Section>
   );
 }

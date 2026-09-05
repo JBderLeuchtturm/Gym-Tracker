@@ -14,19 +14,26 @@ import type { ExerciseCategory } from '../types';
  * hellem Grund lesbar.
  */
 export const CATEGORY_COLORS: Record<ExerciseCategory, string> = {
-  chest: '#c4695c',      // Terrakotta
-  shoulders: '#c08a3e',  // Ocker
-  core: '#a2903f',       // Oliv
-  fullbody: '#6f9160',   // Salbei
-  arms: '#4f9184',       // Petrol
-  cardio: '#4d87a0',     // Stahlblau
-  back: '#5b7fa8',       // Graublau
-  legs: '#7d76ab',       // Staubviolett
-  mobility: '#9a6f9e',   // Malve
-  glutes: '#b06a86',     // Altrosa
-  other: '#7d7a74',      // Neutral
+  /*
+   * Der warme Bereich zwischen 0 und 45 Grad gehoert dem System: Akzent (30),
+   * Warnung (41), Gefahr (5). Terrakotta lag drei Grad neben "Gefahr", Ocker
+   * fuenf neben dem Akzent - eine Brustuebung sah aus wie ein Fehler, eine
+   * Schulteruebung wie ein Knopf. Die warmen Toene sind deshalb aus dem Weg
+   * gerueckt, und jeder Ton erreicht auf hellem wie dunklem Grund mindestens
+   * 4 zu 1.
+   */
+  chest: '#ba5e6e',      // Backstein
+  shoulders: '#7d7d36',  // Oliv
+  core: '#6a8240',       // Moos
+  fullbody: '#5a8551',   // Salbei
+  arms: '#47857c',       // Petrol
+  cardio: '#4b839b',     // Stahlblau
+  back: '#5d7ca8',       // Graublau
+  legs: '#7b72ac',       // Staubviolett
+  mobility: '#996c9d',   // Malve
+  glutes: '#a96683',     // Altrosa
+  other: '#7d7973',      // Neutral
 };
-
 export const categoryColor = (category: ExerciseCategory): string =>
   CATEGORY_COLORS[category] ?? CATEGORY_COLORS.other;
 
