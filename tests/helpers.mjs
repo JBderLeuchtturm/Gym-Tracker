@@ -16,8 +16,28 @@ export async function launchBrowser() {
  * niemals das echte Supabase-Projekt anfassen. Wird ein Mock uebergeben,
  * bekommt der Kontext Zugangsdaten und alle Aufrufe gehen an den Mock.
  */
-export async function newAppContext(browser, { backend = null, url = BASE_URL, label = '' } = {}) {
+export async function newAppContext(
+  browser,
+  { backend = null, url = BASE_URL, label = '', seed = null } = {},
+) {
   const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, locale: 'de-DE' });
+
+  /*
+   * Vorbelegter Stand fuer Pruefungen, die Verlauf brauchen. Muss vor dem
+   * Start der App im Speicher liegen: Nachtraeglich geschrieben wuerde ihn
+   * der Speicher-Rueckschreiber beim Verlassen der Seite ueberschreiben.
+   */
+  if (seed) {
+    await ctx.addInitScript((patch) => {
+      const key = 'gym-tracker:state:v1';
+      const existing = (() => {
+        try { return JSON.parse(localStorage.getItem(key)) ?? {}; } catch { return {}; }
+      })();
+      localStorage.setItem(key, JSON.stringify({
+        ...existing, ...patch, updatedAt: new Date().toISOString(),
+      }));
+    }, seed);
+  }
 
   await ctx.route('**/sync-config.json', (route) => route.fulfill({
     status: 200,

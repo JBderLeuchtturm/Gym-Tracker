@@ -25,6 +25,14 @@ export const DEFAULT_SETTINGS: Settings = {
   availableEquipment: [],
   partnerName: '',
   countdownBeep: true,
+  barWeightKg: 20,
+  plateSet: [25, 20, 15, 10, 5, 2.5, 1.25],
+  keepScreenAwake: true,
+  fullscreenRest: false,
+  useRir: false,
+  reminder: { enabled: false, time: '17:00', lastShownOn: null },
+  weather: { enabled: false, lat: null, lon: null, placeName: '' },
+  autoBackup: false,
   yazio: { bridgeUrl: '', token: '', enabled: false, lastSyncAt: null },
 };
 
@@ -110,6 +118,14 @@ export function createInitialState(): AppState {
     weightLog: [],
     measurements: [],
     nutrition: [],
-    settings: { ...DEFAULT_SETTINGS, yazio: { ...DEFAULT_SETTINGS.yazio } },
+    goals: [],
+    lastBackupAt: null,
+    settings: {
+      ...DEFAULT_SETTINGS,
+      plateSet: [...DEFAULT_SETTINGS.plateSet],
+      reminder: { ...DEFAULT_SETTINGS.reminder },
+      weather: { ...DEFAULT_SETTINGS.weather },
+      yazio: { ...DEFAULT_SETTINGS.yazio },
+    },
   };
 }

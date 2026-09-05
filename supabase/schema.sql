@@ -330,6 +330,50 @@ create policy push_subscriptions_own on public.push_subscriptions
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
+-- ------------------------------------------------------- Automatische Sicherung
+
+-- Der laufende Abgleich haelt immer nur den aktuellen Stand vor: Wer aus
+-- Versehen alles loescht, hat es danach auch am Konto geloescht. Deshalb
+-- zusaetzlich taegliche Sicherungen, aus denen sich zurueckgehen laesst.
+create table if not exists public.state_backups (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users on delete cascade,
+  -- Ein Eintrag je Tag; ein zweiter am selben Tag ersetzt den ersten.
+  created_on date not null default current_date,
+  data       jsonb not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, created_on)
+);
+
+alter table public.state_backups enable row level security;
+
+drop policy if exists state_backups_own on public.state_backups;
+create policy state_backups_own on public.state_backups
+  for all to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+-- Sicherungen sammeln sich sonst unbegrenzt an. Vierzehn Tage sind lang genug,
+-- um einen Fehler zu bemerken, und kurz genug, um nicht ins Gewicht zu fallen.
+create or replace function public.trim_state_backups()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  delete from public.state_backups
+   where user_id = new.user_id
+     and created_on < current_date - 14;
+  return new;
+end;
+$$;
+
+drop trigger if exists state_backups_trim on public.state_backups;
+create trigger state_backups_trim
+  after insert on public.state_backups
+  for each row execute function public.trim_state_backups();
+
 -- ------------------------------------------------------------ Ausfuehrrechte
 
 -- Die Hilfsfunktionen laufen mit erhoehten Rechten - deshalb bekommt sie nur,

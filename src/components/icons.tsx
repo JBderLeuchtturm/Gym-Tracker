@@ -135,3 +135,23 @@ export const IconMessage = (p: IconProps) => (
     <path d="M20.5 12.5c0 3.6-3.8 6.5-8.5 6.5-.9 0-1.8-.1-2.6-.3L4 20.5l1.4-3.6C4 15.7 3.5 14.2 3.5 12.5c0-3.6 3.8-6.5 8.5-6.5s8.5 2.9 8.5 6.5z" />
   </Base>
 );
+export const IconCalculator = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="4" y="3" width="16" height="18" rx="2.5" />
+    <path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16.5h.01M12 16.5h.01M16 16.5h.01" />
+  </Base>
+);
+export const IconExpand = (p: IconProps) => (
+  <Base {...p}><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" /></Base>
+);
+export const IconCloud = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M7.5 18h9.2a3.8 3.8 0 0 0 .3-7.6 5.5 5.5 0 0 0-10.6-1A4.3 4.3 0 0 0 7.5 18z" />
+  </Base>
+);
+export const IconBook = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 4.5h6a2.5 2.5 0 0 1 2 2.5v12a2 2 0 0 0-2-1.5H4z" />
+    <path d="M20 4.5h-6a2.5 2.5 0 0 0-2 2.5v12a2 2 0 0 1 2-1.5h6z" />
+  </Base>
+);

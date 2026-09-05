@@ -28,6 +28,13 @@ import { captureInviteFromUrl, clearPendingInvite, readPendingInvite } from './i
 const PUSH_DELAY_MS = 3500;
 const POLL_INTERVAL_MS = 90_000;
 
+/** Ein Eintrag der taeglichen Sicherung - ohne Inhalt, nur die Eckdaten. */
+export interface StateBackup {
+  id: string;
+  created_on: string;
+  created_at: string;
+}
+
 interface SyncValue {
   status: SyncStatus;
   user: User | null;
@@ -73,6 +80,12 @@ interface SyncValue {
   /** Geteilte Daten aller angenommenen Freunde, zentral geladen. */
   friendData: Record<string, FriendData>;
   syncNow: () => Promise<void>;
+
+  /** Taegliche Sicherungen am Konto - zusaetzlich zum laufenden Abgleich. */
+  backups: StateBackup[];
+  listBackups: () => Promise<StateBackup[]>;
+  backupNow: () => Promise<boolean>;
+  restoreBackup: (id: string) => Promise<boolean>;
 
   groups: Group[];
   challenges: Challenge[];
@@ -121,6 +134,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const [lastMergeNote, setLastMergeNote] = useState<string | null>(null);
+  const [backups, setBackups] = useState<StateBackup[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [reactions, setReactions] = useState<ActivityReaction[]>([]);
@@ -718,6 +732,57 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     setProfile(updated.data as RemoteProfile);
   }, [client, user]);
 
+  /* ------------------------------------------------- Automatische Sicherung */
+
+  /*
+   * Der laufende Abgleich haelt immer nur den aktuellen Stand vor. Wer aus
+   * Versehen alles loescht, hat es Sekunden spaeter auch am Konto geloescht -
+   * eine Spiegelung ist keine Sicherung. Deshalb einmal am Tag eine Kopie, aus
+   * der sich zurueckgehen laesst.
+   */
+  const listBackups = useCallback(async (): Promise<StateBackup[]> => {
+    if (!client || !user) return [];
+    const { data, error: listError } = await client
+      .from('state_backups')
+      .select('id, created_on, created_at')
+      .eq('user_id', user.id)
+      .order('created_on', { ascending: false });
+    if (listError) { setError(listError.message); return []; }
+    const rows = (data ?? []) as StateBackup[];
+    setBackups(rows);
+    return rows;
+  }, [client, user]);
+
+  const backupNow = useCallback(async (): Promise<boolean> => {
+    if (!client || !user) return false;
+    const today = new Date().toISOString().slice(0, 10);
+    const { error: writeError } = await client
+      .from('state_backups')
+      .upsert(
+        { user_id: user.id, created_on: today, data: stateRef.current },
+        { onConflict: 'user_id,created_on' },
+      );
+    if (writeError) { setError(writeError.message); return false; }
+    await listBackups();
+    return true;
+  }, [client, user, listBackups]);
+
+  const restoreBackup = useCallback(async (id: string): Promise<boolean> => {
+    if (!client || !user) return false;
+    const { data, error: readError } = await client
+      .from('state_backups')
+      .select('data')
+      .eq('id', id)
+      .maybeSingle();
+    if (readError || !data?.data) { setError(readError?.message ?? t('Sicherung nicht gefunden')); return false; }
+
+    const restored = migrate(data.data);
+    replaceState(restored);
+    stateRef.current = restored;
+    await pushState(restored);
+    return true;
+  }, [client, user, replaceState, pushState]);
+
   const syncNow = useCallback(async () => {
     setBusy(true);
     try {
@@ -783,12 +848,31 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [client, user, config?.vapidPublicKey]);
 
+  /*
+   * Einmal taeglich, sobald die App an einem neuen Tag zum ersten Mal
+   * angemeldet laeuft. Nicht bei jeder Aenderung - eine Sicherung, die
+   * sekuendlich ueberschrieben wird, sichert nichts.
+   */
+  useEffect(() => {
+    if (status !== 'signed-in' || !stateRef.current.settings.autoBackup) return;
+    const today = new Date().toISOString().slice(0, 10);
+    if ((stateRef.current.lastBackupAt ?? '').slice(0, 10) === today) return;
+
+    const timer = window.setTimeout(() => {
+      void backupNow().then((done) => {
+        if (done) replaceState({ ...stateRef.current, lastBackupAt: new Date().toISOString() });
+      });
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [status, state.updatedAt, backupNow, replaceState]);
+
   const value = useMemo<SyncValue>(() => ({
     status, user, profile, error, busy, lastSyncAt, lastMergeNote, pendingInvite, inviteNote,
     signUp, signIn, signOut, saveProfile,
     requestPasswordReset, setNewPassword, recoveryMode, endRecoveryMode,
     friends, refreshFriends, addFriend, acceptFriend, removeFriend,
     grants, setGrant, loadFriendData, friendData, syncNow,
+    backups, listBackups, backupNow, restoreBackup,
     pushStatus, enablePush, disablePush, nudgeFriends,
     groups, challenges, reactions, comments, refreshSocial,
     createGroup: doCreateGroup, joinGroup: doJoinGroup, leaveGroup: doLeaveGroup,
@@ -801,6 +885,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     requestPasswordReset, setNewPassword, recoveryMode, endRecoveryMode,
     friends, refreshFriends, addFriend, acceptFriend, removeFriend,
     grants, setGrant, loadFriendData, friendData, syncNow,
+    backups, listBackups, backupNow, restoreBackup,
     pushStatus, enablePush, disablePush, nudgeFriends,
     groups, challenges, reactions, comments, refreshSocial,
     doCreateGroup, doJoinGroup, doLeaveGroup,

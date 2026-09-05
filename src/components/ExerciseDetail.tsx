@@ -1,14 +1,20 @@
 import { exerciseName, t } from '../i18n';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Exercise } from '../types';
 import { CATEGORY_LABELS, KIND_LABELS } from '../data/catalog';
 import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { formatClock, formatDateShort, formatDateTiny } from '../lib/date';
-import { exerciseHistory, personalRecords } from '../lib/stats';
+import { exerciseHistory, familyHistory, personalRecords } from '../lib/stats';
+import { familyMembers, familyOf } from '../lib/variants';
+import { GOAL_LABELS, GOAL_UNITS, PACE_LABELS, goalPace, goalStatus } from '../lib/goals';
+import { addDays, todayISO } from '../lib/date';
+import { uid } from '../storage/defaults';
+import type { ExerciseGoal, GoalMetric } from '../types';
 import { useStore } from '../storage/store';
 import { LineChart, type Point } from './charts/Charts';
-import { Modal, Stat, fmt } from './ui';
-import { IconTrophy } from './icons';
+import { DateInput, Modal, NumberInput, Stat, fmt } from './ui';
+import { IconBook, IconTarget, IconTrophy } from './icons';
+import { cachedGuide, fetchGuide, type Guide } from '../api/guide';
 import {
   CONFIDENCE_LABELS, linearTrend, nextRoundGoal, perMonth, projectTarget,
 } from '../lib/forecast';
@@ -30,9 +36,28 @@ const METRIC_UNITS: Record<Metric, string> = {
 };
 
 export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onClose: () => void }) {
-  const { state } = useStore();
-  const history = useMemo(() => exerciseHistory(state, exercise.id), [state, exercise.id]);
+  const { state, allExercises, getExercise } = useStore();
   const records = useMemo(() => personalRecords(state, exercise.id), [state, exercise.id]);
+
+  /*
+   * Spielarten derselben Bewegung koennen zusammen betrachtet werden. Flach,
+   * schraeg und mit Kurzhanteln sind drei duenne Verlaeufe; zusammen ist es
+   * eine Linie, an der man sieht, ob es vorangeht.
+   */
+  const family = useMemo(() => familyOf(exercise, getExercise), [exercise, getExercise]);
+  const siblings = useMemo(
+    () => (family ? familyMembers(allExercises, family, getExercise) : []),
+    [family, allExercises, getExercise],
+  );
+  const [wholeFamily, setWholeFamily] = useState(false);
+  const familyIds = useMemo(() => new Set(siblings.map((item) => item.id)), [siblings]);
+
+  const history = useMemo(
+    () => (wholeFamily && familyIds.size > 1
+      ? familyHistory(state, familyIds)
+      : exerciseHistory(state, exercise.id)),
+    [state, exercise.id, wholeFamily, familyIds],
+  );
 
   const isTimed = exercise.kind === 'time' || exercise.kind === 'cardio';
   const [metric, setMetric] = useState<Metric>(isTimed ? 'duration' : '1rm');
@@ -83,6 +108,16 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
 
         {exercise.description && <p className="small muted">{exercise.description}</p>}
 
+        <GuideCard exercise={exercise} />
+
+        <PersonalNote exercise={exercise} />
+
+        <GoalCard
+          exercise={exercise}
+          familyIds={wholeFamily ? familyIds : undefined}
+          isTimed={isTimed}
+        />
+
         {history.length === 0 ? (
           <div className="empty">
                         <div>{t("Noch keine Daten zu dieser Übung")}</div>
@@ -120,6 +155,26 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
                 )}
               </div>
 
+              {siblings.length > 1 && (
+                <div className="row row--wrap" style={{ gap: 6, marginBottom: 10 }}>
+                  <button
+                    className={`chip chip--button ${wholeFamily ? '' : 'chip--accent'}`}
+                    aria-pressed={!wholeFamily}
+                    onClick={() => setWholeFamily(false)}
+                  >
+                    {t('Nur diese Übung')}
+                  </button>
+                  <button
+                    className={`chip chip--button ${wholeFamily ? 'chip--accent' : ''}`}
+                    aria-pressed={wholeFamily}
+                    onClick={() => setWholeFamily(true)}
+                    title={siblings.map((item) => item.name).join(', ')}
+                  >
+                    {t('Alle {count} Spielarten', { count: siblings.length })}
+                  </button>
+                </div>
+              )}
+
               <div className="chip-scroll" style={{ marginBottom: 10 }}>
                 {availableMetrics.map((key) => (
                   <button
@@ -135,6 +190,7 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
               <LineChart
                 points={points}
                 unit={METRIC_UNITS[metric]}
+                label={`${exerciseName(exercise)} – ${t(METRIC_LABELS[metric])}`}
                 formatValue={(value) => (metric === 'duration' ? formatClock(value) : fmt(value, 1))}
               />
             </div>
@@ -192,6 +248,295 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
         )}
       </div>
     </Modal>
+  );
+}
+
+/**
+ * Wie geht die Uebung noch mal?
+ *
+ * Text und Bilder kommen aus dem wger-Bestand und bleiben danach im Geraet -
+ * im Keller mit einem Balken Empfang ist eine Anleitung, die erst geladen
+ * werden muss, keine Anleitung. Geholt wird nur auf Ansage: wger ist ein
+ * freier Dienst, und nicht jeder, der seinen Verlauf ansieht, will nachlesen.
+ */
+function GuideCard({ exercise }: { exercise: Exercise }) {
+  const { state } = useStore();
+  const [guide, setGuide] = useState<Guide | null>(() => cachedGuide(exercise.id));
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [zoom, setZoom] = useState<string | null>(null);
+
+  useEffect(() => {
+    setGuide(cachedGuide(exercise.id));
+    setFailed(false);
+  }, [exercise.id]);
+
+  const load = async () => {
+    setLoading(true);
+    setFailed(false);
+    const result = await fetchGuide(exercise);
+    setGuide(result);
+    setFailed(result === null);
+    setLoading(false);
+  };
+
+  if (!guide && !state.settings.useWgerApi) return null;
+
+  return (
+    <div className="card">
+      <div className="card__header">
+        <div className="card__title">
+          <IconBook style={{ width: 15, height: 15, verticalAlign: '-2px' }} /> {t('Ausführung')}
+        </div>
+        {guide && (
+          <a
+            className="tiny dim"
+            href={`https://wger.de/de/exercise/${guide.baseId}/view/`}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {t('wger.de')}
+          </a>
+        )}
+      </div>
+
+      {!guide && (
+        <>
+          <button className="btn btn--sm" onClick={() => void load()} disabled={loading}>
+            {loading ? t('wird geladen …') : t('Anleitung nachschlagen')}
+          </button>
+          {failed && (
+            <div className="tiny dim" style={{ marginTop: 8 }}>
+              {t('Dazu ist im wger-Bestand nichts zu finden – oder gerade kein Netz.')}
+            </div>
+          )}
+        </>
+      )}
+
+      {guide && (
+        <>
+          {guide.images.length > 0 && (
+            <div className="guide-shots">
+              {guide.images.map((url) => (
+                <button key={url} className="guide-shots__item" onClick={() => setZoom(url)}>
+                  <img src={url} alt={t('Ausführung von {name}', { name: exerciseName(exercise) })} loading="lazy" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {guide.text && <p className="small guide-text">{guide.text}</p>}
+
+          {guide.videos.map((url) => (
+            <video key={url} className="guide-video" src={url} controls preload="none" />
+          ))}
+
+          <div className="tiny dim" style={{ marginTop: 8 }}>
+            {t('Aus der wger-Datenbank, CC BY-SA. Einmal geladen, bleibt es auch ohne Netz da.')}
+          </div>
+        </>
+      )}
+
+      {zoom && (
+        <Modal title={exerciseName(exercise)} onClose={() => setZoom(null)}>
+          <img src={zoom} alt="" style={{ width: '100%', borderRadius: 8 }} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Ein Ziel mit Datum.
+ *
+ * "100 kg bis Juni" ist die Frage, die man wirklich hat - nicht "wo stehe
+ * ich", sondern "reicht das Tempo". Die Antwort kommt aus derselben
+ * Hochrechnung wie oben und ist entsprechend zurueckhaltend formuliert: Bei
+ * duenner Datenlage sagt sie lieber nichts als etwas Erfundenes.
+ */
+function GoalCard({
+  exercise, familyIds, isTimed,
+}: {
+  exercise: Exercise;
+  familyIds?: Set<string>;
+  isTimed: boolean;
+}) {
+  const { state, addGoal, deleteGoal } = useStore();
+  const [open, setOpen] = useState(false);
+
+  const goal = (state.goals ?? []).find((item) => item.exerciseId === exercise.id) ?? null;
+  const status = useMemo(
+    () => (goal ? goalStatus(state, goal, familyIds) : null),
+    [state, goal, familyIds],
+  );
+
+  if (!goal) {
+    return (
+      <>
+        <button className="btn btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => setOpen(true)}>
+          <IconTarget /> {t('Ziel setzen')}
+        </button>
+        {open && <GoalDialog exercise={exercise} isTimed={isTimed} onClose={() => setOpen(false)} />}
+      </>
+    );
+  }
+
+  const pace = status ? goalPace(status) : 'unklar';
+  const share = status && goal.targetValue > 0
+    ? Math.min(100, (status.current / goal.targetValue) * 100)
+    : 0;
+  const unit = t(GOAL_UNITS[goal.metric]);
+
+  return (
+    <div className="card">
+      <div className="card__header">
+        <div className="card__title">
+          <IconTarget style={{ width: 15, height: 15, verticalAlign: '-2px' }} /> {t('Ziel')}
+        </div>
+        <span className={`chip ${
+          pace === 'geschafft' || pace === 'reicht' ? 'chip--success'
+            : pace === 'knapp' ? 'chip--warn'
+              : pace === 'zu wenig' ? 'chip--danger' : ''
+        }`}>
+          {t(PACE_LABELS[pace])}
+        </span>
+      </div>
+
+      <div className="row row--between" style={{ alignItems: 'baseline' }}>
+        <span className="small">{t(GOAL_LABELS[goal.metric])}</span>
+        <span className="bold mono">
+          {fmt(status?.current ?? 0, 1)} <span className="dim">{`/ ${fmt(goal.targetValue, 1)} ${unit}`}</span>
+        </span>
+      </div>
+
+      <div className="progress-bar" style={{ height: 6, marginTop: 8 }}>
+        <div className="progress-bar__fill" style={{ width: `${share}%` }} />
+      </div>
+
+      <div className="tiny dim" style={{ marginTop: 8 }}>
+        {status?.achievedOn
+          ? t('Am {date} geschafft.', { date: formatDateShort(status.achievedOn) })
+          : status?.projection
+            ? t('Bei diesem Tempo etwa am {date} – Ziel ist der {target}.', {
+                date: formatDateShort(status.projection.date),
+                target: formatDateShort(goal.targetDate),
+              })
+            : t('Bis {date}. Für eine Vorhersage fehlt noch Verlauf.', {
+                date: formatDateShort(goal.targetDate),
+              })}
+        {status && !status.achievedOn && status.daysLeft >= 0 && (
+          ` · ${t('{days} Tage', { days: status.daysLeft })}`
+        )}
+        {status && !status.achievedOn && status.daysLeft < 0 && ` · ${t('Termin vorbei')}`}
+      </div>
+
+      <div className="row" style={{ gap: 7, marginTop: 10 }}>
+        <button className="btn btn--sm" onClick={() => setOpen(true)}>{t('Ändern')}</button>
+        <button className="btn btn--sm btn--ghost" onClick={() => deleteGoal(goal.id)}>
+          {t('Ziel entfernen')}
+        </button>
+      </div>
+
+      {open && (
+        <GoalDialog
+          exercise={exercise}
+          isTimed={isTimed}
+          existing={goal}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </div>
+  );
+
+  function GoalDialog({
+    exercise: target, isTimed: timed, existing, onClose,
+  }: {
+    exercise: Exercise;
+    isTimed: boolean;
+    existing?: ExerciseGoal;
+    onClose: () => void;
+  }) {
+    const metrics: GoalMetric[] = timed
+      ? ['durationSec', 'volume', 'reps']
+      : ['oneRm', 'weight', 'reps', 'volume'];
+    const [metric, setMetric] = useState<GoalMetric>(existing?.metric ?? metrics[0]);
+    const [value, setValue] = useState<number | null>(existing?.targetValue ?? null);
+    const [date, setDate] = useState(existing?.targetDate ?? addDays(todayISO(), 90));
+
+    return (
+      <Modal title={t('Ziel für {name}', { name: exerciseName(target) })} onClose={onClose}>
+        <div className="list">
+          <div className="field">
+            <label className="field__label">{t('Worauf')}</label>
+            <select
+              className="select"
+              value={metric}
+              onChange={(event) => setMetric(event.target.value as GoalMetric)}
+            >
+              {metrics.map((key) => (
+                <option key={key} value={key}>{t(GOAL_LABELS[key])}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid-2">
+            <div className="field">
+              <label className="field__label">{t('Zielwert')} ({t(GOAL_UNITS[metric])})</label>
+              <NumberInput value={value} min={0} step={2.5} onChange={setValue} />
+            </div>
+            <div className="field">
+              <label className="field__label">{t('Bis wann')}</label>
+              <DateInput value={date} min={todayISO()} onChange={setDate} />
+            </div>
+          </div>
+
+          <button
+            className="btn btn--primary btn--block"
+            disabled={!value || value <= 0}
+            onClick={() => {
+              addGoal({
+                id: existing?.id ?? uid('goal'),
+                exerciseId: target.id,
+                metric,
+                targetValue: value ?? 0,
+                targetDate: date,
+                createdAt: existing?.createdAt ?? new Date().toISOString(),
+              });
+              onClose();
+            }}
+          >
+            {existing ? t('Ziel ändern') : t('Ziel setzen')}
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+}
+
+/**
+ * Die eigene Notiz zur Uebung - "Bank auf Stufe 3, Griff aussen".
+ *
+ * Gehoert zur Uebung, nicht zum Tag: Solche Einstellungen sind naechste Woche
+ * dieselben. Deshalb steht sie hier und nicht am einzelnen Satz.
+ */
+function PersonalNote({ exercise }: { exercise: Exercise }) {
+  const { updateExercise } = useStore();
+  const [text, setText] = useState(exercise.personalNote ?? '');
+
+  useEffect(() => { setText(exercise.personalNote ?? ''); }, [exercise.id, exercise.personalNote]);
+
+  return (
+    <div className="field">
+      <label className="field__label">{t('Deine Notiz zu dieser Übung')}</label>
+      <textarea
+        className="textarea textarea--sm"
+        value={text}
+        placeholder={t('z. B. Bank auf Stufe 3, Griff außen')}
+        onChange={(event) => setText(event.target.value)}
+        onBlur={() => updateExercise(exercise.id, { personalNote: text.trim() || undefined })}
+      />
+      <span className="field__hint">{t('Bleibt stehen, Training für Training.')}</span>
+    </div>
   );
 }
 

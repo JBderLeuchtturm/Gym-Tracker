@@ -1,12 +1,104 @@
 import { exerciseName, t } from '../i18n';
 import { useMemo, useState } from 'react';
 import { calcWorkoutBurn } from '../lib/calories';
-import { formatDateLong, formatClock } from '../lib/date';
+import {
+  WEEKDAY_SHORT, addDays, formatDateLong, formatClock, parseISODate, startOfWeek, todayISO,
+} from '../lib/date';
 import { workoutSetCount, workoutVolume } from '../lib/stats';
 import { useStore } from '../storage/store';
 import { EmptyState, Modal, fmt } from '../components/ui';
 import { IconChevronRight, IconFlame, IconTrash } from '../components/icons';
 import type { Workout } from '../types';
+
+/**
+ * Ein Wochenblatt: sieben Tage nebeneinander.
+ *
+ * Bisher musste man Tag fuer Tag blaettern, um zu sehen, wie eine Woche lief.
+ * Hier steht sie auf einen Blick - was trainiert wurde, wie viele Saetze, und
+ * welche Tage leer geblieben sind. Die leeren sind der eigentliche Punkt:
+ * Luecken sieht man nur, wenn man sie nebeneinander legt.
+ */
+function WeekSheet({ onOpen }: { onOpen: (workout: Workout) => void }) {
+  const { state } = useStore();
+  const [offset, setOffset] = useState(0);
+
+  const monday = startOfWeek(addDays(todayISO(), offset * 7));
+  const today = todayISO();
+
+  const days = useMemo(() => Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(monday, index);
+    const workout = state.workouts.find((item) => item.date === date);
+    const plan = state.plans.find((item) => item.id === state.activePlanId);
+    const planDay = plan?.days[index];
+    return {
+      date,
+      index,
+      workout: workout && workoutSetCount(workout) > 0 ? workout : null,
+      planned: planDay && !planDay.isRestDay ? planDay.title : null,
+    };
+  }), [monday, state.workouts, state.plans, state.activePlanId]);
+
+  const total = days.reduce((sum, day) => sum + (day.workout ? workoutSetCount(day.workout) : 0), 0);
+
+  return (
+    <div className="card">
+      <div className="card__header">
+        <div className="card__title">
+          {offset === 0 ? t('Diese Woche') : t('Woche ab {date}', {
+            date: parseISODate(monday).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+          })}
+        </div>
+        <span className="row" style={{ gap: 4 }}>
+          <button className="btn btn--sm btn--icon" onClick={() => setOffset(offset - 1)} aria-label={t('Woche zurück')}>‹</button>
+          {offset !== 0 && (
+            <button className="btn btn--sm" onClick={() => setOffset(0)}>{t('Heute')}</button>
+          )}
+          <button
+            className="btn btn--sm btn--icon"
+            onClick={() => setOffset(offset + 1)}
+            disabled={offset >= 0}
+            aria-label={t('Woche vor')}
+          >›</button>
+        </span>
+      </div>
+
+      <div className="weeksheet">
+        {days.map((day) => {
+          const sets = day.workout ? workoutSetCount(day.workout) : 0;
+          return (
+            <button
+              key={day.date}
+              className={[
+                'weeksheet__day',
+                day.workout ? 'weeksheet__day--done' : '',
+                day.date === today ? 'weeksheet__day--today' : '',
+                day.date > today ? 'weeksheet__day--future' : '',
+              ].filter(Boolean).join(' ')}
+              disabled={!day.workout}
+              onClick={() => day.workout && onOpen(day.workout)}
+            >
+              <span className="weeksheet__wd">{t(WEEKDAY_SHORT[day.index])}</span>
+              <span className="weeksheet__num">{parseISODate(day.date).getDate()}</span>
+              <span className="weeksheet__title">
+                {day.workout?.title || day.planned || (day.date > today ? '' : '–')}
+              </span>
+              {sets > 0 && <span className="weeksheet__sets">{sets}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="tiny dim" style={{ marginTop: 9 }}>
+        {total > 0
+          ? t('{sets} Sätze an {days} Tagen', {
+              sets: total,
+              days: days.filter((day) => day.workout).length,
+            })
+          : t('In dieser Woche steht noch nichts.')}
+      </div>
+    </div>
+  );
+}
 
 export function HistoryPage() {
   const { state, getExercise, deleteWorkout } = useStore();
@@ -40,6 +132,8 @@ export function HistoryPage() {
 
   return (
     <>
+      <WeekSheet onOpen={setOpen} />
+
       <h2>{t("Verlauf")}</h2>
       {grouped.map(([month, items]) => (
         <div key={month} className="card card--flush">

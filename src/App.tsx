@@ -1,17 +1,25 @@
 import { t } from './i18n';
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useStore } from './storage/store';
 import { TodayPage } from './pages/Today';
-import { PlansPage } from './pages/Plans';
-import { ProgressPage } from './pages/Progress';
-import { CaloriesPage } from './pages/Calories';
-import { ProfilePage } from './pages/Profile';
-import { HistoryPage } from './pages/History';
-import { FriendsPage } from './pages/Friends';
+
+/*
+ * Nur "Heute" wird mitgeliefert - das ist die Seite, auf der die App startet
+ * und auf der man neun von zehn Mal bleibt. Alles andere kommt beim ersten
+ * Antippen nach. Das spart beim Start rund die Haelfte des Programmcodes,
+ * und die Diagramme, die den groessten Teil davon ausmachen, sieht man
+ * ohnehin erst, wenn Daten da sind.
+ */
+const PlansPage = lazy(() => import('./pages/Plans').then((m) => ({ default: m.PlansPage })));
+const ProgressPage = lazy(() => import('./pages/Progress').then((m) => ({ default: m.ProgressPage })));
+const CaloriesPage = lazy(() => import('./pages/Calories').then((m) => ({ default: m.CaloriesPage })));
+const ProfilePage = lazy(() => import('./pages/Profile').then((m) => ({ default: m.ProfilePage })));
+const HistoryPage = lazy(() => import('./pages/History').then((m) => ({ default: m.HistoryPage })));
+const FriendsPage = lazy(() => import('./pages/Friends').then((m) => ({ default: m.FriendsPage })));
 import { useSync } from './sync/SyncProvider';
 import { applyUpdate, onUpdateAvailable } from './lib/appUpdate';
 import { workoutSetCount } from './lib/stats';
-import { formatDateLong, todayISO } from './lib/date';
+import { formatDateLong, todayISO, weekdayOf } from './lib/date';
 import { IconCalendar, IconChart, IconDumbbell, IconFlame, IconUser } from './components/icons';
 import { IconUsers } from './components/icons';
 
@@ -82,6 +90,9 @@ export function App() {
 
   return (
     <div className="app">
+      {/* Erste Tabulatorstelle: an der Navigation vorbei direkt in den Inhalt. */}
+      <a className="skip-link" href="#inhalt">{t('Zum Inhalt springen')}</a>
+
       <header className="topbar">
         <div className="topbar__title">
           <h1>{tab === 'today' ? greeting : title(tab)}</h1>
@@ -117,6 +128,8 @@ export function App() {
         ))}
       </nav>
 
+      <TrainingReminder onOpen={() => { setTab('today'); setHistoryOpen(false); }} />
+
       {updateReady && (
         <div className="update-banner" role="status">
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -127,25 +140,81 @@ export function App() {
         </div>
       )}
 
-      <main className="page">
-        {historyOpen ? (
-          <>
-            <button className="btn btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => setHistoryOpen(false)}>
-              ← Zurück
-            </button>
-            <HistoryPage />
-          </>
-        ) : (
-          <>
-            {tab === 'today' && <TodayPage />}
-            {tab === 'plans' && <PlansPage />}
-            {tab === 'progress' && <ProgressPage />}
-            {tab === 'calories' && <CaloriesPage />}
-            {tab === 'friends' && <FriendsPage />}
-            {tab === 'profile' && <ProfilePage />}
-          </>
-        )}
+      <main className="page" id="inhalt" tabIndex={-1}>
+        <Suspense fallback={<div className="loading-note">{t('einen Moment …')}</div>}>
+          {historyOpen ? (
+            <>
+              <button className="btn btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => setHistoryOpen(false)}>
+                ← Zurück
+              </button>
+              <HistoryPage />
+            </>
+          ) : (
+            <>
+              {tab === 'today' && <TodayPage />}
+              {tab === 'plans' && <PlansPage />}
+              {tab === 'progress' && <ProgressPage />}
+              {tab === 'calories' && <CaloriesPage />}
+              {tab === 'friends' && <FriendsPage />}
+              {tab === 'profile' && <ProfilePage />}
+            </>
+          )}
+        </Suspense>
       </main>
+    </div>
+  );
+}
+
+/**
+ * Hinweis an einem Trainingstag, an dem noch nichts eingetragen ist.
+ *
+ * Bewusst kein Versprechen von mehr: Eine Web-App kann sich nicht selbst zu
+ * einer Uhrzeit wecken, solange sie geschlossen ist. Was sie kann, ist beim
+ * Oeffnen daran erinnern - und dafuer, dass man auch ohne offene App erinnert
+ * wird, gibt es im Profil den Kalender-Export.
+ *
+ * Einmal am Tag, ab der eingestellten Uhrzeit, und nur wenn wirklich noch
+ * nichts steht.
+ */
+function TrainingReminder({ onOpen }: { onOpen: () => void }) {
+  const { state, updateSettings } = useStore();
+  const [dismissed, setDismissed] = useState(false);
+  const reminder = state.settings.reminder;
+  const today = todayISO();
+
+  const due = (() => {
+    if (!reminder.enabled || dismissed) return null;
+    if (reminder.lastShownOn === today) return null;
+
+    const plan = state.plans.find((item) => item.id === state.activePlanId);
+    const day = plan?.days[weekdayOf(today)];
+    if (!day || day.isRestDay || day.exercises.length === 0) return null;
+
+    const [hour, minute] = reminder.time.split(':').map(Number);
+    const now = new Date();
+    if (now.getHours() * 60 + now.getMinutes() < (hour || 0) * 60 + (minute || 0)) return null;
+
+    const workout = state.workouts.find((item) => item.date === today);
+    if (workout && workoutSetCount(workout) > 0) return null;
+
+    return day.title || t('Trainingstag');
+  })();
+
+  if (!due) return null;
+
+  const close = () => {
+    setDismissed(true);
+    updateSettings({ reminder: { ...state.settings.reminder, lastShownOn: today } });
+  };
+
+  return (
+    <div className="update-banner" role="status">
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="bold small">{t('Heute steht an: {title}', { title: due })}</div>
+        <div className="tiny" style={{ opacity: 0.85 }}>{t('Noch nichts eingetragen.')}</div>
+      </div>
+      <button className="btn btn--sm" onClick={() => { onOpen(); close(); }}>{t('Los')}</button>
+      <button className="btn btn--sm btn--ghost" onClick={close}>{t('Später')}</button>
     </div>
   );
 }

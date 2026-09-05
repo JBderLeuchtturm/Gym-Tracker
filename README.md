@@ -18,9 +18,29 @@ Unterkörper, Ganzkörper, 5er-Split und ein reines Körpergewichts-Programm.
 **Training aufzeichnen**
 Die Startseite zeigt genau die Übungen, die laut aktivem Plan heute anstehen.
 Jeder Satz wird mit Gewicht, Wiederholungen und optional RPE eingetragen und
-abgehakt; Aufwärmsätze lassen sich markieren und zählen nicht ins Volumen.
-Zwischen den Sätzen läuft auf Wunsch ein Pausen-Timer. Spontane Zusatzübungen
-gehen jederzeit, auch an Ruhetagen.
+abgehakt; wer lieber in Wiederholungen in Reserve rechnet, stellt unter
+*Profil → Im Studio* auf RIR um – gespeichert wird derselbe Wert, nur anders
+gelesen. Aufwärmsätze lassen sich markieren und zählen nicht ins Volumen.
+Zwischen den Sätzen läuft auf Wunsch ein Pausen-Timer, auf Wunsch als Vollbild
+mit einer Zahl, die man von der Bank aus liest. Ein Satz lässt sich duplizieren,
+und „Training vom … wiederholen" übernimmt den letzten gleichen Trainingstag
+samt Gewichten. Spontane Zusatzübungen gehen jederzeit, auch an Ruhetagen.
+
+**Rechner für zwischen den Sätzen**
+Der *Rechner* an jeder Übung beantwortet die zwei Fragen, die man sonst im Kopf
+löst. Erstens: Was muss auf die Stange? „82,5 kg" heißt je Seite 25 + 5 + 1,25.
+Gerechnet wird exakt und nicht gierig – 30 kg je Seite sind mit 20 + 15 nicht zu
+machen, mit 15 + 15 schon. Welche Scheiben im Studio hängen und wie schwer die
+Stange ist, lässt sich einstellen. Zweitens: Was sind 70 % davon? Dazu eine
+Prozenttabelle von 60 bis 100 % mit den rechnerisch möglichen Wiederholungen –
+aus derselben Formel wie der Verlauf.
+
+**Ausführung nachschlagen**
+In der Übungsansicht lässt sich die Beschreibung samt Bildern aus dem
+[wger-Bestand](https://wger.de) holen (CC BY-SA). Einmal geladen, bleibt sie im
+Gerät: Im Studio-Keller mit einem Balken Empfang ist eine Anleitung, die erst
+geladen werden muss, keine Anleitung. Für den ganzen heutigen Trainingstag geht
+das mit einem Knopf auf einmal – gedacht für zu Hause, bevor man losfährt.
 
 **Letzte Leistungen direkt an der Übung**
 Unter jeder Übung steht, was beim letzten Mal lief – Datum, Gewichte, Wiederholungen,
@@ -70,11 +90,45 @@ Dazu Fortschrittsfotos, die sich zu zweit nebeneinander legen lassen. Die
 Bilder bleiben ausdrücklich auf dem Gerät: kein Server, keine Freigabe, kein
 Backup-JSON.
 
+**Ziele mit Datum**
+„100 kg Bankdrücken bis Juni" – die App rechnet aus dem bisherigen Verlauf hoch
+und sagt, ob das Tempo reicht, knapp wird oder so nichts wird. Bei zu dünner
+Datenlage sagt sie lieber nichts. Ob ein Ziel erreicht ist, wird abgeleitet und
+nirgends vermerkt: Ein gespeichertes „geschafft" kann zwischen zwei Geräten
+auseinanderlaufen, ein abgeleitetes nie.
+
+**Übungsvarianten zusammen betrachten**
+Flach, schräg und mit Kurzhanteln sind drei dünne Verläufe mit je wenigen
+Punkten. Im Verlauf lässt sich auf „alle Spielarten" umschalten, dann ist es
+eine Linie, an der man etwas sieht. Zugeordnet wird über eine feste,
+überschaubare Liste von Bewegungen statt über Namensähnlichkeit – Ähnlichkeit
+hätte Beinstrecker und Beinbeuger in einen Topf geworfen.
+
+**Wetter, wenn draußen trainiert wird**
+Steht an einem Tag etwas draußen an – Laufen, Sprints, Radfahren –, zeigt die
+Startseite das Wetter dazu, von [Open-Meteo](https://open-meteo.com), kostenlos
+und ohne Konto. An allen anderen Tagen steht dort nichts: Wer im Studio
+Bankdrücken macht, dem ist Regen egal. Der Ort wird auf zwei Nachkommastellen
+gerundet gespeichert und übertragen, rund anderthalb Kilometer; für die Frage,
+ob es beim Laufen regnet, reicht das.
+
 **Kalender, Hochrechnung, Export**
-Ein Trainingskalender über 27 Wochen zeigt Lücken auf einen Blick. Bei jeder
-Übung steht, wie viel im Monat dazukommt und wann das nächste runde Ziel
-erreicht wäre – mit ehrlicher Angabe, wie gleichmäßig der Verlauf ist. Alles
-lässt sich als CSV mitnehmen; der Bericht geht über den Druckdialog als PDF.
+Ein Trainingskalender über 27 Wochen zeigt Lücken auf einen Blick, und ein
+Wochenblatt im Verlauf legt sieben Tage nebeneinander – Lücken sieht man nur,
+wenn man sie nicht Tag für Tag durchblättert. Bei jeder Übung steht, wie viel im
+Monat dazukommt und wann das nächste runde Ziel erreicht wäre – mit ehrlicher
+Angabe, wie gleichmäßig der Verlauf ist. Alles lässt sich als CSV mitnehmen;
+Bericht und Trainingsplan gehen über den Druckdialog als PDF oder auf Papier,
+der Plan mit leeren Spalten zum Eintragen.
+
+**Erinnerung an den Trainingstag**
+Zwei Wege, und nur einer davon ist die App. Beim Öffnen an einem Trainingstag,
+an dem noch nichts steht, erscheint ab einer eingestellten Uhrzeit ein Hinweis.
+Verlässlich erinnert aber der Kalender des Telefons: Unter *Profil → Erinnerung*
+lassen sich die Trainingstage als Kalenderdatei mit Voranmeldung herunterladen.
+Eine Web-App kann sich nicht selbst wecken, solange sie geschlossen ist – alles,
+was ohne fremden Server ginge, setzt voraus, dass sie gerade offen ist, und dann
+braucht man keine Erinnerung mehr.
 
 **Trainingspartner**
 Steht unter *Profil → Trainingspartner* ein Name, lässt sich jeder Satz dem
@@ -108,6 +162,24 @@ Symbole sind gezeichnet, nicht aus Emoji zusammengesetzt. Wo ein Emoji auftaucht
 hat es jemand selbst gewählt: das Profilbild, das Zeichen einer Gruppe, eine
 Reaktion auf ein Training.
 
+Zahlen stehen in Tabellenziffern, damit Spalten untereinander stehen. Eine
+eigene Schrift dafür wäre schöner, kostet aber einen Ladevorgang, den eine App,
+die offline starten soll, nicht braucht – die Systemschriften von Apple, Google
+und Microsoft bringen tabellarische Ziffern alle mit.
+
+## Zugänglichkeit
+
+Jede Textfarbe erreicht auf jedem Untergrund mindestens 4,5 zu 1 nach WCAG AA;
+die blasseste lag vorher bei 3,2. Alles Anspringbare hat einen sichtbaren
+Fokusrahmen, die erste Tabulatorstelle ist eine Sprungmarke am Menü vorbei, und
+wer im System Bewegung abgestellt hat, bekommt keine.
+
+Die Diagramme sind für Vorleseprogramme als Grafik ausgeblendet und tragen
+dieselben Zahlen als unsichtbare Tabelle daneben. Eine Kurzbeschreibung
+(„steigt leicht") wäre eine Auslegung; die Zahlen selbst sind es nicht. Im
+Trainingskalender sind nur die Tage mit Training anspringbar – sonst wären es
+189 Haltepunkte, von denen die meisten nichts zu sagen haben.
+
 ## Sprache
 
 Die App erscheint auf Deutsch oder Englisch – beim ersten Start richtet sie sich
@@ -127,13 +199,18 @@ npm run build && npm test        # alle Läufe
 npm test training                # nur einen Lauf
 ```
 
-Elf Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
+Zwölf Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
 Übungssuche ohne Netz, Layout auf schmalen Geräten, Muskelkarte, Wochenziele
-und Zyklen, Rückgängig und Querformat, Mehrsprachigkeit, Freunde und
-Freigaben, Gruppen und Challenges sowie Einladungslinks ab. Die Läufe mit Konto arbeiten gegen ein nachgebautes
-Supabase unter
-[`tests/mockBackend.mjs`](tests/mockBackend.mjs) und fassen das echte Projekt
-nie an. Bei jedem Push und Pull Request laufen sie zusätzlich in GitHub Actions.
+und Zyklen, Rückgängig und Querformat, Rechner und Studio-Handgriffe,
+Mehrsprachigkeit, Freunde und Freigaben, Gruppen und Challenges sowie
+Einladungslinks ab.
+
+Kein Testlauf fasst einen fremden Dienst an: Die Läufe mit Konto arbeiten gegen
+ein nachgebautes Supabase unter
+[`tests/mockBackend.mjs`](tests/mockBackend.mjs), und wger wie Open-Meteo werden
+im Browser abgefangen. Ein Test, der an einem fremden Server hängt, ist kein
+Test – er ist eine Wettervorhersage. Bei jedem Push und Pull Request laufen sie
+zusätzlich in GitHub Actions.
 
 ## Loslegen
 
@@ -358,6 +435,19 @@ fehlende Felder ergänzt – ältere Sicherungen bleiben also nutzbar. Zusätzli
 wird regelmäßig eine zweite Kopie als Fallback abgelegt, falls ein Stand einmal
 beschädigt ankommt.
 
+**Automatische Sicherung am Konto.** Mit eingerichteter Synchronisierung lässt
+sich unter *Profil → Daten* eine tägliche Sicherung einschalten; die letzten
+vierzehn Tage bleiben liegen und lassen sich einzeln wiederherstellen. Das ist
+etwas anderes als der laufende Abgleich: Der ist eine Spiegelung, und was man
+löscht, ist Sekunden später auch dort gelöscht. Fortschrittsfotos sind wie
+gehabt nicht dabei.
+
+**Was an fremde Dienste geht.** Ohne Zutun: nichts. Die Übungssuche fragt
+wger nur, während man tippt, und Anleitungen nur auf ausdrückliches Antippen.
+Das Wetter ist standardmäßig aus; ist es an, geht der Ort auf zwei
+Nachkommastellen gerundet an Open-Meteo – rund anderthalb Kilometer, ohne Konto
+und ohne Kennung. Trainingsdaten verlassen das Gerät in keinem dieser Fälle.
+
 ## Wie der Kalorienverbrauch berechnet wird
 
 1. **Grundumsatz** nach Mifflin-St Jeor aus Gewicht, Größe, Alter und Geschlecht.
@@ -408,11 +498,11 @@ Verbrauch, die Bilanz und alle Diagramme funktionieren dann genauso.
 
 ```
 src/
-├── api/           wger-Übungsdatenbank, Yazio (Bridge + CSV)
+├── api/           wger (Suche + Anleitungen), Open-Meteo (Wetter), Yazio
 ├── sync/          Konto, Freunde, Freigaben, Einladungslinks, Zusammenführen
 ├── components/    UI-Bausteine, Übungssuche, Detailansicht, Diagramme, Körperkarte
 ├── data/          Übungskatalog (216 Einträge) und Planvorlagen
-├── lib/           Datum, Suche, Kalorien, Statistik, Muskelzuordnung
+├── lib/           Datum, Suche, Kalorien, Statistik, Muskeln, Scheiben, Ziele, ZIP, iCal
 ├── pages/         Heute, Pläne, Fortschritt, Kalorien, Freunde, Profil, Verlauf
 ├── storage/       Speicherung, Migration, globaler Zustand
 └── types.ts       Datenmodell
@@ -421,7 +511,10 @@ src/
 Dazu `supabase/schema.sql` – das Datenbankschema samt Zugriffsregeln – und
 `supabase/functions/notify-friends/` für die Push-Nachrichten.
 
-Abhängigkeiten sind nur React und der Supabase-Client; Diagramme, Icons und
-Suche sind selbst geschrieben, damit die App klein und offline-fähig bleibt.
-Der Supabase-Client wird erst nachgeladen, wenn die Synchronisierung wirklich
-eingerichtet ist – ohne sie lädt die App nichts davon.
+Abhängigkeiten sind nur React und der Supabase-Client; Diagramme, Icons, Suche,
+der ZIP-Schreiber und der Kalender-Export sind selbst geschrieben, damit die App
+klein und offline-fähig bleibt. Nachgeladen wird konsequent: Beim Start kommt
+nur „Heute" mit, alle anderen Seiten und die Dialoge folgen beim ersten
+Antippen, das englische Wörterbuch nur bei englischer Spracheinstellung, und
+der Supabase-Client erst, wenn die Synchronisierung wirklich eingerichtet ist.
+Zusammen sind das beim Start rund 150 kB gepackt statt 204 kB.

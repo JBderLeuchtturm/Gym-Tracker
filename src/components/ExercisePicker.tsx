@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Exercise, ExerciseCategory, ExerciseKind } from '../types';
 import { ALL_EQUIPMENT, CATEGORY_LABELS, KIND_LABELS, slugify } from '../data/catalog';
 import { normalize, searchExercises } from '../lib/search';
+import { recentExerciseIds } from '../lib/stats';
 import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { enrichWgerExercise, isWgerUnavailable, searchWger } from '../api/wger';
 import { useStore } from '../storage/store';
@@ -75,6 +76,19 @@ export function ExercisePicker({
     });
   }, [allExercises, category, equipment, region, onlyMine, ownEquipment]);
 
+  /*
+   * Zuletzt Benutztes steht oben - aber nur in der offenen Liste. Sobald
+   * jemand tippt oder eine Muskelgruppe antippt, hat er gesagt, was er sucht;
+   * dann waere eine Vorschlagszeile darueber nur noch im Weg.
+   */
+  const recent = useMemo(() => {
+    if (query.trim().length > 0 || region || category !== 'all' || equipment !== 'all') return [];
+    const byId = new Map(allExercises.map((exercise) => [exercise.id, exercise]));
+    return recentExerciseIds(state, 10)
+      .map((id) => byId.get(id))
+      .filter((exercise): exercise is Exercise => Boolean(exercise));
+  }, [state, allExercises, query, region, category, equipment]);
+
   const localResults = useMemo(() => {
     if (query.trim().length === 0) {
       if (region) {
@@ -87,10 +101,14 @@ export function ExercisePicker({
         }));
       }
       // Ohne Suchbegriff: die Auswahl nach Kategorie sortiert anzeigen.
-      return filteredPool.slice(0, 80).map((exercise) => ({ exercise, score: 0, reason: '' }));
+      const shownAbove = new Set(recent.map((exercise) => exercise.id));
+      return filteredPool
+        .filter((exercise) => !shownAbove.has(exercise.id))
+        .slice(0, 80)
+        .map((exercise) => ({ exercise, score: 0, reason: '' }));
     }
     return searchExercises(filteredPool, query, 70);
-  }, [filteredPool, query, region]);
+  }, [filteredPool, query, region, recent]);
 
   const remoteResults = useMemo(() => {
     const known = new Set(allExercises.map((exercise) => normalize(exercise.name)));
@@ -208,6 +226,40 @@ export function ExercisePicker({
       </div>
 
       <div style={{ maxHeight: '52vh', overflowY: 'auto' }}>
+        {recent.length > 0 && (
+          <div className="section-label" style={{ padding: '12px 14px 6px' }}>
+            {t('Zuletzt benutzt')}
+          </div>
+        )}
+        {recent.map((exercise) => (
+          <button
+            key={`recent-${exercise.id}`}
+            className="search-result"
+            disabled={excluded.has(exercise.id)}
+            style={excluded.has(exercise.id) ? { opacity: 0.4 } : undefined}
+            onClick={() => pick(exercise, false)}
+          >
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span className="search-result__name">{exerciseName(exercise)}</span>
+              <span className="search-result__meta" style={{ display: 'block' }}>
+                <span style={{ color: categoryColor(exercise.category), fontWeight: 600 }}>
+                  {t(CATEGORY_LABELS[exercise.category])}
+                </span>
+                {describeRest(exercise)}
+              </span>
+            </span>
+            {excluded.has(exercise.id)
+              ? <span className="chip">{t("drin")}</span>
+              : <IconPlus style={{ width: 17, height: 17, color: 'var(--text-dim)', flexShrink: 0 }} />}
+          </button>
+        ))}
+
+        {recent.length > 0 && localResults.length > 0 && (
+          <div className="section-label" style={{ padding: '14px 14px 6px' }}>
+            {t('Alle Übungen')}
+          </div>
+        )}
+
         {localResults.map(({ exercise, reason }) => (
           <button
             key={exercise.id}
