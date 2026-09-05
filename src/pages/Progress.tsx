@@ -306,15 +306,21 @@ export function ProgressPage() {
                         </span>
                         <span className="dim">{entry.sets} Sätze · {fmt(entry.volume)} kg</span>
                       </div>
-                      <div className="progress-bar">
-                        <div
-                          className="progress-bar__fill"
-                          style={{
-                            width: `${(entry.sets / max) * 100}%`,
-                            background: categoryColor(entry.category as never),
-                          }}
-                        />
-                      </div>
+                      {/*
+                        * Mit nur einer Gruppe waere der Balken immer voll und
+                        * saehe kaputt aus - dann reicht die Zeile.
+                        */}
+                      {byCategory.length > 1 && (
+                        <div className="progress-bar">
+                          <div
+                            className="progress-bar__fill"
+                            style={{
+                              width: `${(entry.sets / max) * 100}%`,
+                              background: categoryColor(entry.category as never),
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   );
                 })}

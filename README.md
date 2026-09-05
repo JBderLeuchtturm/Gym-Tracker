@@ -127,10 +127,10 @@ npm run build && npm test        # alle Läufe
 npm test training                # nur einen Lauf
 ```
 
-Zehn Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
+Elf Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
 Übungssuche ohne Netz, Layout auf schmalen Geräten, Muskelkarte, Wochenziele
-und Zyklen, Mehrsprachigkeit, Freunde und Freigaben, Gruppen und Challenges
-sowie Einladungslinks ab. Die Läufe mit Konto arbeiten gegen ein nachgebautes
+und Zyklen, Rückgängig und Querformat, Mehrsprachigkeit, Freunde und
+Freigaben, Gruppen und Challenges sowie Einladungslinks ab. Die Läufe mit Konto arbeiten gegen ein nachgebautes
 Supabase unter
 [`tests/mockBackend.mjs`](tests/mockBackend.mjs) und fassen das echte Projekt
 nie an. Bei jedem Push und Pull Request laufen sie zusätzlich in GitHub Actions.
@@ -323,6 +323,17 @@ tatsächlich passiert ist, holt sich die App beim Öffnen selbst.
 
 Auf dem iPhone funktioniert Push nur, wenn die App über *Zum Startbildschirm
 hinzufügen* installiert wurde – das ist eine Vorgabe von Apple, keine der App.
+
+## Wenn etwas schiefgeht
+
+Gelöschtes lässt sich zurückholen: Nach dem Löschen einer Übung, eines
+Trainings, eines Satzes, eines Plans, eines Gewichtseintrags, der Körpermaße
+oder eines Fotos steht sieben Sekunden lang **Rückgängig** in der Meldung
+unten. Danach ist es weg.
+
+Das Datum eines Trainings lässt sich nachträglich ändern – *Datum ändern* in
+der Trainingskarte. Steht am Zieltag schon etwas, sagt die App das vorher,
+statt beides still zusammenzuwerfen.
 
 ## Wo die Daten liegen
 

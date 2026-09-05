@@ -327,7 +327,16 @@ p { margin: 0 0 0.6em; }
 
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 12px 16px; }
+
+/*
+ * Bei ungerader Anzahl stand die letzte Kennzahl allein in einer Zeile und
+ * sah aus wie vergessen. Auf schmalen Geraeten - und nur dort gibt es zwei
+ * Spalten - nimmt sie jetzt die ganze Breite ein.
+ */
+@media (max-width: 560px) {
+  .grid-auto > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
 
 .row { display: flex; align-items: center; gap: 10px; }
 .row--wrap { flex-wrap: wrap; }
@@ -666,15 +675,34 @@ p { margin: 0 0 0.6em; }
   transform: translateX(-50%);
   bottom: calc(var(--nav-height) + 18px + env(safe-area-inset-bottom, 0px));
   z-index: 120;
-  padding: 10px 16px;
-  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--radius);
   background: var(--surface-3);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 550;
   animation: fade 0.15s ease;
 }
+
+.toast__text { min-width: 0; }
+
+.toast__action {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 620;
+  cursor: pointer;
+}
+.toast__action:hover { background: var(--accent-soft); }
 
 table.data { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 table.data th {
@@ -721,7 +749,53 @@ table.data tr:last-child td { border-bottom: 0; }
   .toast { bottom: 24px; }
   .modal-backdrop { align-items: center; }
   .modal { border-radius: var(--radius-lg); max-height: 86vh; }
-  .set-row, .set-header { grid-template-columns: 34px 1fr 1fr 60px 40px; }
+  .set-row, .set-header { grid-template-columns: 34px 1fr 1fr 60px 72px; }
+}
+
+/* ------------------------------------------------------------- Querformat */
+
+/*
+ * Gedrehtes Handy und kleines Tablet: Hier ist die Hoehe knapp und die Breite
+ * im Ueberfluss. Eine Leiste unten frisst 60 wertvolle Pixel, also wandert die
+ * Navigation an den linken Rand und der Inhalt bekommt die volle Hoehe.
+ */
+@media (min-width: 620px) and (max-height: 560px) and (orientation: landscape) {
+  .app {
+    padding-bottom: 0;
+    padding-left: calc(74px + env(safe-area-inset-left, 0px));
+  }
+
+  .nav {
+    top: 0;
+    right: auto;
+    width: calc(74px + env(safe-area-inset-left, 0px));
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: 2px;
+    padding: 8px 4px 8px calc(4px + env(safe-area-inset-left, 0px));
+    border-top: 0;
+    border-right: 1px solid var(--border-soft);
+    overflow-y: auto;
+  }
+
+  .nav__item { padding: 8px 2px 7px; }
+  .nav__item--active::before {
+    top: 50%;
+    left: 0;
+    width: 2px;
+    height: 24px;
+    transform: translateY(-50%);
+  }
+
+  .topbar { padding-top: 10px; padding-bottom: 8px; }
+  .page { padding-top: 12px; }
+  .rest-timer { bottom: 12px; left: calc(86px + env(safe-area-inset-left, 0px)); }
+  .toast { bottom: 14px; }
+  .modal { max-height: 92vh; }
+
+  /* Breite nutzen statt eine schmale Spalte in der Mitte zu lassen. */
+  .page { max-width: 100%; }
+  .exercise__body { max-width: 620px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1249,3 +1323,38 @@ table.data tr:last-child td { border-bottom: 0; }
   color: var(--text-muted);
 }
 .day-strip__item--filled .day-strip__num { color: var(--text); }
+
+/* ------------------------------------------------------- Duenne Datenlage */
+
+/*
+ * Statt eines Diagramms mit einem einzigen Punkt: die Zahlen im Klartext und
+ * ein Satz, ab wann es einen Verlauf zu sehen gibt.
+ */
+.sparse {
+  padding: 4px 0 2px;
+  font-size: 0.85rem;
+}
+
+.sparse__rows { display: flex; flex-direction: column; gap: 5px; }
+
+.sparse__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.sparse__label { color: var(--text-muted); }
+.sparse__value { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+
+.sparse__hint {
+  margin-top: 9px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+/* Datumsfeld mit gelesener Fassung darunter. */
+.datefield { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.datefield__read { font-size: 0.72rem; color: var(--text-dim); }

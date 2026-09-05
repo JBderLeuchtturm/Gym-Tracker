@@ -8,8 +8,9 @@ import {
   type PhotoPose, type ProgressPhoto,
 } from '../storage/photos';
 import { LineChart, type Point } from './charts/Charts';
-import { ConfirmDialog, Modal, NumberInput, fmt, useToast } from './ui';
-import { IconCamera, IconPlus, IconTrash } from './icons';
+import { ConfirmDialog, DateInput, Modal, NumberInput, fmt, useToast } from './ui';
+import { IconCamera, IconDownload, IconPlus, IconTrash } from './icons';
+import { createZip, downloadBlob } from '../lib/zip';
 
 /** Die erfassten Umfaenge in der Reihenfolge, in der sie abgefragt werden. */
 const FIELDS: Array<{ key: keyof Omit<MeasurementEntry, 'date'>; label: string }> = [
@@ -41,7 +42,7 @@ const emptyEntry = (date: string): MeasurementEntry => ({
  * frueher - deshalb hier ein eigener Verlauf je Mass.
  */
 export function MeasurementsDialog({ onClose }: { onClose: () => void }) {
-  const { state, logMeasurement, removeMeasurement } = useStore();
+  const { state, logMeasurement, removeMeasurement, snapshot, replaceState } = useStore();
   const toast = useToast();
   const entries = state.measurements ?? [];
 
@@ -89,12 +90,10 @@ export function MeasurementsDialog({ onClose }: { onClose: () => void }) {
 
         <div className="field">
           <label className="field__label">{t("Datum")}</label>
-          <input
-            className="input"
-            type="date"
+          <DateInput
             value={date}
             max={todayISO()}
-            onChange={(event) => setDate(event.target.value || todayISO())}
+            onChange={(next) => setDate(next || todayISO())}
           />
         </div>
 
@@ -192,7 +191,12 @@ export function MeasurementsDialog({ onClose }: { onClose: () => void }) {
           message={t('Die Maße vom {date} werden entfernt.', { date: formatDateShort(confirmDelete) })}
           confirmLabel={t('Löschen')}
           onCancel={() => setConfirmDelete(null)}
-          onConfirm={() => { removeMeasurement(confirmDelete); setConfirmDelete(null); }}
+          onConfirm={() => {
+            const before = snapshot();
+            removeMeasurement(confirmDelete);
+            setConfirmDelete(null);
+            toast.show(t('Maße gelöscht'), { label: t('Rückgängig'), run: () => replaceState(before) });
+          }}
         />
       )}
     </Modal>
@@ -293,6 +297,28 @@ export function PhotosDialog({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
+        {photos.length > 0 && (
+          <button
+            className="btn btn--block"
+            onClick={async () => {
+              /*
+               * Die Bilder liegen bewusst nur hier. Damit sie beim
+               * Geraetewechsel nicht verloren gehen, kommen sie auf Wunsch
+               * gebuendelt heraus - das Backup-JSON enthaelt sie nicht.
+               */
+              const entries = await Promise.all(photos.map(async (photo) => ({
+                name: `${photo.date}_${photo.pose}_${photo.id.slice(-6)}.jpg`,
+                data: new Uint8Array(await photo.blob.arrayBuffer()),
+                modified: new Date(photo.createdAt),
+              })));
+              downloadBlob(`gym-tracker-fotos-${todayISO()}.zip`, createZip(entries));
+              toast.show(t('{count} Fotos gespeichert', { count: photos.length }));
+            }}
+          >
+            <IconDownload /> {t('Alle Fotos herunterladen')}
+          </button>
+        )}
+
         <label className="btn btn--primary btn--block" style={{ cursor: 'pointer' }}>
           <IconCamera /> {busy ? t('Wird gespeichert…') : t('Foto aufnehmen oder wählen')}
           <input
@@ -368,10 +394,21 @@ export function PhotosDialog({ onClose }: { onClose: () => void }) {
           confirmLabel={t('Löschen')}
           onCancel={() => setConfirmDelete(null)}
           onConfirm={async () => {
+            /*
+             * Die Bilder liegen nicht im Zustand, sondern in IndexedDB - fuer
+             * das Zuruecknehmen muss das Bild selbst festgehalten werden.
+             */
+            const removed = photos.find((photo) => photo.id === confirmDelete);
             await deletePhoto(confirmDelete);
             setCompare((current) => current.filter((id) => id !== confirmDelete));
             setConfirmDelete(null);
             await reload();
+            if (removed) {
+              toast.show(t('Foto gelöscht'), {
+                label: t('Rückgängig'),
+                run: () => { void savePhoto(removed).then(reload); },
+              });
+            }
           }}
         />
       )}

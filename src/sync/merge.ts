@@ -15,11 +15,22 @@ export function mergeStates(local: AppState, remote: AppState): AppState {
   const localNewer = (local.updatedAt ?? '') >= (remote.updatedAt ?? '');
   const primary = localNewer ? local : remote;
 
+  /*
+   * Profil und Einstellungen folgen ihrem eigenen Zeitstempel, nicht dem
+   * allgemeinen. Sonst verliert, wer am Handy die Wochenziele aendert und
+   * danach am Rechner einen Satz eintraegt, die Ziele stillschweigend.
+   * Fehlt der Zeitstempel (alter Stand), gilt wie bisher der allgemeine.
+   */
+  const localSettings = local.settingsUpdatedAt ?? local.updatedAt ?? '';
+  const remoteSettings = remote.settingsUpdatedAt ?? remote.updatedAt ?? '';
+  const settingsSide = localSettings >= remoteSettings ? local : remote;
+
   return {
     version: Math.max(local.version, remote.version),
     updatedAt: localNewer ? local.updatedAt : remote.updatedAt,
-    profile: primary.profile,
-    settings: primary.settings,
+    settingsUpdatedAt: localSettings >= remoteSettings ? localSettings : remoteSettings,
+    profile: settingsSide.profile,
+    settings: settingsSide.settings,
     exercises: mergeById(local.exercises, remote.exercises, (item) => item.id) as Exercise[],
     plans: mergeByKeyPreferNewer(
       local.plans, remote.plans,

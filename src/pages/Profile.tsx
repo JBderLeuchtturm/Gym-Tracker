@@ -9,7 +9,7 @@ import { downloadBackup, importState } from '../storage/db';
 import { CustomExerciseDialog } from '../components/ExercisePicker';
 import { ExerciseDetail } from '../components/ExerciseDetail';
 import { BodyLogButtons, MeasurementsDialog, PhotosDialog } from '../components/BodyLog';
-import { ConfirmDialog, Modal, NumberInput, Stat, fmt, useToast } from '../components/ui';
+import { ConfirmDialog, DateInput, Modal, NumberInput, Stat, fmt, useToast } from '../components/ui';
 import {
   IconDownload, IconEdit, IconPlus, IconScale, IconTarget, IconTrash, IconUpload, IconUser,
 } from '../components/icons';
@@ -20,7 +20,7 @@ import { ALL_EQUIPMENT } from '../data/catalog';
 export function ProfilePage() {
   const {
     state, updateProfile, updateSettings, logBodyWeight, removeBodyWeight,
-    addExercise, updateExercise, deleteExercise, replaceState,
+    addExercise, updateExercise, deleteExercise, replaceState, snapshot,
   } = useStore();
   const toast = useToast();
   const { language, setLanguage } = useI18n();
@@ -75,12 +75,10 @@ export function ProfilePage() {
           <div className="grid-2">
             <div className="field">
               <label className="field__label">{t("Geburtsdatum")}</label>
-              <input
-                className="input"
-                type="date"
+              <DateInput
                 value={profile.birthDate ?? ''}
                 max={todayISO()}
-                onChange={(event) => updateProfile({ birthDate: event.target.value || null })}
+                onChange={(next) => updateProfile({ birthDate: next || null })}
               />
               {age != null && <span className="field__hint">{age} Jahre</span>}
             </div>
@@ -167,7 +165,14 @@ export function ProfilePage() {
                   <td>{formatDateShort(item.date)}</td>
                   <td className="right mono">{fmt(item.kg, 1)} kg</td>
                   <td className="right" style={{ width: 36 }}>
-                    <button className="btn btn--ghost btn--icon btn--sm" onClick={() => removeBodyWeight(item.date)} aria-label={t("Eintrag löschen")}>
+                    <button className="btn btn--ghost btn--icon btn--sm" onClick={() => {
+                        const before = snapshot();
+                        removeBodyWeight(item.date);
+                        toast.show(t('Eintrag gelöscht'), {
+                          label: t('Rückgängig'),
+                          run: () => replaceState(before),
+                        });
+                      }} aria-label={t("Eintrag löschen")}>
                       <IconTrash />
                     </button>
                   </td>
@@ -290,6 +295,12 @@ export function ProfilePage() {
         <div className="tiny dim" style={{ marginBottom: 11 }}>
           Alles wird direkt auf diesem Gerät gespeichert und bleibt nach dem Schließen erhalten.
           Für den Wechsel auf ein anderes Gerät nutzt du Export und Import.
+          {' '}
+          <strong style={{ color: 'var(--warn)' }}>
+            Fortschrittsfotos sind nicht dabei
+          </strong>{' '}
+          – die liegen nur auf diesem Gerät und werden unter <em>Fotos</em> gesondert
+          heruntergeladen.
         </div>
         <input
           ref={fileRef}
@@ -351,7 +362,11 @@ export function ProfilePage() {
           onClose={() => setExercisesOpen(false)}
           onCreate={() => { setExercisesOpen(false); setNewExerciseOpen(true); }}
           onUpdate={updateExercise}
-          onDelete={deleteExercise}
+          onDelete={(id) => {
+            const before = snapshot();
+            deleteExercise(id);
+            toast.show(t('Übung gelöscht'), { label: t('Rückgängig'), run: () => replaceState(before) });
+          }}
         />
       )}
 
@@ -408,7 +423,7 @@ function WeightDialog({
         <div className="grid-2">
           <div className="field">
             <label className="field__label">{t("Datum")}</label>
-            <input className="input" type="date" value={date} max={todayISO()} onChange={(event) => setDate(event.target.value)} />
+            <DateInput value={date} max={todayISO()} onChange={setDate} />
           </div>
           <div className="field">
             <label className="field__label">{t("Gewicht (kg)")}</label>

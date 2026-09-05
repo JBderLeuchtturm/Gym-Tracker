@@ -19,6 +19,7 @@ const SUITES = [
   ['layout', () => import('./layout.mjs')],
   ['muscles', () => import('./muscles.mjs')],
   ['features', () => import('./features.mjs')],
+  ['robust', () => import('./robust.mjs')],
   ['language', () => import('./language.mjs')],
   ['friends', () => import('./friends.mjs')],
   ['social', () => import('./social.mjs')],

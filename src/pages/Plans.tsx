@@ -10,7 +10,7 @@ import { useStore } from '../storage/store';
 import { emptyDays, uid } from '../storage/defaults';
 import { PLAN_TEMPLATES, buildTemplatePlan } from '../data/templates';
 import { ExercisePicker } from '../components/ExercisePicker';
-import { ConfirmDialog, EmptyState, Modal, NumberInput, useToast } from '../components/ui';
+import { ConfirmDialog, DateInput, EmptyState, Modal, NumberInput, useToast } from '../components/ui';
 import {
   IconCheck, IconChevronDown, IconCopy, IconEdit, IconPlus, IconShare, IconTrash,
 } from '../components/icons';
@@ -19,6 +19,7 @@ import { customToExercises, decodePlan, encodePlan } from '../lib/planShare';
 export function PlansPage() {
   const {
     state, addPlan, updatePlan, deletePlan, setActivePlan, getExercise, addExercise,
+    snapshot, replaceState,
   } = useStore();
   const toast = useToast();
 
@@ -209,7 +210,12 @@ export function PlansPage() {
           title={t("Plan löschen?")}
           message={t('Bereits aufgezeichnete Trainings bleiben erhalten – nur der Plan verschwindet.')}
           onCancel={() => setDeletingId(null)}
-          onConfirm={() => { deletePlan(deletingId); setDeletingId(null); toast.show(t("Plan gelöscht")); }}
+          onConfirm={() => {
+            const before = snapshot();
+            deletePlan(deletingId);
+            setDeletingId(null);
+            toast.show(t('Plan gelöscht'), { label: t('Rückgängig'), run: () => replaceState(before) });
+          }}
         />
       )}
     </>
@@ -735,11 +741,9 @@ function CycleEditor({
 
           <div className="field">
             <label className="field__label">{t("Start des Zyklus")}</label>
-            <input
-              className="input"
-              type="date"
+            <DateInput
               value={cycle.startDate}
-              onChange={(event) => patch({ startDate: startOfWeek(event.target.value || todayISO()) })}
+              onChange={(next) => patch({ startDate: startOfWeek(next || todayISO()) })}
             />
             <span className="field__hint">
               {t("Gerechnet wird ab dem Montag dieser Woche. Danach beginnt der Zyklus von vorn.")}

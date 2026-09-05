@@ -773,4 +773,27 @@ export const EN: Record<string, string> = {
   'dir': 'you',
   'ohne': 'without',
   'grau = noch nichts': 'grey = nothing yet',
+  'Zu viele Anfragen in kurzer Zeit. Versuch es später noch einmal.':
+    'Too many requests in a short time. Try again later.',
+  'Rückgängig': 'Undo',
+  'Datum ändern': 'Change date',
+  'Training verschieben': 'Move workout',
+  'Das Training vom {date} wandert samt allen Sätzen auf den gewählten Tag.':
+    'The workout from {date} moves to the chosen day, sets and all.',
+  'Neues Datum': 'New date',
+  'An diesem Tag steht schon ein Training. Lösch es erst oder wähl einen anderen Tag.':
+    'There is already a workout on that day. Delete it first or pick another day.',
+  'Verschieben': 'Move',
+  'Auf {date} verschoben': 'Moved to {date}',
+  '„{name}“ entfernt': '“{name}” removed',
+  'Satz entfernt': 'Set removed',
+  'Eintrag gelöscht': 'Entry deleted',
+  'Übung gelöscht': 'Exercise deleted',
+  'Maße gelöscht': 'Measurements deleted',
+  'Alle Fotos herunterladen': 'Download all photos',
+  '{count} Fotos gespeichert': '{count} photos saved',
+  'Ein Messpunkt – für einen Verlauf braucht es mindestens drei.':
+    'One data point – a trend needs at least three.',
+  '{count} Messpunkte – für einen Verlauf braucht es mindestens drei.':
+    '{count} data points – a trend needs at least three.',
 };

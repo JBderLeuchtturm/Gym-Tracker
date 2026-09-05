@@ -30,6 +30,8 @@ interface StoreValue {
   deleteWorkout: (id: ID) => void;
   setNutrition: (entry: NutritionEntry) => void;
   replaceState: (next: AppState) => void;
+  /** Der aktuelle Stand als Kopie - Grundlage fuer "Rueckgaengig". */
+  snapshot: () => AppState;
   lastSavedAt: number | null;
 }
 
@@ -61,6 +63,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
   const saveTimer = useRef<number | null>(null);
+
+  /* Immer der aktuelle Stand - fuer "Rueckgaengig", ohne Abhaengigkeitsketten. */
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   // Schreiben wird gebuendelt, damit schnelles Tippen nicht bei jedem Zeichen speichert.
   useEffect(() => {
@@ -107,12 +113,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const getExercise = useCallback((id: ID) => exerciseIndex.get(id), [exerciseIndex]);
 
+  /* Profil und Einstellungen tragen einen eigenen Zeitstempel - siehe AppState. */
   const updateProfile = useCallback((patch: Partial<Profile>) => {
-    commit((prev) => ({ ...prev, profile: { ...prev.profile, ...patch } }));
+    commit((prev) => ({
+      ...prev,
+      profile: { ...prev.profile, ...patch },
+      settingsUpdatedAt: new Date().toISOString(),
+    }));
   }, [commit]);
 
   const updateSettings = useCallback((patch: Partial<Settings>) => {
-    commit((prev) => ({ ...prev, settings: { ...prev.settings, ...patch } }));
+    commit((prev) => ({
+      ...prev,
+      settings: { ...prev.settings, ...patch },
+      settingsUpdatedAt: new Date().toISOString(),
+    }));
   }, [commit]);
 
   const logBodyWeight = useCallback((date: string, kg: number) => {
@@ -227,20 +242,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const replaceState = useCallback((next: AppState) => setState(next), []);
 
+  /*
+   * Fuer "Rueckgaengig" wird der ganze Stand festgehalten und im Fall der
+   * Faelle wieder eingesetzt. Das ist grob, aber ehrlich: Es gibt kein
+   * halbes Zuruecknehmen, bei dem hinterher unklar waere, was gilt.
+   */
+  const snapshot = useCallback(() => stateRef.current, []);
+
   const value = useMemo<StoreValue>(
     () => ({
       state, allExercises, getExercise, updateProfile, updateSettings, logBodyWeight,
       removeBodyWeight, logMeasurement, removeMeasurement,
       addExercise, updateExercise, deleteExercise, addPlan, updatePlan,
       deletePlan, setActivePlan, upsertWorkout, deleteWorkout, setNutrition, replaceState,
-      lastSavedAt,
+      snapshot, lastSavedAt,
     }),
     [
       state, allExercises, getExercise, updateProfile, updateSettings, logBodyWeight,
       removeBodyWeight, logMeasurement, removeMeasurement,
       addExercise, updateExercise, deleteExercise, addPlan, updatePlan,
       deletePlan, setActivePlan, upsertWorkout, deleteWorkout, setNutrition, replaceState,
-      lastSavedAt,
+      snapshot, lastSavedAt,
     ],
   );
 

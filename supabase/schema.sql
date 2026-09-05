@@ -224,6 +224,38 @@ create policy friendships_insert on public.friendships
   for insert to authenticated
   with check (requester_id = auth.uid() and status = 'pending');
 
+/*
+ * Bremse gegen das Zuschuetten mit Anfragen.
+ *
+ * Wer einen Benutzernamen kennt, konnte bisher beliebig oft anfragen. Der
+ * Zaehler laeuft ueber eine Stunde und ist bewusst grosszuegig - wer nach
+ * einem Trainingsabend zehn Leute hinzufuegt, soll nicht ausgebremst werden.
+ * Er greift beim Anlegen, nicht beim Annehmen oder Ablehnen.
+ */
+create or replace function public.limit_friend_requests()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  recent integer;
+begin
+  select count(*) into recent
+  from public.friendships
+  where requester_id = new.requester_id
+    and created_at > now() - interval '1 hour';
+
+  if recent >= 30 then
+    raise exception 'Zu viele Anfragen in kurzer Zeit. Versuch es spaeter noch einmal.'
+      using errcode = 'P0001';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists friendships_rate_limit on public.friendships;
+create trigger friendships_rate_limit
+  before insert on public.friendships
+  for each row execute function public.limit_friend_requests();
+
 -- Annehmen darf nur, wer angefragt wurde.
 drop policy if exists friendships_update on public.friendships;
 create policy friendships_update on public.friendships

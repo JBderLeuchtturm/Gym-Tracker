@@ -20,11 +20,13 @@ import { BodyMap, type Intensity } from '../components/MuscleMap';
 import {
   REGION_LABELS, fitsEquipment, regionsOf, suggestForRegion, type MuscleRegion,
 } from '../lib/muscles';
-import { ConfirmDialog, EmptyState, Modal, NumberInput, fmt, useToast } from '../components/ui';
+import {
+  ConfirmDialog, DateInput, EmptyState, Modal, NumberInput, fmt, useToast,
+} from '../components/ui';
 import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { CATEGORY_LABELS } from '../data/catalog';
 import {
-  IconCheck, IconChart, IconChevronDown, IconChevronLeft, IconChevronRight, IconClock,
+  IconCalendar, IconCheck, IconChart, IconChevronDown, IconChevronLeft, IconChevronRight, IconClock,
   IconPlay, IconPlus, IconSwap, IconTrash, IconTrophy, IconX,
 } from '../components/icons';
 import { beep } from '../lib/beep';
@@ -59,7 +61,7 @@ const newSet = (partial: Partial<SetLog> = {}): SetLog => ({
 
 export function TodayPage() {
   const {
-    state, getExercise, upsertWorkout, deleteWorkout,
+    state, getExercise, upsertWorkout, deleteWorkout, snapshot, replaceState,
   } = useStore();
   const toast = useToast();
 
@@ -69,6 +71,7 @@ export function TodayPage() {
   const sync = useSync();
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
   const [sortMode, setSortMode] = useState(false);
   const [record, setRecord] = useState<{ name: string; record: NewRecord } | null>(null);
@@ -332,12 +335,42 @@ export function TodayPage() {
     void sync.nudgeFriends();
   };
 
+  /**
+   * Schiebt das ganze Training auf einen anderen Tag.
+   *
+   * Wer abends merkt, dass er am falschen Tag eingetragen hat, musste bisher
+   * alles neu tippen. Ist am Zieltag schon etwas eingetragen, wird nicht
+   * ueberschrieben - dann sagt der Dialog das vorher.
+   */
+  const moveWorkout = (target: string) => {
+    if (!workout || target === date) { setMoveOpen(false); return; }
+    const before = snapshot();
+    const moved = { ...workout, date: target, updatedAt: new Date().toISOString() };
+    replaceState({
+      ...before,
+      updatedAt: new Date().toISOString(),
+      workouts: [...before.workouts.filter((item) => item.id !== workout.id), moved]
+        .sort((a, b) => a.date.localeCompare(b.date)),
+    });
+    setMoveOpen(false);
+    setDate(target);
+    toast.show(t('Auf {date} verschoben', { date: formatDateShort(target) }), {
+      label: t('Rückgängig'),
+      run: () => { replaceState(before); setDate(date); },
+    });
+  };
+
   const removeRow = (row: Row) => {
     if (!row.logged) return;
+    const before = snapshot();
     upsertWorkout(date, (current) => ({
       ...current,
       exercises: current.exercises.filter((item) => item.id !== row.logged!.id),
     }));
+    toast.show(t('„{name}“ entfernt', { name: exerciseName(row.exercise) }), {
+      label: t('Rückgängig'),
+      run: () => replaceState(before),
+    });
   };
 
   /* ------------------------------------------------------------ Kennzahlen */
@@ -516,10 +549,25 @@ export function TodayPage() {
               onChange={(event) => upsertWorkout(date, (current) => ({ ...current, notes: event.target.value }))}
             />
           </div>
-          <button className="btn btn--danger btn--sm" style={{ marginTop: 10 }} onClick={() => setConfirmClear(true)}>
+          <div className="row row--wrap" style={{ marginTop: 10, gap: 8 }}>
+            <button className="btn btn--sm" onClick={() => setMoveOpen(true)}>
+              <IconCalendar /> {t('Datum ändern')}
+            </button>
+            <span className="spacer" />
+          <button className="btn btn--danger btn--sm" onClick={() => setConfirmClear(true)}>
             <IconTrash /> {t('Training löschen')}
           </button>
+          </div>
         </div>
+      )}
+
+      {moveOpen && workout && (
+        <MoveWorkoutDialog
+          workout={workout}
+          taken={state.workouts.filter((item) => workoutSetCount(item) > 0).map((item) => item.date)}
+          onClose={() => setMoveOpen(false)}
+          onMove={(target) => moveWorkout(target)}
+        />
       )}
 
       {record && (
@@ -558,7 +606,15 @@ export function TodayPage() {
           title={t("Training löschen?")}
           message={t('Alle Sätze vom {date} werden entfernt. Das lässt sich nicht rückgängig machen.', { date: formatDateShort(date) })}
           onCancel={() => setConfirmClear(false)}
-          onConfirm={() => { deleteWorkout(workout.id); setConfirmClear(false); toast.show(t("Training gelöscht")); }}
+          onConfirm={() => {
+            const before = snapshot();
+            deleteWorkout(workout.id);
+            setConfirmClear(false);
+            toast.show(t('Training gelöscht'), {
+              label: t('Rückgängig'),
+              run: () => replaceState(before),
+            });
+          }}
         />
       )}
     </>
@@ -624,7 +680,8 @@ function ExerciseCard({
   onMove: (direction: -1 | 1) => void;
   onToggleSuperset: () => void;
 }) {
-  const { state } = useStore();
+  const { state, snapshot, replaceState } = useStore();
+  const toast = useToast();
   const previous = useMemo(
     () => lastPerformance(state, row.exerciseId, date),
     [state, row.exerciseId, date],
@@ -660,7 +717,9 @@ function ExerciseCard({
   };
 
   const removeSet = (setId: string) => {
+    const before = snapshot();
     onUpdate(row, (logged) => ({ ...logged, sets: logged.sets.filter((set) => set.id !== setId) }));
+    toast.show(t('Satz entfernt'), { label: t('Rückgängig'), run: () => replaceState(before) });
   };
 
   /** Setzt den Vorschlag auf alle noch offenen Arbeitssaetze. */
@@ -1303,5 +1362,56 @@ function HoldCountdown({
     >
       {left}
     </button>
+  );
+}
+
+
+/**
+ * Ein Training auf einen anderen Tag schieben.
+ *
+ * Bewusst mit Vorwarnung statt mit stillem Zusammenfuehren: Liegt am Zieltag
+ * schon ein Training, muesste man raten, was gewinnt. Dann lieber sagen, dass
+ * es dort nicht hingeht.
+ */
+function MoveWorkoutDialog({
+  workout, taken, onClose, onMove,
+}: {
+  workout: Workout;
+  taken: string[];
+  onClose: () => void;
+  onMove: (date: string) => void;
+}) {
+  const [target, setTarget] = useState(workout.date);
+  const busy = target !== workout.date && taken.includes(target);
+
+  return (
+    <Modal title={t('Training verschieben')} onClose={onClose}>
+      <div className="list">
+        <p className="small muted">
+          {t('Das Training vom {date} wandert samt allen Sätzen auf den gewählten Tag.', {
+            date: formatDateShort(workout.date),
+          })}
+        </p>
+
+        <div className="field">
+          <label className="field__label">{t("Neues Datum")}</label>
+          <DateInput value={target} max={todayISO()} onChange={setTarget} />
+        </div>
+
+        {busy && (
+          <div className="tiny" style={{ color: 'var(--warn)' }}>
+            {t('An diesem Tag steht schon ein Training. Lösch es erst oder wähl einen anderen Tag.')}
+          </div>
+        )}
+
+        <button
+          className="btn btn--primary btn--block"
+          disabled={busy || target === workout.date}
+          onClick={() => onMove(target)}
+        >
+          {t('Verschieben')}
+        </button>
+      </div>
+    </Modal>
   );
 }

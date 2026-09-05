@@ -2,6 +2,43 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Die neun Schwächen aus der dritten Ideensammlung
+
+*Branch `claude/schwaechen`*
+
+Setzt alle Punkte aus dem Abschnitt „Schwächen" in
+[#13](https://github.com/JBderLeuchtturm/Gym-Tracker/issues/13) um.
+
+- **Diagramme mit ein oder zwei Messpunkten** sahen kaputt aus. Unter drei
+  Punkten stehen jetzt die Zahlen im Klartext und ein Satz, ab wann gezeichnet
+  wird. Dasselbe gilt für die Verteilung nach Muskelgruppe: mit nur einer
+  Gruppe wäre der Balken immer voll.
+- **Die letzte Kennzahl stand allein in einer Zeile.** Bei ungerader Anzahl
+  nimmt sie auf schmalen Geräten jetzt die ganze Breite ein.
+- **Datumsfelder zeigten `mm/dd/yyyy`**, wenn der Browser englisch eingestellt
+  ist. Das native Feld bleibt – ein eigener Kalender wäre schlechter als der
+  des Systems –, aber daneben steht das gelesene Datum im Klartext.
+- **Rückgängig für alles Gelöschte.** Übung, Training, Satz, Plan,
+  Gewichtseintrag, Körpermaße, eigene Übung und Foto lassen sich sieben
+  Sekunden lang zurückholen. Fotos liegen in IndexedDB, deshalb wird dort das
+  Bild selbst festgehalten.
+- **Das Datum eines Trainings lässt sich ändern.** Liegt am Zieltag schon
+  etwas, sagt der Dialog das vorher, statt still zusammenzuführen.
+- **Fotos kommen jetzt aus der App heraus** – gebündelt als ZIP. Beim Export
+  steht außerdem, dass sie im Backup nicht enthalten sind.
+- **Einstellungen und Profil haben einen eigenen Zeitstempel.** Vorher gewann
+  beim Abgleich pauschal die Seite, die zuletzt irgendetwas getan hat.
+- **Bremse gegen das Zuschütten mit Freundschaftsanfragen** – dreißig pro
+  Stunde, durchgesetzt in der Datenbank, nicht im Browser.
+- **Querformat.** Auf breiten, flachen Bildschirmen wandert die Navigation an
+  den linken Rand, statt unten sechzig Pixel Höhe zu fressen.
+
+**Technik**
+- Kleiner eigener ZIP-Schreiber (`src/lib/zip.ts`), gegen einen echten
+  Entpacker geprüft – eine Bibliothek dafür wären einige zehn Kilobyte in einer
+  App, die offline starten soll
+- Elfter Testlauf `tests/robust.mjs`
+
 ## Oberfläche von Hand nachgezogen
 
 *Branch `claude/ui-handarbeit`*
