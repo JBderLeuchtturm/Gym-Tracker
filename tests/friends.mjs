@@ -148,8 +148,9 @@ export async function run() {
     await openFriendList(b.page);
     await b.page.locator('.search-result').first().click();
     await b.page.waitForTimeout(900);
+    // Beschriftungen der Kennzahlen stehen in Grossbuchstaben - unabhaengig pruefen.
     const text = await b.page.locator('.modal').innerText();
-    if (!text.includes('Trainings')) throw new Error('Fortschritt fehlt');
+    if (!/trainings/i.test(text)) throw new Error('Fortschritt fehlt');
     if (text.includes('Körpergewicht')) throw new Error('Gewicht sichtbar, obwohl nicht freigegeben');
   });
   

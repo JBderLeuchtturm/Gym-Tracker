@@ -157,8 +157,7 @@ function AuthPanel() {
             borderRadius: 'var(--radius-sm)', background: 'var(--accent-soft)',
           }}
         >
-          <span style={{ fontSize: '1.2rem' }}>🤝</span>
-          <span className="small">
+                    <span className="small">
             <strong>@{sync.pendingInvite}</strong> hat dich eingeladen.
             <span className="tiny dim" style={{ display: 'block' }}>
               Leg einfach ein Konto an – die Freundschaftsanfrage geht danach von selbst raus.
@@ -499,8 +498,7 @@ function FriendsHome() {
       {sync.schemaOutdated && (
         <div className="card" style={{ borderColor: 'var(--warn)' }}>
           <div className="row" style={{ gap: 10, alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '1.3rem' }}>🛠️</span>
-            <div className="small">
+                        <div className="small">
               <div className="bold" style={{ marginBottom: 3 }}>
                 {t('Die Datenbank ist älter als die App')}
               </div>
@@ -518,8 +516,7 @@ function FriendsHome() {
       {sync.inviteNote && (
         <div className="card" style={{ borderColor: 'var(--accent)' }}>
           <div className="row" style={{ gap: 9 }}>
-            <span style={{ fontSize: '1.2rem' }}>🤝</span>
-            <span className="small">{sync.inviteNote}</span>
+                        <span className="small">{sync.inviteNote}</span>
           </div>
         </div>
       )}
@@ -607,16 +604,15 @@ function FriendsHome() {
 
       {section === 'feed' && <ActivityFeed friends={accepted} />}
       {section === 'groups' && (sync.schemaOutdated
-        ? <EmptyState icon="🛠️" title={t('Gruppen brauchen das neue Schema')} hint={t('Siehe Hinweis oben.')} />
+        ? <EmptyState title={t('Gruppen brauchen das neue Schema')} hint={t('Siehe Hinweis oben.')} />
         : <GroupsSection />)}
       {section === 'challenges' && (sync.schemaOutdated
-        ? <EmptyState icon="🛠️" title={t('Challenges brauchen das neue Schema')} hint={t('Siehe Hinweis oben.')} />
+        ? <EmptyState title={t('Challenges brauchen das neue Schema')} hint={t('Siehe Hinweis oben.')} />
         : <ChallengesSection friends={accepted} />)}
 
       {/* -------------------------------------------------------- Freunde */}
       {section === 'friends' && (accepted.length === 0 ? (
         <EmptyState
-          icon="🤝"
           title={t("Noch keine Freunde verbunden")}
           hint={t("Sobald ihr verbunden seid, seht ihr gegenseitig euren Fortschritt.")}
         />
@@ -810,7 +806,6 @@ function FriendDetail({
           <>
             {!data || data.scopes.length === 0 ? (
               <EmptyState
-                icon="🔒"
                 title={`${friend.displayName} teilt gerade nichts mit dir`}
                 hint={t("Jede Seite entscheidet selbst, was sichtbar ist.")}
               />
@@ -967,7 +962,6 @@ function Comparison({
   if (rows.length === 0) {
     return (
       <EmptyState
-        icon="🔍"
         title={t("Noch keine gemeinsamen Übungen")}
         hint={`Sobald ihr beide dieselbe Übung trainiert, wird hier verglichen.`}
       />
@@ -1048,7 +1042,7 @@ function Leaderboard({
       }
     };
 
-    add(mine.exercises, myName, '⭐');
+    add(mine.exercises, myName, '');
     for (const friend of friends) {
       const progress = data[friend.userId]?.progress;
       if (progress) add(progress.exercises, friend.displayName, friend.emoji);
@@ -1080,7 +1074,7 @@ function Leaderboard({
                 <div key={`${entry.name}-${index}`} style={{ marginBottom: 4 }}>
                   <div className="row row--between tiny">
                     <span className="nowrap">
-                      {['🥇', '🥈', '🥉'][index] ?? '　'} {entry.emoji} {entry.name}
+                      <span className="rank">{index + 1}</span> {entry.emoji} {entry.name}
                     </span>
                     <span className="mono dim">
                       {board.timed ? formatClock(entry.value) : `${fmt(entry.value, 1)} kg`}

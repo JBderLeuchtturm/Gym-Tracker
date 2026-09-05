@@ -155,7 +155,8 @@ export async function run() {
     const text = await a.page.locator('.page').innerText();
     if (!text.includes('4 Wochen durchziehen')) throw new Error('Challenge fehlt');
     if (!text.includes('läuft')) throw new Error('Status fehlt');
-    if (!/🥇\s*⭐\s*Du/.test(text)) throw new Error(`Keine Wertung: ${text.slice(0, 200)}`);
+    // Platzziffer statt Medaille.
+    if (!/1\s*Du/.test(text)) throw new Error(`Keine Wertung: ${text.slice(0, 200)}`);
   });
 
   await runner.step('B kann mitmachen', async () => {

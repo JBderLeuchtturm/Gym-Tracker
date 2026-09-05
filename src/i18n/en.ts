@@ -684,7 +684,7 @@ export const EN: Record<string, string> = {
   'Lange nicht dran:': 'Not touched for a while:',
   'Maße': 'Measurements',
   'Maße gespeichert': 'Measurements saved',
-  'Mehr zu diesem Satz': 'More about this set',
+  'Notiz und Partner für diesen Satz': 'Note and partner for this set',
   'Mein Trainingsplan „{name}“ für den Gym-Tracker:': 'My Gym Tracker plan “{name}”:',
   'Meine Geräte': 'My equipment',
   'Name – leer lassen für aus': 'Name – leave empty to turn off',

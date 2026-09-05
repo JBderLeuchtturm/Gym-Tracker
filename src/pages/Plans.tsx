@@ -6,7 +6,6 @@ import type {
 import { WEEKDAY_NAMES, WEEKDAY_SHORT, startOfWeek, weekdayOf, todayISO } from '../lib/date';
 import { DEFAULT_CYCLE, cycleWeek } from '../lib/cycle';
 import { CATEGORY_LABELS } from '../data/catalog';
-import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { useStore } from '../storage/store';
 import { emptyDays, uid } from '../storage/defaults';
 import { PLAN_TEMPLATES, buildTemplatePlan } from '../data/templates';
@@ -96,19 +95,20 @@ export function PlansPage() {
                   const empty = day.isRestDay || day.exercises.length === 0;
                   const focus = dominantCategory(day, getExercise);
                   return (
+                    /*
+                     * Trainingstage heben sich ab, Ruhetage treten zurueck.
+                     * Vorher trug jeder Tag die Farbe seiner Muskelgruppe -
+                     * sieben Farben nebeneinander sahen aus wie ein Farbkasten
+                     * und sagten weniger als "hier wird trainiert".
+                     */
                     <div
                       key={day.weekday}
-                      className="day-strip__item"
-                      style={{
-                        cursor: 'default',
-                        background: empty ? 'var(--surface-2)' : categoryTint(focus, 0.16),
-                        borderColor: empty ? 'var(--border-soft)' : 'transparent',
-                        color: empty ? 'var(--text-dim)' : categoryColor(focus),
-                      }}
+                      className={`day-strip__item ${empty ? '' : 'day-strip__item--filled'}`}
+                      style={{ cursor: 'default' }}
                       title={empty ? t('Ruhetag') : `${day.title} · ${t(CATEGORY_LABELS[focus])}`}
                     >
                       <span>{t(WEEKDAY_SHORT[index])}</span>
-                      <span className="day-strip__num" style={{ fontSize: '0.78rem', color: 'inherit' }}>
+                      <span className="day-strip__num" style={{ fontSize: '0.78rem' }}>
                         {empty ? '–' : day.exercises.length}
                       </span>
                     </div>
@@ -139,7 +139,7 @@ export function PlansPage() {
         })}
       </div>
 
-      <div className="grid-2">
+      <div className="row row--wrap" style={{ gap: 8 }}>
         <button className="btn btn--primary" onClick={createEmpty}><IconPlus /> {t("Leerer Plan")}</button>
         <button className="btn" onClick={() => setTemplatesOpen(true)}>{t("Aus Vorlage")}</button>
         <button className="btn" onClick={() => setImportOpen(true)}>{t("Plan einfügen")}</button>
@@ -345,7 +345,7 @@ function PlanEditor({
               </div>
 
               {day.exercises.length === 0 ? (
-                <EmptyState icon="➕" title={t("Noch keine Übungen an diesem Tag")} />
+                <EmptyState title={t("Noch keine Übungen an diesem Tag")} />
               ) : (
                 <div className="list">
                   {day.exercises.map((planExercise, index) => {

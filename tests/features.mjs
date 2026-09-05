@@ -68,6 +68,8 @@ export async function run() {
     await page.locator('.rest-timer [aria-label="Pause beenden"]').click().catch(() => {});
     const nameBefore = await page.locator('.exercise__name').first().innerText();
 
+    await page.locator('.exercise .btn', { hasText: 'Mehr' }).first().click();
+    await page.waitForTimeout(250);
     await page.locator('.exercise .btn', { hasText: 'Ersatz' }).first().click();
     await page.waitForSelector('.modal');
     await page.waitForTimeout(300);

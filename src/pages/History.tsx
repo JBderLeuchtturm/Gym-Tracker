@@ -32,7 +32,6 @@ export function HistoryPage() {
   if (workouts.length === 0) {
     return (
       <EmptyState
-        icon="📒"
         title={t("Noch kein Training aufgezeichnet")}
         hint={t("Hake auf der Startseite ein paar Sätze ab – sie erscheinen dann hier.")}
       />

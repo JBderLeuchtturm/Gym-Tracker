@@ -479,7 +479,21 @@ export function YearHeatmap({
     String(today.getDate()).padStart(2, '0'),
   ].join('-');
 
+  // Monatswechsel beschriften - ohne Marken ist das Raster nur ein Raster.
+  const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+  const labels = columns.map((column, index) => {
+    const month = Number(column[0].slice(5, 7));
+    const previousMonth = index === 0 ? null : Number(columns[index - 1][0].slice(5, 7));
+    return month !== previousMonth ? monthNames[month - 1] : '';
+  });
+
   return (
+    <div className="heatmap-wrap">
+      <div className="heatmap heatmap--months" aria-hidden="true">
+        {labels.map((label, index) => (
+          <div className="heatmap__month" key={columns[index][0]}>{label}</div>
+        ))}
+      </div>
     <div className="heatmap">
       {columns.map((column) => (
         <div className="heatmap__col" key={column[0]}>
@@ -502,6 +516,7 @@ export function YearHeatmap({
           })}
         </div>
       ))}
+    </div>
     </div>
   );
 }

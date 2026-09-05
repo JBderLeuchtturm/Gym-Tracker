@@ -10,6 +10,7 @@ import { HistoryPage } from './pages/History';
 import { FriendsPage } from './pages/Friends';
 import { useSync } from './sync/SyncProvider';
 import { applyUpdate, onUpdateAvailable } from './lib/appUpdate';
+import { workoutSetCount } from './lib/stats';
 import { formatDateLong, todayISO } from './lib/date';
 import { IconCalendar, IconChart, IconDumbbell, IconFlame, IconUser } from './components/icons';
 import { IconUsers } from './components/icons';
@@ -69,18 +70,26 @@ export function App() {
   const activePlan = state.plans.find((plan) => plan.id === state.activePlanId);
   const greeting = state.profile.name ? t('Hallo {name}', { name: state.profile.name }) : 'Gym Tracker';
 
+  const workoutCount = state.workouts.filter((workout) => workoutSetCount(workout) > 0).length;
+  const subtitle =
+    tab === 'today' ? formatDateLong(todayISO())
+      : tab === 'plans'
+        ? activePlan ? t('Aktiv: {name}', { name: activePlan.name }) : t('Kein Plan aktiv')
+        : tab === 'progress' && workoutCount > 0
+          ? t('{count} Einheiten aufgezeichnet', { count: workoutCount })
+          : tab === 'calories' ? formatDateLong(todayISO())
+            : null;
+
   return (
     <div className="app">
       <header className="topbar">
         <div className="topbar__title">
           <h1>{tab === 'today' ? greeting : title(tab)}</h1>
-          <div className="topbar__sub">
-            {tab === 'today'
-              ? formatDateLong(todayISO())
-              : tab === 'plans'
-                ? activePlan ? t('Aktiv: {name}', { name: activePlan.name }) : 'Kein Plan aktiv'
-                : title(tab)}
-          </div>
+          {/*
+            * Die Unterzeile stand frueher auf jeder Seite und wiederholte dort
+            * nur die Ueberschrift. Jetzt erscheint sie nur, wo sie etwas sagt.
+            */}
+          {subtitle && <div className="topbar__sub">{subtitle}</div>}
         </div>
         {(tab === 'today' || tab === 'progress') && (
           <button className="btn btn--sm" onClick={() => setHistoryOpen(true)}>{t("Verlauf")}</button>
@@ -110,8 +119,7 @@ export function App() {
 
       {updateReady && (
         <div className="update-banner" role="status">
-          <span style={{ fontSize: '1.2rem' }}>✨</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
             <div className="bold small">{t('Neue Version verfügbar')}</div>
             <div className="tiny" style={{ opacity: 0.85 }}>{t('Einmal neu laden, dann ist sie da.')}</div>
           </div>
