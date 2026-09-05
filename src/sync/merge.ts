@@ -1,6 +1,6 @@
 import { t } from '../i18n';
 import type {
-  AppState, Exercise, MeasurementEntry, NutritionEntry, Plan, WeightEntry, Workout,
+  AppState, Exercise, ExerciseGoal, MeasurementEntry, NutritionEntry, Plan, WeightEntry, Workout,
 } from '../types';
 
 /**
@@ -52,6 +52,19 @@ export function mergeStates(local: AppState, remote: AppState): AppState {
     nutrition: mergeByKeyPreferSide(
       local.nutrition, remote.nutrition, (entry) => entry.date, localNewer,
     ).sort((a, b) => a.date.localeCompare(b.date)) as NutritionEntry[],
+    /*
+     * Ziele werden vereinigt. Ob eines erreicht ist, steht nirgends geschrieben,
+     * sondern ergibt sich aus dem Verlauf - deshalb kann hier nichts verloren
+     * gehen ausser dem Ziel selbst.
+     */
+    goals: mergeByKeyPreferNewer(
+      local.goals ?? [], remote.goals ?? [],
+      (goal) => goal.id,
+      (goal) => goal.createdAt ?? '',
+    ) as ExerciseGoal[],
+    lastBackupAt: (local.lastBackupAt ?? '') >= (remote.lastBackupAt ?? '')
+      ? local.lastBackupAt
+      : remote.lastBackupAt,
   };
 }
 

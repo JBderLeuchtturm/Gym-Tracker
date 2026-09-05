@@ -1,5 +1,5 @@
 import { exerciseName, t } from '../i18n';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Exercise, LoggedExercise, PlanExercise, SetLog, Workout } from '../types';
 import {
   WEEKDAY_SHORT, addDays, formatClock, formatDateShort, parseISODate, relativeDayLabel,
@@ -14,8 +14,25 @@ import {
 import { useStore } from '../storage/store';
 import { useSync } from '../sync/SyncProvider';
 import { uid } from '../storage/defaults';
-import { ExercisePicker } from '../components/ExercisePicker';
-import { ExerciseDetail } from '../components/ExerciseDetail';
+/*
+ * Suche, Detailansicht und Rechner sind Dialoge: Sie erscheinen erst, wenn
+ * jemand sie aufruft, und muessen deshalb nicht beim Start mitgeladen werden.
+ * In der Detailansicht stecken die Diagramme, also der groesste Brocken.
+ */
+const ExercisePicker = lazy(
+  () => import('../components/ExercisePicker').then((m) => ({ default: m.ExercisePicker })));
+const ExerciseDetail = lazy(
+  () => import('../components/ExerciseDetail').then((m) => ({ default: m.ExerciseDetail })));
+const WeightCalculator = lazy(
+  () => import('../components/WeightCalculator').then((m) => ({ default: m.WeightCalculator })));
+import { describePlates, platesFor, usesBarbell } from '../lib/plates';
+import { cachedGuide, prefetchGuides } from '../api/guide';
+import { isOutdoor } from '../lib/outdoor';
+import {
+  describeCode, loadWeather, weatherForDate, weatherSymbol, weatherWarning, type DayWeather,
+} from '../api/weather';
+import { useWakeLock } from '../lib/wakeLock';
+import { fromRpe, toRpe } from '../lib/effort';
 import { BodyMap, type Intensity } from '../components/MuscleMap';
 import {
   REGION_LABELS, fitsEquipment, regionsOf, suggestForRegion, type MuscleRegion,
@@ -26,8 +43,9 @@ import {
 import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { CATEGORY_LABELS } from '../data/catalog';
 import {
-  IconCalendar, IconCheck, IconChart, IconChevronDown, IconChevronLeft, IconChevronRight, IconClock,
-  IconPlay, IconPlus, IconSwap, IconTrash, IconTrophy, IconX,
+  IconBook, IconCalculator, IconCalendar, IconCheck, IconChart, IconChevronDown, IconChevronLeft,
+  IconChevronRight, IconClock, IconCopy, IconExpand, IconPlay, IconPlus, IconSwap, IconTrash,
+  IconTrophy, IconX,
 } from '../components/icons';
 import { beep } from '../lib/beep';
 
@@ -61,7 +79,7 @@ const newSet = (partial: Partial<SetLog> = {}): SetLog => ({
 
 export function TodayPage() {
   const {
-    state, getExercise, upsertWorkout, deleteWorkout, snapshot, replaceState,
+    state, getExercise, upsertWorkout, deleteWorkout, snapshot, replaceState, updateSettings,
   } = useStore();
   const toast = useToast();
 
@@ -79,6 +97,12 @@ export function TodayPage() {
   const plan = state.plans.find((item) => item.id === state.activePlanId) ?? null;
   const planDay = plan?.days[weekdayOf(date)] ?? null;
   const workout = state.workouts.find((item) => item.date === date);
+
+  // Zwischen zwei Saetzen vergehen zwei Minuten, in denen niemand das Handy
+  // anfasst. Ohne das hier ist der Bildschirm danach aus und gesperrt.
+  useWakeLock(
+    state.settings.keepScreenAwake && Boolean(workout?.startedAt) && !workout?.endedAt,
+  );
 
   /* Plan-Übungen und bereits geloggte Übungen zu einer Liste zusammenführen. */
   const rows: Row[] = useMemo(() => {
@@ -193,6 +217,9 @@ export function TodayPage() {
 
     if (!becameDone || !target) return;
 
+    // Kurzer Ruettler: Mit feuchten Fingern sieht man den Haken nicht immer.
+    navigator.vibrate?.(18);
+
     // Ist der Satz eine Bestleistung? Dann kurz feiern.
     const beaten = detectRecord(state, row.exerciseId, target, date);
     if (beaten) {
@@ -280,6 +307,48 @@ export function TodayPage() {
 
     setPickerOpen(false);
     toast.show(t('„{name}“ hinzugefügt', { name: exercise.name }));
+  };
+
+  /**
+   * Das letzte gleiche Training noch einmal, samt Gewichten.
+   *
+   * "Gleich" heisst: derselbe Plantag, sonst derselbe Titel. Abgehakt wird
+   * nichts - uebernommen werden die Zahlen, die Arbeit macht man selbst.
+   */
+  const lastSame = useMemo(() => {
+    const candidates = state.workouts
+      .filter((item) => item.date < date && workoutSetCount(item) > 0)
+      .filter((item) => (
+        planDay && item.planDayIndex != null
+          ? item.planDayIndex === weekdayOf(date)
+          : item.title === (workout?.title || planDay?.title || '')
+      ))
+      .sort((a, b) => b.date.localeCompare(a.date));
+    return candidates[0] ?? null;
+  }, [state.workouts, date, planDay, workout?.title]);
+
+  const repeatLast = () => {
+    if (!lastSame) return;
+    const before = snapshot();
+    upsertWorkout(date, (current) => ({
+      ...current,
+      planId: plan?.id,
+      planDayIndex: weekdayOf(date),
+      title: current.title || lastSame.title || planDay?.title || '',
+      bodyWeightKg: current.bodyWeightKg ?? state.profile.weightKg,
+      exerciseOrder: lastSame.exerciseOrder,
+      exercises: lastSame.exercises.map((logged) => ({
+        ...logged,
+        id: uid('le'),
+        sets: logged.sets.map((set) => ({
+          ...set, id: uid('set'), done: false, note: undefined, rpe: null,
+        })),
+      })),
+    }));
+    toast.show(
+      t('Training vom {date} übernommen', { date: formatDateShort(lastSame.date) }),
+      { label: t('Rückgängig'), run: () => replaceState(before) },
+    );
   };
 
   /** Verschiebt eine Uebung im Tagesablauf und haelt die Reihenfolge fest. */
@@ -475,6 +544,12 @@ export function TodayPage() {
         />
       )}
 
+      {lastSame && stats.sets === 0 && (
+        <button className="btn btn--block" onClick={repeatLast}>
+          <IconCopy /> {t('Training vom {date} wiederholen', { date: formatDateShort(lastSame.date) })}
+        </button>
+      )}
+
       {rows.length === 0 && (
         <EmptyState
           title={planDay?.isRestDay ? t('Heute ist Ruhetag') : t('Für heute ist nichts geplant')}
@@ -508,6 +583,10 @@ export function TodayPage() {
       <button className="btn btn--primary btn--block" onClick={() => setPickerOpen(true)}>
         <IconPlus /> {t('Übung hinzufügen')}
       </button>
+
+      <WeatherNote rows={rows} date={date} />
+
+      <GuidePrefetch rows={rows} />
 
       <SessionMuscles rows={rows} />
 
@@ -579,16 +658,24 @@ export function TodayPage() {
       )}
 
       {restEndsAt && (
-        <RestTimer endsAt={restEndsAt} onClose={() => setRestEndsAt(null)} onExtend={() => setRestEndsAt(restEndsAt + 30000)} />
+        <RestTimer
+          endsAt={restEndsAt}
+          fullscreen={state.settings.fullscreenRest}
+          onFullscreenChange={(value) => updateSettings({ fullscreenRest: value })}
+          onClose={() => setRestEndsAt(null)}
+          onExtend={() => setRestEndsAt(restEndsAt + 30000)}
+        />
       )}
 
       {pickerOpen && (
-        <ExercisePicker
-          title={t("Übung hinzufügen")}
-          onPick={addExercise}
-          onClose={() => setPickerOpen(false)}
-          excludeIds={rows.map((row) => row.exerciseId)}
-        />
+        <Suspense fallback={null}>
+          <ExercisePicker
+            title={t("Übung hinzufügen")}
+            onPick={addExercise}
+            onClose={() => setPickerOpen(false)}
+            excludeIds={rows.map((row) => row.exerciseId)}
+          />
+        </Suspense>
       )}
 
       {swapFor && (
@@ -599,7 +686,11 @@ export function TodayPage() {
         />
       )}
 
-      {detail && <ExerciseDetail exercise={detail} onClose={() => setDetail(null)} />}
+      {detail && (
+        <Suspense fallback={null}>
+          <ExerciseDetail exercise={detail} onClose={() => setDetail(null)} />
+        </Suspense>
+      )}
 
       {confirmClear && workout && (
         <ConfirmDialog
@@ -697,7 +788,9 @@ function ExerciseCard({
   /** Welcher Satz zeigt gerade seine Zusatzzeile (Notiz, Partner)? */
   const [openSet, setOpenSet] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
   const partnerName = state.settings.partnerName.trim();
+  const useRir = state.settings.useRir;
   const isTimed = row.exercise?.kind === 'time' || row.exercise?.kind === 'cardio';
 
   const target = row.planExercise;
@@ -714,6 +807,19 @@ function ExerciseCard({
       ...logged,
       sets: logged.sets.map((set) => (set.id === setId ? { ...set, ...patch } : set)),
     }));
+  };
+
+  /** Denselben Satz noch einmal - mit Gewicht und Wiederholungen, ohne Haken. */
+  const duplicateSet = (setId: string) => {
+    onUpdate(row, (logged) => {
+      const index = logged.sets.findIndex((set) => set.id === setId);
+      if (index < 0) return logged;
+      const source = logged.sets[index];
+      const copy = { ...source, id: uid('set'), done: false, note: source.note };
+      const sets = [...logged.sets];
+      sets.splice(index + 1, 0, copy);
+      return { ...logged, sets };
+    });
   };
 
   const removeSet = (setId: string) => {
@@ -746,6 +852,12 @@ function ExerciseCard({
       ],
     }));
   };
+
+  // Der Rechner soll den Satz zeigen, an dem man gerade steht: den ersten
+  // offenen Arbeitssatz, sonst den letzten abgehakten.
+  const currentSet = row.sets.find((set) => !set.done && !set.isWarmup)
+    ?? [...row.sets].reverse().find((set) => set.done)
+    ?? row.sets[0];
 
   const totalTarget = target?.targetSets ?? row.sets.length;
   const allDone = doneSets >= totalTarget && totalTarget > 0;
@@ -841,7 +953,7 @@ function ExerciseCard({
             <span>#</span>
             <span>{isTimed ? t('Sek.') : t('kg')}</span>
             <span>{isTimed ? t('km') : t('Wdh')}</span>
-            <span>{t("RPE")}</span>
+            <span>{useRir ? t('RIR') : t('RPE')}</span>
             <span />
           </div>
 
@@ -906,11 +1018,11 @@ function ExerciseCard({
               )}
 
               <NumberInput
-                value={set.rpe}
-                ariaLabel="RPE"
-                min={1}
-                max={10}
-                onChange={(value) => patchSet(set.id, { rpe: value })}
+                value={fromRpe(set.rpe, useRir)}
+                ariaLabel={useRir ? t('Wiederholungen in Reserve') : 'RPE'}
+                min={0}
+                max={useRir ? 9 : 10}
+                onChange={(value) => patchSet(set.id, { rpe: toRpe(value, useRir) })}
                 placeholder="–"
               />
 
@@ -941,6 +1053,13 @@ function ExerciseCard({
                   value={set.note ?? ''}
                   onChange={(event) => patchSet(set.id, { note: event.target.value || undefined })}
                 />
+                <button
+                  className="chip chip--button"
+                  onClick={() => duplicateSet(set.id)}
+                >
+                  {t('Satz duplizieren')}
+                </button>
+                <PlateHint exercise={row.exercise} weightKg={set.weightKg} />
                 {partnerName && (
                   <button
                     className={`chip chip--button ${set.forPartner ? 'chip--accent' : ''}`}
@@ -967,6 +1086,9 @@ function ExerciseCard({
               onClick={() => onStartRest(row.planExercise?.restSec ?? state.settings.restTimerSec)}
             >
               <IconClock /> {t('Pause')}
+            </button>
+            <button className="btn btn--sm" onClick={() => setCalcOpen(true)}>
+              <IconCalculator /> {t('Rechner')}
             </button>
             <span className="spacer" />
             <button
@@ -1017,6 +1139,23 @@ function ExerciseCard({
             </div>
           )}
 
+          {calcOpen && (
+            <Suspense fallback={null}>
+            <WeightCalculator
+              exercise={row.exercise}
+              weightKg={currentSet?.weightKg ?? null}
+              reps={currentSet?.reps ?? null}
+              onClose={() => setCalcOpen(false)}
+              onApply={(kg) => onUpdate(row, (logged) => ({
+                ...logged,
+                sets: logged.sets.map((set) => (
+                  set.done || set.isWarmup ? set : { ...set, weightKg: kg }
+                )),
+              }))}
+            />
+            </Suspense>
+          )}
+
           {row.logged && exerciseVolume(row.logged) > 0 && (
             <div className="tiny dim right" style={{ marginTop: 7 }}>
               Volumen heute: {fmt(exerciseVolume(row.logged))} kg
@@ -1025,6 +1164,26 @@ function ExerciseCard({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Was liegt bei diesem Gewicht auf der Stange?
+ *
+ * Steht direkt unter dem Gewichtsfeld, weil man genau dort danach fragt - und
+ * nur dort, wo es die Frage ueberhaupt gibt: an Maschine und Kabelzug steckt
+ * man einen Stift in einen Block.
+ */
+function PlateHint({ exercise, weightKg }: { exercise: Exercise | undefined; weightKg: number | null }) {
+  const { state } = useStore();
+  if (!usesBarbell(exercise) || !weightKg) return null;
+  const loaded = platesFor(weightKg, state.settings.barWeightKg, state.settings.plateSet);
+  if (!loaded) return null;
+  return (
+    <span className="tiny dim nowrap">
+      {t('je Seite')}: {describePlates(loaded.perSide)}
+      {loaded.offByKg !== 0 && ` (${loaded.totalKg.toLocaleString('de-DE')} kg)`}
+    </span>
   );
 }
 
@@ -1056,9 +1215,11 @@ function summarizeSets(sets: SetLog[], isTimed: boolean): string {
 /* --------------------------------------------------------------- Pausenuhr */
 
 function RestTimer({
-  endsAt, onClose, onExtend,
+  endsAt, fullscreen, onFullscreenChange, onClose, onExtend,
 }: {
   endsAt: number;
+  fullscreen: boolean;
+  onFullscreenChange: (value: boolean) => void;
   onClose: () => void;
   onExtend: () => void;
 }) {
@@ -1074,6 +1235,7 @@ function RestTimer({
   }, [endsAt]);
 
   const barWidth = Math.min(100, (remaining / Math.max(total, remaining)) * 100);
+  const label = remaining > 0 ? formatClock(remaining) : t('Los!');
 
   useEffect(() => {
     if (remaining > 0) return;
@@ -1083,11 +1245,44 @@ function RestTimer({
     return () => window.clearTimeout(timer);
   }, [remaining, onClose]);
 
+  /*
+   * Vollbild: Die Zahl soll von der Bank aus lesbar sein, ohne das Handy in
+   * die Hand zu nehmen. Wer das einmal will, will es meistens immer - deshalb
+   * merkt sich die App die Entscheidung, statt bei jeder Pause zu fragen.
+   */
+  if (fullscreen) {
+    return (
+      <div className="rest-full" role="timer" aria-live="off">
+        <button
+          className="rest-full__shrink"
+          onClick={() => onFullscreenChange(false)}
+          aria-label={t('Pausenuhr klein anzeigen')}
+        >
+          <IconExpand />
+        </button>
+        <div className="rest-full__time">{label}</div>
+        <div className="rest-full__bar"><span style={{ width: `${barWidth}%` }} /></div>
+        <div className="row" style={{ gap: 10, marginTop: 22 }}>
+          <button className="btn btn--lg" onClick={onExtend}>+30 s</button>
+          <button className="btn btn--lg btn--primary" onClick={onClose}>{t('Weiter')}</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="rest-timer">
+    <div className="rest-timer" role="timer">
       <IconClock style={{ width: 20, height: 20 }} />
-      <span className="rest-timer__time">{remaining > 0 ? formatClock(remaining) : 'Los!'}</span>
+      <span className="rest-timer__time">{label}</span>
       <span className="spacer" />
+      <button
+        className="btn btn--sm btn--ghost"
+        style={{ color: '#fff' }}
+        onClick={() => onFullscreenChange(true)}
+        aria-label={t('Pausenuhr groß anzeigen')}
+      >
+        <IconExpand />
+      </button>
       <button className="btn btn--sm" style={{ background: 'rgba(255,255,255,0.18)', borderColor: 'transparent', color: '#fff' }} onClick={onExtend}>
         +30 s
       </button>
@@ -1176,6 +1371,107 @@ function RecordBanner({
   );
 }
 
+
+/**
+ * Wetter zum Trainingstag.
+ *
+ * Erscheint nur, wenn an dem Tag ueberhaupt etwas draussen ansteht - wer im
+ * Studio Bankdruecken macht, dem ist Regen egal, und eine Wetterkarte ueber
+ * der Satzliste waere dann nur Zierrat.
+ */
+function WeatherNote({ rows, date }: { rows: Row[]; date: string }) {
+  const { state } = useStore();
+  const [days, setDays] = useState<DayWeather[]>([]);
+  const settings = state.settings.weather;
+
+  const outdoor = useMemo(
+    () => rows.map((row) => row.exercise).filter((exercise) => isOutdoor(exercise)),
+    [rows],
+  );
+
+  const active = settings.enabled && settings.lat != null && settings.lon != null && outdoor.length > 0;
+
+  useEffect(() => {
+    if (!active) return;
+    let cancelled = false;
+    void loadWeather(settings.lat as number, settings.lon as number).then((result) => {
+      if (!cancelled) setDays(result);
+    });
+    return () => { cancelled = true; };
+  }, [active, settings.lat, settings.lon]);
+
+  if (!active) return null;
+
+  const day = weatherForDate(days, date);
+  if (!day) return null;
+
+  const warning = weatherWarning(day);
+
+  return (
+    <div className="weather">
+      <span className="weather__symbol" aria-hidden="true">{weatherSymbol(day.code)}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="weather__line">
+          {describeCode(day.code)}
+          {' · '}
+          <span className="mono">{Math.round(day.maxC)}°</span>
+          <span className="dim">{' / '}{Math.round(day.minC)}°</span>
+          {day.rainChance != null && <span className="dim">{` · ${day.rainChance} % Regen`}</span>}
+        </div>
+        <div className="tiny dim">
+          {warning ?? t('{place} · für {exercise}', {
+            place: settings.placeName || t('dein Ort'),
+            exercise: exerciseName(outdoor[0]),
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Anleitungen fuer den heutigen Tag im Voraus holen.
+ *
+ * Gedacht fuer zu Hause, bevor man losfaehrt: Im Studio steht man oft im
+ * Keller mit einem Balken Empfang, und dann ist eine Anleitung, die erst
+ * geladen werden muss, keine Anleitung. Der Knopf verschwindet, sobald alles
+ * da ist - ein Knopf, der nichts mehr zu tun hat, ist nur noch Moebel.
+ */
+function GuidePrefetch({ rows }: { rows: Row[] }) {
+  const { state } = useStore();
+  const toast = useToast();
+  const [busy, setBusy] = useState<{ done: number; total: number } | null>(null);
+  const [hidden, setHidden] = useState(false);
+
+  const missing = useMemo(
+    () => rows
+      .map((row) => row.exercise)
+      .filter((exercise): exercise is Exercise => Boolean(exercise))
+      .filter((exercise) => !cachedGuide(exercise.id)),
+    [rows],
+  );
+
+  if (hidden || missing.length === 0 || !state.settings.useWgerApi) return null;
+
+  const run = async () => {
+    setBusy({ done: 0, total: missing.length });
+    const loaded = await prefetchGuides(missing, (done, total) => setBusy({ done, total }));
+    setBusy(null);
+    setHidden(true);
+    toast.show(loaded > 0
+      ? t('{count} Anleitungen liegen jetzt auf dem Gerät', { count: loaded })
+      : t('Dazu war nichts zu finden'));
+  };
+
+  return (
+    <button className="btn btn--sm btn--block" onClick={() => void run()} disabled={Boolean(busy)}>
+      <IconBook />
+      {busy
+        ? t('{done} von {total} …', { done: busy.done, total: busy.total })
+        : t('Anleitungen für heute aufs Gerät laden')}
+    </button>
+  );
+}
 
 /**
  * Welche Muskeln das heutige Training abdeckt. Kraeftig eingefaerbt ist,

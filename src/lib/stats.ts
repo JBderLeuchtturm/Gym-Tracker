@@ -24,6 +24,31 @@ export const workoutSetCount = (workout: Workout): number =>
     0,
   );
 
+/**
+ * Uebungen, die zuletzt tatsaechlich trainiert wurden - juengste zuerst.
+ *
+ * Die meisten Leute benutzen zwanzig bis dreissig Uebungen und suchen sie
+ * trotzdem jedes Mal im ganzen Katalog. Gezaehlt werden nur gearbeitete
+ * Saetze: Was einmal aus Versehen hinzugefuegt und nie ausgefuehrt wurde,
+ * gehoert nicht nach oben.
+ */
+export function recentExerciseIds(state: AppState, limit = 12): ID[] {
+  const seen: ID[] = [];
+  const known = new Set<ID>();
+  const byDate = [...state.workouts].sort((a, b) => b.date.localeCompare(a.date));
+
+  for (const workout of byDate) {
+    for (const logged of workout.exercises) {
+      if (known.has(logged.exerciseId)) continue;
+      if (!logged.sets.some(countsAsWork)) continue;
+      known.add(logged.exerciseId);
+      seen.push(logged.exerciseId);
+      if (seen.length >= limit) return seen;
+    }
+  }
+  return seen;
+}
+
 /** Geschaetztes Ein-Wiederholungs-Maximum nach Epley. */
 export function estimate1RM(weightKg: number, reps: number): number {
   if (weightKg <= 0 || reps <= 0) return 0;
@@ -48,11 +73,25 @@ export interface ExerciseSession {
 
 /** Alle Trainingseinheiten einer Uebung, aufsteigend nach Datum. */
 export function exerciseHistory(state: AppState, exerciseId: ID): ExerciseSession[] {
+  return historyOf(state, (id) => id === exerciseId);
+}
+
+/**
+ * Wie exerciseHistory, aber ueber mehrere Uebungen hinweg - fuer die
+ * Spielarten einer Bewegung. Wer flach, schraeg und mit Kurzhanteln
+ * bankdrueckt, hat drei Verlaeufe mit je wenigen Punkten und keinen, der
+ * etwas zeigt.
+ */
+export function familyHistory(state: AppState, exerciseIds: Set<ID>): ExerciseSession[] {
+  return historyOf(state, (id) => exerciseIds.has(id));
+}
+
+function historyOf(state: AppState, matches: (id: ID) => boolean): ExerciseSession[] {
   const sessions: ExerciseSession[] = [];
 
   for (const workout of state.workouts) {
     for (const logged of workout.exercises) {
-      if (logged.exerciseId !== exerciseId) continue;
+      if (!matches(logged.exerciseId)) continue;
       const sets = logged.sets.filter((set) => set.done && !set.forPartner);
       if (sets.length === 0) continue;
 

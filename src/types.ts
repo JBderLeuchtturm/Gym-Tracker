@@ -65,6 +65,22 @@ export interface Exercise {
   source: 'catalog' | 'wger' | 'custom';
   externalId?: string;
   createdAt?: string;
+  /**
+   * Dauerhafte eigene Notiz zur Uebung ("Bank auf Stufe 3, Griff aussen").
+   * Bleibt ueber alle Trainings hinweg stehen - anders als die Notiz am
+   * einzelnen Satz, die zum jeweiligen Tag gehoert.
+   */
+  personalNote?: string;
+  /**
+   * Spielart einer anderen Uebung. Flach, schraeg und Kurzhantel-Bankdruecken
+   * gehoeren im Verlauf zusammen betrachtet, sind aber getrennt zu loggen.
+   */
+  variantOf?: ID;
+  /**
+   * Findet draussen statt. Wird sonst aus Name und Geraet geraten; dieses Feld
+   * ist die ausdrueckliche Entscheidung des Nutzers und schlaegt die Vermutung.
+   */
+  outdoor?: boolean;
 }
 
 /* ----------------------------------------------------------------- Plaene */
@@ -123,6 +139,30 @@ export interface Plan {
   cycle?: PlanCycle | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/* ------------------------------------------------------------------ Ziele */
+
+export type GoalMetric = 'oneRm' | 'weight' | 'reps' | 'volume' | 'durationSec';
+
+/**
+ * Ein Ziel mit Datum: "100 kg Bankdruecken bis Juni".
+ *
+ * Die Hochrechnung dazu gibt es schon (forecast.ts) - was gefehlt hat, war das
+ * Ziel selbst.
+ *
+ * Ob es erreicht ist, wird aus dem Verlauf abgeleitet und nicht gespeichert:
+ * Ein gemerktes "geschafft" kann zwischen zwei Geraeten auseinanderlaufen, ein
+ * abgeleitetes nie.
+ */
+export interface ExerciseGoal {
+  id: ID;
+  exerciseId: ID;
+  metric: GoalMetric;
+  targetValue: number;
+  /** yyyy-mm-dd */
+  targetDate: string;
+  createdAt: string;
 }
 
 /* -------------------------------------------------------------- Trainings */
@@ -192,6 +232,29 @@ export interface YazioSettings {
 
 /* ----------------------------------------------------------------- State */
 
+/** Erinnerung an geplante Trainingstage. */
+export interface ReminderSettings {
+  enabled: boolean;
+  /** Uhrzeit als "HH:MM" in Ortszeit. */
+  time: string;
+  /** Zuletzt erinnerter Tag, damit dieselbe Erinnerung nicht zweimal kommt. */
+  lastShownOn: string | null;
+}
+
+/**
+ * Wetter zum Trainingstag.
+ *
+ * Der Ort wird absichtlich grob gespeichert: Fuer die Frage, ob es beim Laufen
+ * regnet, reicht der Kilometer. Genauere Koordinaten waeren nur ein Datenpunkt
+ * mehr, der bei einem fremden Dienst landet.
+ */
+export interface WeatherSettings {
+  enabled: boolean;
+  lat: number | null;
+  lon: number | null;
+  placeName: string;
+}
+
 export interface Settings {
   theme: 'dark' | 'light' | 'system';
   restTimerSec: number;
@@ -205,6 +268,26 @@ export interface Settings {
   partnerName: string;
   /** Signalton, wenn der Countdown einer Halteuebung ablaeuft. */
   countdownBeep: boolean;
+  /** Gewicht der Hantelstange fuer den Scheibenrechner, in Kilogramm. */
+  barWeightKg: number;
+  /** Scheiben, die im Studio am Staender haengen. Leer = Standardsatz. */
+  plateSet: number[];
+  /** Bildschirm wach halten, solange ein Training laeuft. */
+  keepScreenAwake: boolean;
+  /** Pausenuhr gross ueber den Bildschirm legen statt als Leiste am Rand. */
+  fullscreenRest: boolean;
+  /**
+   * Belastung als Wiederholungen in Reserve statt als RPE anzeigen.
+   *
+   * Gespeichert wird weiterhin nur RPE. Zwei Felder fuer dieselbe Aussage
+   * wuerden frueher oder spaeter auseinanderlaufen; RIR ist schlicht die
+   * andere Leserichtung (RIR = 10 - RPE).
+   */
+  useRir: boolean;
+  reminder: ReminderSettings;
+  weather: WeatherSettings;
+  /** Taegliche Sicherung in den eigenen Supabase-Speicher. */
+  autoBackup: boolean;
   yazio: YazioSettings;
 }
 
@@ -228,5 +311,8 @@ export interface AppState {
   weightLog: WeightEntry[];
   measurements: MeasurementEntry[];
   nutrition: NutritionEntry[];
+  goals: ExerciseGoal[];
+  /** Zeitpunkt der letzten automatischen Sicherung. */
+  lastBackupAt?: string | null;
   settings: Settings;
 }

@@ -2,7 +2,8 @@ import React, {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
 } from 'react';
 import type {
-  AppState, Exercise, ID, MeasurementEntry, NutritionEntry, Plan, Profile, Settings, Workout,
+  AppState, Exercise, ExerciseGoal, ID, MeasurementEntry, NutritionEntry, Plan, Profile, Settings,
+  Workout,
 } from '../types';
 import { CATALOG } from '../data/catalog';
 import { loadState, requestPersistence, saveState } from './db';
@@ -29,6 +30,8 @@ interface StoreValue {
   upsertWorkout: (date: string, updater: (workout: Workout) => Workout) => void;
   deleteWorkout: (id: ID) => void;
   setNutrition: (entry: NutritionEntry) => void;
+  addGoal: (goal: ExerciseGoal) => void;
+  deleteGoal: (id: ID) => void;
   replaceState: (next: AppState) => void;
   /** Der aktuelle Stand als Kopie - Grundlage fuer "Rueckgaengig". */
   snapshot: () => AppState;
@@ -240,6 +243,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, [commit]);
 
+  const addGoal = useCallback((goal: ExerciseGoal) => {
+    commit((prev) => ({
+      ...prev,
+      // Ein Ziel je Uebung und Groesse - zwei waeren nur verwirrend.
+      goals: [
+        ...(prev.goals ?? []).filter(
+          (item) => !(item.exerciseId === goal.exerciseId && item.metric === goal.metric),
+        ),
+        goal,
+      ],
+    }));
+  }, [commit]);
+
+  const deleteGoal = useCallback((id: ID) => {
+    commit((prev) => ({ ...prev, goals: (prev.goals ?? []).filter((goal) => goal.id !== id) }));
+  }, [commit]);
+
   const replaceState = useCallback((next: AppState) => setState(next), []);
 
   /*
@@ -254,15 +274,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       state, allExercises, getExercise, updateProfile, updateSettings, logBodyWeight,
       removeBodyWeight, logMeasurement, removeMeasurement,
       addExercise, updateExercise, deleteExercise, addPlan, updatePlan,
-      deletePlan, setActivePlan, upsertWorkout, deleteWorkout, setNutrition, replaceState,
-      snapshot, lastSavedAt,
+      deletePlan, setActivePlan, upsertWorkout, deleteWorkout, setNutrition, addGoal, deleteGoal,
+      replaceState, snapshot, lastSavedAt,
     }),
     [
       state, allExercises, getExercise, updateProfile, updateSettings, logBodyWeight,
       removeBodyWeight, logMeasurement, removeMeasurement,
       addExercise, updateExercise, deleteExercise, addPlan, updatePlan,
-      deletePlan, setActivePlan, upsertWorkout, deleteWorkout, setNutrition, replaceState,
-      snapshot, lastSavedAt,
+      deletePlan, setActivePlan, upsertWorkout, deleteWorkout, setNutrition, addGoal, deleteGoal,
+      replaceState, snapshot, lastSavedAt,
     ],
   );
 

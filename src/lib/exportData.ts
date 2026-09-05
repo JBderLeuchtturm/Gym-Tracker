@@ -1,5 +1,5 @@
-import type { AppState, Exercise } from '../types';
-import { formatDateShort } from './date';
+import type { AppState, Exercise, Plan, PlanExercise } from '../types';
+import { WEEKDAY_NAMES, formatDateShort } from './date';
 import { countsAsWork, exerciseVolume, workoutSetCount, workoutVolume } from './stats';
 
 /**
@@ -174,6 +174,93 @@ ${report.sections.map((section) => (
   )).join('')}
 </body></html>`;
 
+  openPrintWindow(html);
+}
+
+/* ------------------------------------------------------- Plan zum Ausdrucken */
+
+/**
+ * Der Wochenplan auf Papier.
+ *
+ * Ein Zettel in der Sporttasche braucht kein Netz, keinen Akku und keine
+ * feuchten Finger auf dem Glas. Bewusst als Tabelle mit leeren Feldern zum
+ * Eintragen - so ist der Ausdruck nicht nur zum Nachlesen, sondern auch zum
+ * Mitschreiben zu gebrauchen.
+ */
+export function printPlan(
+  plan: Plan,
+  nameOf: (id: string) => string,
+  options: { blankColumns: number } = { blankColumns: 4 },
+): void {
+  const escape = (value: string) => value
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const target = (exercise: PlanExercise): string => {
+    const reps = exercise.targetRepsMin && exercise.targetRepsMax
+      && exercise.targetRepsMin !== exercise.targetRepsMax
+      ? `${exercise.targetRepsMin}–${exercise.targetRepsMax}`
+      : String(exercise.targetRepsMin ?? '');
+    const weight = exercise.targetWeightKg ? ` @ ${exercise.targetWeightKg} kg` : '';
+    return `${exercise.targetSets} × ${reps || '?'}${weight}`;
+  };
+
+  const days = plan.days
+    .map((day, index) => ({ day, index }))
+    .filter((entry) => !entry.day.isRestDay && entry.day.exercises.length > 0);
+
+  const blanks = Array.from({ length: Math.max(0, options.blankColumns) }, () => '<td class="blank"></td>').join('');
+  const blankHeads = Array.from({ length: Math.max(0, options.blankColumns) }, (_, index) => (
+    `<th class="blank">${index + 1}</th>`
+  )).join('');
+
+  const html = `<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>${escape(plan.name)}</title>
+<style>
+  body { font: 12px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: #16181d; margin: 24px; }
+  h1 { font-size: 19px; margin: 0 0 2px; }
+  .sub { color: #6b7280; margin-bottom: 18px; font-size: 11px; }
+  h2 { font-size: 13px; margin: 18px 0 5px; border-bottom: 1px solid #c9ccd4; padding-bottom: 3px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+  th { text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: .06em;
+       color: #6b7280; font-weight: 600; padding: 2px 4px; border-bottom: 1px solid #d6d9e0; }
+  td { padding: 5px 4px; border-bottom: 1px solid #e6e8ec; vertical-align: top; }
+  td.target { white-space: nowrap; color: #4b5563; font-variant-numeric: tabular-nums; }
+  .blank { width: 34px; border-left: 1px solid #e6e8ec; }
+  .note { color: #6b7280; font-size: 10px; }
+  /* Ein Trainingstag soll nicht ueber zwei Seiten reissen. */
+  section { break-inside: avoid; }
+  @media print { body { margin: 12mm; } }
+</style></head><body>
+<h1>${escape(plan.name)}</h1>
+<div class="sub">${escape(plan.description ?? '')}${plan.description ? ' · ' : ''}Ausgedruckt am ${escape(formatDateShort(new Date().toISOString().slice(0, 10)))}</div>
+${days.map(({ day, index }) => `
+<section>
+  <h2>${escape(WEEKDAY_NAMES[index])} · ${escape(day.title || '')}</h2>
+  <table>
+    <thead><tr><th>Übung</th><th>Ziel</th>${blankHeads}</tr></thead>
+    <tbody>
+      ${day.exercises.map((exercise) => `
+        <tr>
+          <td>${escape(nameOf(exercise.exerciseId))}${
+            exercise.note ? `<div class="note">${escape(exercise.note)}</div>` : ''
+          }</td>
+          <td class="target">${escape(target(exercise))}</td>
+          ${blanks}
+        </tr>`).join('')}
+    </tbody>
+  </table>
+</section>`).join('')}
+</body></html>`;
+
+  openPrintWindow(html);
+}
+
+/**
+ * Druckt ein fertiges HTML-Dokument ueber einen unsichtbaren Rahmen.
+ * Ein neues Fenster waere der naheliegende Weg, wird auf dem Handy aber
+ * regelmaessig als Werbung weggeblockt.
+ */
+function openPrintWindow(html: string): void {
   const frame = document.createElement('iframe');
   frame.style.position = 'fixed';
   frame.style.right = '0';
@@ -189,7 +276,6 @@ ${report.sections.map((section) => (
   doc.write(html);
   doc.close();
 
-  // Erst drucken, wenn der Inhalt steht - sonst bleibt die Seite leer.
   frame.onload = () => {
     frame.contentWindow?.focus();
     frame.contentWindow?.print();

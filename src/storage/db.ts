@@ -47,6 +47,8 @@ export function migrate(raw: unknown): AppState {
     weightLog: asArray(raw.weightLog),
     measurements: asArray(raw.measurements),
     nutrition: asArray(raw.nutrition),
+    goals: asArray(raw.goals),
+    lastBackupAt: typeof raw.lastBackupAt === 'string' ? raw.lastBackupAt : null,
     settings: {
       ...DEFAULT_SETTINGS,
       ...(settings as object),
@@ -56,6 +58,11 @@ export function migrate(raw: unknown): AppState {
         ? (settings.weeklySetTargets as Record<string, number>)
         : {},
       availableEquipment: asArray<string>(settings.availableEquipment),
+      plateSet: asArray<number>(settings.plateSet).filter((plate) => plate > 0).length > 0
+        ? asArray<number>(settings.plateSet).filter((plate) => plate > 0)
+        : DEFAULT_SETTINGS.plateSet,
+      reminder: { ...DEFAULT_SETTINGS.reminder, ...(isObject(settings.reminder) ? settings.reminder : {}) },
+      weather: { ...DEFAULT_SETTINGS.weather, ...(isObject(settings.weather) ? settings.weather : {}) },
       yazio: { ...DEFAULT_SETTINGS.yazio, ...(yazio as object) },
     },
   };

@@ -17,7 +17,7 @@ import { ExerciseDetail } from '../components/ExerciseDetail';
 import { BodyMap, type Intensity } from '../components/MuscleMap';
 import { ALL_REGIONS, REGION_LABELS, suggestForRegion, type MuscleRegion } from '../lib/muscles';
 import { daysSince, loadStatus, regionLoad, targetFor } from '../lib/muscleLoad';
-import { EmptyState, Stat, fmt, useToast } from '../components/ui';
+import { Block, EmptyState, Section, Stat, fmt, useToast } from '../components/ui';
 import { formatClock } from '../lib/date';
 import {
   IconChevronRight, IconDownload, IconPrinter, IconSearch, IconTrophy,
@@ -238,28 +238,17 @@ export function ProgressPage() {
         <>
           <ReviewCard review={review} label={RANGE_LABELS[range]} />
 
-          <div className="card">
-            <div className="card__header">
-              <div className="card__title">{t("Volumen je Woche")}</div>
-              <span className="tiny dim">{t("kg gesamt")}</span>
-            </div>
-            <BarChart points={weeklyVolumePoints} unit={t("kg")} />
-          </div>
+          <Section title={t('Woche für Woche')} note={RANGE_LABELS[range]}>
+          <Block title={t("Volumen je Woche")} note={t("kg gesamt")}>
+            <BarChart points={weeklyVolumePoints} unit={t("kg")} label={t("Volumen je Woche")} />
+          </Block>
 
-          <div className="card">
-            <div className="card__header">
-              <div className="card__title">{t("Sätze je Woche")}</div>
-              <span className="tiny dim">{t("abgehakte Arbeitssätze")}</span>
-            </div>
-            <BarChart points={weeklySetPoints} color="var(--text-muted)" />
-          </div>
+          <Block title={t("Sätze je Woche")} note={t("abgehakte Arbeitssätze")}>
+            <BarChart points={weeklySetPoints} color="var(--text-muted)" label={t("Sätze je Woche")} />
+          </Block>
 
           {trend.length > 1 && trendSeries.length > 0 && (
-            <div className="card">
-              <div className="card__header">
-                <div className="card__title">{t("Muskelgruppen über die Wochen")}</div>
-                <span className="tiny dim">{t("Sätze")}</span>
-              </div>
+            <Block title={t("Muskelgruppen über die Wochen")} note={t("Sätze")}>
               <StackedBarChart
                 points={trend.map((point) => ({
                   label: point.week.replace(/^\d{4}-/, ''),
@@ -273,6 +262,7 @@ export function ProgressPage() {
                   trendSeries.map((key) => [labelOf(key), categoryColor(key as never)]),
                 )}
                 unit={t("Sätze")}
+                label={t("Muskelgruppen über die Wochen")}
               />
               <div className="row row--wrap tiny" style={{ gap: 9, marginTop: 10 }}>
                 {trendSeries.map((key) => (
@@ -282,15 +272,12 @@ export function ProgressPage() {
                   </span>
                 ))}
               </div>
-            </div>
+            </Block>
           )}
+          </Section>
 
           {byCategory.length > 0 && (
-            <div className="card">
-              <div className="card__header">
-                <div className="card__title">{t("Verteilung nach Muskelgruppe")}</div>
-                <span className="tiny dim">{RANGE_LABELS[range]}</span>
-              </div>
+            <Section title={t('Verteilung')} note={RANGE_LABELS[range]}>
               <div className="list">
                 {byCategory.map((entry) => {
                   const max = byCategory[0].sets || 1;
@@ -325,14 +312,10 @@ export function ProgressPage() {
                   );
                 })}
               </div>
-            </div>
+            </Section>
           )}
 
-          <div className="card">
-            <div className="card__header">
-              <div className="card__title">{t("Trainingskalender")}</div>
-              <span className="tiny dim">{t("letzte 27 Wochen")}</span>
-            </div>
+          <Section title={t("Trainingskalender")} note={t("letzte 27 Wochen")}>
             <YearHeatmap
               days={calendarDays}
               onSelect={(day) => {
@@ -349,7 +332,7 @@ export function ProgressPage() {
                 {calendarDays.find((day) => day.date === calendarDay)?.title}
               </div>
             )}
-          </div>
+          </Section>
 
           <MuscleLoadCard
             workouts={workouts}
@@ -364,23 +347,23 @@ export function ProgressPage() {
       )}
 
       {weightPoints.length > 1 && (
-        <div className="card">
-          <div className="card__header">
-            <div className="card__title">{t("Körpergewicht")}</div>
-            <span className="tiny dim">
-              {fmt(weightPoints[weightPoints.length - 1].value, 1)} kg aktuell
-            </span>
-          </div>
-          <LineChart points={weightPoints} unit={t("kg")} color="var(--success)" formatValue={(value) => fmt(value, 1)} />
-        </div>
+        <Section
+          title={t("Körpergewicht")}
+          note={t('{kg} kg aktuell', { kg: fmt(weightPoints[weightPoints.length - 1].value, 1) })}
+        >
+          <LineChart
+            points={weightPoints}
+            unit={t("kg")}
+            color="var(--success)"
+            label={t("Körpergewicht")}
+            formatValue={(value) => fmt(value, 1)}
+          />
+        </Section>
       )}
 
-      <div className="card card--flush">
-        <div className="row" style={{ padding: '12px 14px 8px', gap: 8 }}>
-          <div className="card__title" style={{ flex: 1 }}>{t("Fortschritt je Übung")}</div>
-        </div>
-        <div style={{ padding: '0 14px 10px', position: 'relative' }}>
-          <IconSearch style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: 'var(--text-dim)' }} />
+      <Section title={t("Fortschritt je Übung")}>
+        <div style={{ position: 'relative' }}>
+          <IconSearch style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: 'var(--text-dim)' }} />
           <input
             className="input"
             style={{ paddingLeft: 34 }}
@@ -393,6 +376,7 @@ export function ProgressPage() {
         {visibleExercises.length === 0 && (
           <div className="empty tiny">{t("Keine passenden Übungen mit Daten.")}</div>
         )}
+        <div className="card card--flush">
 
         {visibleExercises.map((item) => (
           <button
@@ -421,11 +405,11 @@ export function ProgressPage() {
             <IconChevronRight style={{ width: 16, height: 16, color: 'var(--text-dim)', flexShrink: 0 }} />
           </button>
         ))}
-      </div>
+        </div>
+      </Section>
 
-      <div className="card">
-        <div className="card__title" style={{ marginBottom: 6 }}>{t("Auswertung mitnehmen")}</div>
-        <div className="tiny dim" style={{ marginBottom: 11 }}>
+      <Section title={t("Auswertung mitnehmen")}>
+        <div className="tiny dim" style={{ marginTop: -6 }}>
           {t("CSV öffnet sich in jeder Tabellenkalkulation. Der Ausdruck lässt sich im Druckdialog als PDF speichern.")}
         </div>
         <div className="grid-2">
@@ -460,7 +444,7 @@ export function ProgressPage() {
             <IconPrinter /> {t('Bericht drucken')}
           </button>
         </div>
-      </div>
+      </Section>
 
       {detail && <ExerciseDetail exercise={detail} onClose={() => setDetail(null)} />}
     </>

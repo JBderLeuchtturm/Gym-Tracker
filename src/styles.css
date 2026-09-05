@@ -23,7 +23,12 @@
   /* Warmes Weiss - blaustichiges Weiss auf dunklem Grund wirkt technisch. */
   --text: #e9e6e1;
   --text-muted: #9d9890;
-  --text-dim: #6e6a64;
+  /*
+   * Die blasseste Stufe war bei 3,2 zu 1 gegen den hellsten Kartengrund - zu
+   * wenig, um sie bei 0,7 rem noch bequem zu lesen. Jetzt reicht jede
+   * Textfarbe auf jedem Untergrund fuer 4,5 zu 1 (WCAG AA).
+   */
+  --text-dim: #918c86;
 
   /* Messing. Ein Akzent, sparsam eingesetzt: aktiv, primaer, ausgewaehlt. */
   --accent: #c8813c;
@@ -35,7 +40,7 @@
   --success-soft: rgba(95, 158, 99, 0.15);
   --warn: #c4993c;
   --warn-soft: rgba(196, 153, 60, 0.15);
-  --danger: #c2564c;
+  --danger: #c8685f;
   --danger-soft: rgba(194, 86, 76, 0.15);
   --violet: #8a7bb8;
 
@@ -62,14 +67,14 @@
   --border-soft: #e2ded5;
   --text: #17191c;
   --text-muted: #575349;
-  --text-dim: #837e73;
-  --accent: #a4621f;
+  --text-dim: #6a655d;
+  --accent: #9d5e1e;
   --accent-soft: rgba(164, 98, 31, 0.12);
   --accent-strong: #8a5119;
   --accent-ink: #fffaf3;
   --success: #40794a;
   --success-soft: rgba(64, 121, 74, 0.13);
-  --warn: #96701d;
+  --warn: #8a671b;
   --warn-soft: rgba(150, 112, 29, 0.14);
   --danger: #a8382f;
   --danger-soft: rgba(168, 56, 47, 0.11);
@@ -443,7 +448,7 @@ p { margin: 0 0 0.6em; }
 
 .set-row {
   display: grid;
-  grid-template-columns: 22px 1fr 1fr 40px 66px;
+  grid-template-columns: 22px 1fr 1fr 40px 76px;
   gap: 6px;
   align-items: center;
   padding: 4px 6px;
@@ -462,7 +467,7 @@ p { margin: 0 0 0.6em; }
 .set-row__index--warmup { color: var(--warn); }
 .set-header {
   display: grid;
-  grid-template-columns: 22px 1fr 1fr 40px 66px;
+  grid-template-columns: 22px 1fr 1fr 40px 76px;
   gap: 6px;
   font-size: 0.66rem;
   font-weight: 700;
@@ -474,7 +479,7 @@ p { margin: 0 0 0.6em; }
 }
 
 .check {
-  width: 34px; height: 34px;
+  width: 44px; height: 44px;
   display: grid; place-items: center;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
@@ -495,7 +500,7 @@ p { margin: 0 0 0.6em; }
   55% { transform: scale(1.08); }
   100% { transform: scale(1); }
 }
-.check svg { width: 16px; height: 16px; }
+.check svg { width: 19px; height: 19px; }
 
 /* -------------------------------------------------------------- Suchfeld */
 
@@ -714,6 +719,7 @@ table.data th {
   padding: 6px 8px;
   border-bottom: 1px solid var(--border-soft);
 }
+table.data th.right { text-align: right; }
 table.data td { padding: 7px 8px; border-bottom: 1px solid var(--border-soft); }
 table.data tr:last-child td { border-bottom: 0; }
 
@@ -749,7 +755,7 @@ table.data tr:last-child td { border-bottom: 0; }
   .toast { bottom: 24px; }
   .modal-backdrop { align-items: center; }
   .modal { border-radius: var(--radius-lg); max-height: 86vh; }
-  .set-row, .set-header { grid-template-columns: 34px 1fr 1fr 60px 72px; }
+  .set-row, .set-header { grid-template-columns: 34px 1fr 1fr 60px 82px; }
 }
 
 /* ------------------------------------------------------------- Querformat */
@@ -1006,7 +1012,7 @@ table.data tr:last-child td { border-bottom: 0; }
 
 /* Listen blenden gestaffelt ein - nur beim ersten Erscheinen. */
 .list > * {
-  animation: rise 0.32s var(--ease) both;
+  animation: rise 0.32s var(--ease) backwards;
 }
 .list > *:nth-child(1) { animation-delay: 0ms; }
 .list > *:nth-child(2) { animation-delay: 35ms; }
@@ -1015,6 +1021,13 @@ table.data tr:last-child td { border-bottom: 0; }
 .list > *:nth-child(5) { animation-delay: 140ms; }
 .list > *:nth-child(n + 6) { animation-delay: 170ms; }
 
+/*
+ * Absichtlich "backwards" und nicht "both": Bei "both" bleibt der Endzustand
+ * als transform stehen - auch wenn er "none" heisst, steht dann eine
+ * Einheitsmatrix im berechneten Stil. Ein Element mit transform ist Bezugsrahmen
+ * fuer alles darin, was position: fixed benutzt; ein Dialog aus so einer Karte
+ * heraus klebte dann an der Karte statt am Bildschirm.
+ */
 @keyframes rise {
   from { opacity: 0; transform: translateY(7px); }
   to { opacity: 1; transform: none; }
@@ -1029,7 +1042,19 @@ table.data tr:last-child td { border-bottom: 0; }
 }
 
 /* Zahlen im Fliesstext bekommen gleiche Breite - Tabellen wirken ruhiger. */
-.stat__value, .hero__fact-value, .mono, table.data td { font-variant-numeric: tabular-nums; }
+/*
+ * Tabellenziffern ueberall, wo Zahlen untereinander stehen.
+ *
+ * Eine eigene Schrift mit echten Tabellenziffern waere schoener, aber sie
+ * kostet einen Ladevorgang, den eine App, die offline starten soll, nicht
+ * braucht - und der Datei-Umweg ueber Google-Fonts erst recht nicht. Die
+ * Systemschriften von Apple, Google und Microsoft bringen tabellarische
+ * Ziffern alle mit; man muss sie nur anfordern.
+ */
+.stat__value, .hero__fact-value, .mono, table.data td,
+.input--num, .set-row, .tally__value, .weeksheet, .rank, .chip {
+  font-variant-numeric: tabular-nums;
+}
 
 /* ------------------------------------------------ Übungskarte, gehobene Fassung */
 
@@ -1076,7 +1101,7 @@ table.data tr:last-child td { border-bottom: 0; }
   padding: 11px 14px;
   border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 26%, var(--surface)), var(--surface));
-  animation: rise 0.3s var(--ease) both;
+  animation: rise 0.3s var(--ease) backwards;
 }
 
 /* ----------------------------------------------------------- Muskelkarte */
@@ -1161,7 +1186,7 @@ table.data tr:last-child td { border-bottom: 0; }
 
 .set-more {
   width: 30px;
-  height: 34px;
+  height: 44px;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
@@ -1179,14 +1204,15 @@ table.data tr:last-child td { border-bottom: 0; }
 .set-extra {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 7px;
-  padding: 0 0 8px 34px;
-  animation: rise 0.18s var(--ease) both;
+  padding: 0 0 8px 28px;
+  animation: rise 0.18s var(--ease) backwards;
 }
 
 .set-extra .input {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 150px;
+  min-width: 130px;
 }
 
 .input--sm {
@@ -1298,7 +1324,7 @@ table.data tr:last-child td { border-bottom: 0; }
 
 .exercise__more {
   margin-top: 9px;
-  animation: rise 0.16s var(--ease) both;
+  animation: rise 0.16s var(--ease) backwards;
 }
 
 .btn--on { color: var(--accent); background: var(--accent-soft); }
@@ -1358,3 +1384,349 @@ table.data tr:last-child td { border-bottom: 0; }
 /* Datumsfeld mit gelesener Fassung darunter. */
 .datefield { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .datefield__read { font-size: 0.72rem; color: var(--text-dim); }
+
+/* ===================================================================
+   Rechner: Stange, Scheiben, Prozente
+   =================================================================== */
+
+/*
+ * Die Scheiben stehen als Saeulen nebeneinander, in ihrer echten Reihenfolge
+ * von innen nach aussen und grob in ihrer echten Groesse. Eine Liste "20 + 10
+ * + 1,25" sagt dasselbe, aber man muss sie lesen; das Bild erkennt man.
+ */
+.barbell {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 56px;
+  padding: 6px 0 4px;
+}
+.barbell__bar {
+  flex: 0 0 34px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--text-dim);
+}
+.barbell__plate {
+  display: grid;
+  place-items: center;
+  min-width: 30px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--text);
+  font-size: 0.66rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.barbell__collar {
+  flex: 0 0 14px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.barbell__read {
+  font-size: 0.86rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.select--sm { padding: 5px 26px 5px 9px; font-size: 0.78rem; }
+
+/* ===================================================================
+   Pausenuhr als Vollbild
+   =================================================================== */
+
+/*
+ * Von der Bank aus lesbar, ohne das Handy in die Hand zu nehmen. Deshalb eine
+ * einzige grosse Zahl und sonst fast nichts - alles andere waere aus zwei
+ * Metern Entfernung ohnehin nicht zu erkennen.
+ */
+.rest-full {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: var(--bg);
+  animation: fade 0.18s var(--ease);
+}
+.rest-full__time {
+  font-size: clamp(4.5rem, 30vw, 11rem);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.rest-full__bar {
+  width: min(70vw, 380px);
+  height: 4px;
+  margin-top: 18px;
+  border-radius: 2px;
+  background: var(--border-soft);
+  overflow: hidden;
+}
+.rest-full__bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.25s linear;
+}
+.rest-full__shrink {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  right: 14px;
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.btn--lg { padding: 13px 24px; font-size: 1rem; min-width: 116px; }
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ===================================================================
+   Anleitungen aus dem wger-Bestand
+   =================================================================== */
+
+.guide-shots {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.guide-shots::-webkit-scrollbar { display: none; }
+.guide-shots__item {
+  flex: 0 0 auto;
+  width: 128px;
+  height: 128px;
+  padding: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  cursor: zoom-in;
+  overflow: hidden;
+}
+.guide-shots__item img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* Absaetze aus der Datenbank sind mit Zeilenumbruechen gegliedert, nicht mit
+   Markup - deshalb bleiben die Umbrueche hier stehen. */
+.guide-text { white-space: pre-line; margin-top: 10px; }
+
+.guide-video { width: 100%; margin-top: 10px; border-radius: var(--radius-sm); }
+
+.textarea--sm { min-height: 62px; font-size: 0.85rem; }
+
+/* ===================================================================
+   Wetter am Trainingstag
+   =================================================================== */
+
+/*
+ * Eine Zeile, kein Kasten: Das Wetter ist eine Randnotiz zum Training, keine
+ * eigene Rubrik. Es steht nur da, wenn an dem Tag etwas draussen ansteht.
+ */
+.weather {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 13px;
+  border: 1px solid var(--border-soft);
+  border-left: 2px solid var(--info, var(--accent));
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.weather__symbol { font-size: 1.5rem; line-height: 1; color: var(--text-muted); }
+.weather__line { font-size: 0.88rem; font-weight: 550; }
+
+/*
+ * Ein eingerueckter Hinweis, wenn etwas nicht so laeuft, wie man erwartet -
+ * hier: dass eine Web-App sich nicht selbst wecken kann. Kein Warnton, keine
+ * Farbe, nur ein Absatz, der sich vom Rest abhebt.
+ */
+.hint-box {
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border-left: 2px solid var(--border);
+}
+
+/* ===================================================================
+   Abschnitte: Ueberschrift mit Linie statt Kasten
+   =================================================================== */
+
+/*
+ * Neun gleich schwere Karten untereinander sind eine Liste ohne Rhythmus.
+ * Eine Ueberschrift mit einer Linie gliedert, ohne noch einen Rahmen zu
+ * ziehen - und der Inhalt darunter darf die volle Breite haben.
+ */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.section__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border);
+}
+.section__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 640;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.section__note { font-size: 0.72rem; color: var(--text-dim); white-space: nowrap; }
+
+.block__title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* ===================================================================
+   Wochenblatt
+   =================================================================== */
+
+/*
+ * Sieben Spalten nebeneinander. Die leeren Tage sind der eigentliche Punkt:
+ * Luecken sieht man nur, wenn man die Woche nebeneinander legt statt Tag fuer
+ * Tag zu blaettern.
+ */
+.weeksheet {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.weeksheet__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 78px;
+  padding: 7px 2px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: default;
+  text-align: center;
+  overflow: hidden;
+}
+.weeksheet__day--done {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--text);
+  cursor: pointer;
+}
+.weeksheet__day--today { box-shadow: inset 0 0 0 1px var(--accent); }
+.weeksheet__day--future { opacity: 0.55; }
+.weeksheet__wd {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.weeksheet__num { font-size: 0.95rem; font-weight: 640; font-variant-numeric: tabular-nums; }
+.weeksheet__title {
+  font-size: 0.58rem;
+  line-height: 1.25;
+  color: var(--text-dim);
+  /* Zwei Zeilen und dann Schluss - sonst reisst eine Spalte die Reihe auf. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.weeksheet__sets {
+  margin-top: auto;
+  font-size: 0.66rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+/* Platzhalter, waehrend eine Seite nachgeladen wird. */
+.loading-note {
+  padding: 34px 0;
+  text-align: center;
+  font-size: 0.84rem;
+  color: var(--text-dim);
+}
+
+/* ===================================================================
+   Zugaenglichkeit
+   =================================================================== */
+
+/*
+ * Fuer Vorleseprogramme sichtbar, fuer Augen nicht. "display: none" waere
+ * einfacher, nimmt den Inhalt aber auch aus dem Vorlesebaum - er waere dann
+ * fuer niemanden da.
+ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * Ein sichtbarer Fokusrahmen an allem, was man anspringen kann - nicht nur an
+ * Knoepfen. Wer mit der Tastatur arbeitet, muss sehen, wo er steht; ohne das
+ * wandert der Fokus unsichtbar durch die Seite.
+ */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Sprungmarke: erste Tabulatorstelle der Seite, sonst unsichtbar. */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 200;
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  transition: top 0.12s var(--ease);
+}
+.skip-link:focus { top: 12px; }
+
+/* Wer Bewegung abgestellt hat, bekommt keine. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

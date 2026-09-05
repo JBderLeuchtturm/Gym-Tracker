@@ -93,9 +93,11 @@ export async function run() {
   });
 
   await runner.step('Trainingskalender hat einen Trainingstag', async () => {
-    const card = page.locator('.card', { has: page.locator('.heatmap') }).first();
-    if (await card.count() === 0) throw new Error('kein Kalender');
-    if (await card.locator('.heatmap__cell--4').count() === 0) throw new Error('kein gefüllter Tag');
+    // Der Kalender steht seit der Umgestaltung in einem Abschnitt, nicht in
+    // einer Karte - gesucht wird deshalb der Kalender selbst.
+    const heatmap = page.locator('.heatmap-wrap').first();
+    if (await heatmap.count() === 0) throw new Error('kein Kalender');
+    if (await heatmap.locator('.heatmap__cell--4').count() === 0) throw new Error('kein gefüllter Tag');
   });
 
   await runner.step('Wochenziele lassen sich im Profil ändern', async () => {

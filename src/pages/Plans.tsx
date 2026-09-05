@@ -12,9 +12,10 @@ import { PLAN_TEMPLATES, buildTemplatePlan } from '../data/templates';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { ConfirmDialog, DateInput, EmptyState, Modal, NumberInput, useToast } from '../components/ui';
 import {
-  IconCheck, IconChevronDown, IconCopy, IconEdit, IconPlus, IconShare, IconTrash,
+  IconCheck, IconChevronDown, IconCopy, IconEdit, IconPlus, IconPrinter, IconShare, IconTrash,
 } from '../components/icons';
 import { customToExercises, decodePlan, encodePlan } from '../lib/planShare';
+import { printPlan } from '../lib/exportData';
 
 export function PlansPage() {
   const {
@@ -127,6 +128,13 @@ export function PlansPage() {
                 <button className="btn btn--sm" onClick={() => duplicate(plan)}><IconCopy /> {t("Kopie")}</button>
                 <button className="btn btn--sm" onClick={() => setSharingId(plan.id)}>
                   <IconShare /> {t("Teilen")}
+                </button>
+                <button
+                  className="btn btn--sm"
+                  onClick={() => printPlan(plan, (id) => exerciseName(getExercise(id)))}
+                  title={t('Zum Mitnehmen in der Sporttasche')}
+                >
+                  <IconPrinter /> {t('Drucken')}
                 </button>
                 <span className="spacer" />
                 {state.plans.length > 1 && (

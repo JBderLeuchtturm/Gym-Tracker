@@ -2,6 +2,90 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Vierte Runde: Rechner, Studio-Handgriffe, Anleitungen, Wetter
+
+*Branch `claude/vierte-runde`*
+
+Setzt die übrigen Punkte aus
+[#13](https://github.com/JBderLeuchtturm/Gym-Tracker/issues/13) um – Bedienung
+im Studio, Gestaltung, Funktionen, Technik – und bindet die beiden
+gewünschten Schnittstellen an.
+
+**Im Studio**
+- **Scheibenrechner.** „82,5 kg" heißt an der Langhantel: pro Seite 25 + 5 +
+  1,25. Gerechnet wird exakt statt gierig – 30 kg je Seite sind mit 20 + 15
+  nicht zu machen, mit 15 + 15 schon. Die Scheiben stehen auch klein unter dem
+  Gewichtsfeld, sobald man einen Satz aufklappt.
+- **1RM-Rechner mit Prozenttabelle**, 60 bis 100 %, mit den rechnerisch
+  möglichen Wiederholungen daneben. Aus derselben Formel wie der Verlauf –
+  eine fremde Tabelle danebenzulegen würde nur widersprüchliche Zahlen
+  erzeugen.
+- **Pausenuhr als Vollbild.** Eine Zahl, von der Bank aus lesbar. Wer das
+  einmal will, will es meistens immer, deshalb merkt die App die Entscheidung.
+- **Größere Trefferflächen.** Der Haken war 34 Pixel breit, jetzt 44 – das
+  Maß, auf das sich Apple und Google unabhängig voneinander geeinigt haben.
+  Dazu ein kurzer Rüttler beim Abhaken.
+- **Bildschirm bleibt wach**, solange die Zeitmessung läuft.
+- **„Letztes Training wiederholen"** übernimmt den letzten gleichen Trainingstag
+  samt Gewichten – abgehakt wird nichts.
+- **Satz duplizieren** statt neu eintippen.
+- **Zuletzt benutzte Übungen** stehen oben in der Suche.
+
+**Anleitungen und Wetter**
+- **Ausführung nachschlagen**: Text und Bilder aus dem wger-Bestand, direkt in
+  der Übungsansicht. Einmal geladen, bleiben sie im Gerät – im Keller mit einem
+  Balken Empfang ist eine Anleitung, die erst geladen werden muss, keine
+  Anleitung. Für den ganzen Trainingstag lässt sich das mit einem Knopf
+  vorladen.
+- **Wetter zum Trainingstag** über [Open-Meteo](https://open-meteo.com),
+  kostenlos und ohne Konto. Erscheint nur an Tagen, an denen etwas draußen
+  ansteht – wer im Studio Bankdrücken macht, dem ist Regen egal. Der Ort geht
+  auf zwei Nachkommastellen gerundet hinaus, rund anderthalb Kilometer.
+
+**Funktionen**
+- **RIR neben RPE.** Gespeichert wird weiterhin ein Wert; RIR ist die andere
+  Leserichtung (RIR 2 = RPE 8). Alte Einträge bleiben gültig.
+- **Übungsvarianten zusammengefasst.** Flach, schräg und mit Kurzhanteln sind
+  drei dünne Verläufe; zusammen ist es eine Linie, an der man etwas sieht.
+- **Dauerhafte Notiz je Übung** („Bank auf Stufe 3, Griff außen").
+- **Ziele mit Datum** samt Hochrechnung, ob das Tempo reicht.
+- **Erinnerung an den Trainingstag** – beim Öffnen, plus Export der
+  Trainingstage als Kalenderdatei mit Voranmeldung. Siehe unten.
+
+**Gestaltung**
+- **Tabellenziffern** überall dort, wo Zahlen untereinander stehen.
+- **Die Auswertung ist gegliedert** – Überschriften mit Linie statt eines
+  Stapels aus neun gleich schweren Karten.
+- **Wochenblatt** im Verlauf: sieben Tage nebeneinander, statt Tag für Tag zu
+  blättern. Die leeren Tage sind der eigentliche Punkt.
+- **Druckansicht für den Plan**, mit leeren Spalten zum Eintragen.
+
+**Technik**
+- **Kontraste geprüft und nachgezogen.** Die blasseste Schrift lag bei 3,2 zu
+  1; jetzt erreicht jede Textfarbe auf jedem Untergrund mindestens 4,5 zu 1.
+- **Diagramme für Vorleseprogramme**: dieselben Zahlen als unsichtbare
+  Tabelle. Der Trainingskalender hat statt 189 Haltepunkten nur noch die Tage
+  mit Training.
+- **Sprungmarke zum Inhalt**, sichtbarer Fokusrahmen überall, und wer Bewegung
+  abgestellt hat, bekommt keine.
+- **Automatische Sicherung am Konto**, täglich, vierzehn Tage lang. Der
+  laufende Abgleich ist eine Spiegelung, keine Sicherung: Was man löscht, ist
+  Sekunden später auch dort gelöscht.
+- **Ladezeit halbiert.** Nur „Heute" wird mitgeliefert; alle anderen Seiten,
+  die Dialoge und das englische Wörterbuch kommen beim ersten Antippen nach.
+  Beim Start: 506 kB statt 725 kB, gepackt 150 kB statt 204 kB.
+- Zwölfter Testlauf `tests/vierte.mjs`, vierzehn Prüfungen
+
+**Nebenbei behoben**
+- Ein Dialog, der aus einer Übungskarte heraus aufging, klebte an der Karte
+  statt am Bildschirm. Ursache war eine Einblend-Animation mit `both` statt
+  `backwards`: Der Endzustand blieb als `transform` stehen, und ein Element mit
+  `transform` ist Bezugsrahmen für alles darin, was `position: fixed` benutzt.
+  Dialoge hängen jetzt zusätzlich am Dokument statt an der Stelle, von der sie
+  geöffnet wurden.
+- Rechtsbündige Tabellenköpfe waren linksbündig – `table.data th` schlug
+  `.right`.
+
 ## Die neun Schwächen aus der dritten Ideensammlung
 
 *Branch `claude/schwaechen`*

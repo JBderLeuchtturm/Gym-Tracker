@@ -90,8 +90,41 @@ function SparseNote({
   );
 }
 
+/**
+ * Dieselben Zahlen als Tabelle, nur fuer Vorleseprogramme.
+ *
+ * Ein Diagramm ist eine Grafik, und eine Grafik hat fuer jemanden, der sie
+ * nicht sieht, keinen Inhalt. Eine Kurzbeschreibung ("steigt leicht") waere
+ * eine Auslegung; die Zahlen selbst sind es nicht. Deshalb die Tabelle -
+ * unsichtbar auf dem Bildschirm, vollstaendig fuer alle anderen.
+ */
+export function ChartData({
+  label, points, unit = '', formatValue,
+}: {
+  label?: string;
+  points: Point[];
+  unit?: string;
+  formatValue?: (value: number) => string;
+}) {
+  if (points.length === 0) return null;
+  const show = (value: number) => (formatValue ? formatValue(value) : formatTick(value));
+  return (
+    <table className="visually-hidden">
+      <caption>{label ?? t('Verlauf')}</caption>
+      <tbody>
+        {points.map((point, index) => (
+          <tr key={`${point.label}-${index}`}>
+            <th scope="row">{point.detail ?? point.label}</th>
+            <td>{show(point.value)} {unit}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export function LineChart({
-  points, height = 190, color = 'var(--accent)', unit = '', showArea = true, formatValue,
+  points, height = 190, color = 'var(--accent)', unit = '', showArea = true, formatValue, label,
 }: {
   points: Point[];
   height?: number;
@@ -99,6 +132,7 @@ export function LineChart({
   unit?: string;
   showArea?: boolean;
   formatValue?: (value: number) => string;
+  label?: string;
 }) {
   const [ref, width] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
@@ -146,7 +180,7 @@ export function LineChart({
       <svg
         width={width}
         height={height}
-        role="img"
+        aria-hidden="true"
         onMouseLeave={() => setHover(null)}
         onMouseMove={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
@@ -224,6 +258,9 @@ export function LineChart({
           <div className="dim tiny">{active.detail ?? active.label}</div>
         </div>
       )}
+
+      {/* Fuer Vorleseprogramme: dieselben Zahlen, nur als Tabelle. */}
+      <ChartData label={label} points={points} unit={unit} formatValue={formatValue} />
     </div>
   );
 }
@@ -231,12 +268,13 @@ export function LineChart({
 /* --------------------------------------------------------------- Balken */
 
 export function BarChart({
-  points, height = 170, color = 'var(--accent)', unit = '',
+  points, height = 170, color = 'var(--accent)', unit = '', label,
 }: {
   points: Point[];
   height?: number;
   color?: string;
   unit?: string;
+  label?: string;
 }) {
   const [ref, width] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
@@ -258,7 +296,7 @@ export function BarChart({
 
   return (
     <div ref={ref} style={{ position: 'relative', width: '100%' }}>
-      <svg width={width} height={height} onMouseLeave={() => setHover(null)}>
+      <svg width={width} height={height} aria-hidden="true" onMouseLeave={() => setHover(null)}>
         {ticks.map((tick) => (
           <g key={tick}>
             <line
@@ -317,6 +355,8 @@ export function BarChart({
           <div className="dim tiny">{points[hover].detail ?? points[hover].label}</div>
         </div>
       )}
+
+      <ChartData label={label} points={points} unit={unit} />
     </div>
   );
 }
@@ -364,7 +404,7 @@ export interface StackedPoint {
  * So sieht man Gesamtumfang und Verteilung in einem Bild.
  */
 export function StackedBarChart({
-  points, series, colors, height = 200, unit = '',
+  points, series, colors, height = 200, unit = '', label,
 }: {
   points: StackedPoint[];
   /** Reihenfolge der Reihen von unten nach oben. */
@@ -372,6 +412,7 @@ export function StackedBarChart({
   colors: Record<string, string>;
   height?: number;
   unit?: string;
+  label?: string;
 }) {
   const [ref, width] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
@@ -396,7 +437,7 @@ export function StackedBarChart({
 
   return (
     <div ref={ref} style={{ position: 'relative', width: '100%' }}>
-      <svg width={width} height={height} onMouseLeave={() => setHover(null)}>
+      <svg width={width} height={height} aria-hidden="true" onMouseLeave={() => setHover(null)}>
         {ticks.map((tick) => (
           <g key={tick}>
             <line
@@ -470,6 +511,27 @@ export function StackedBarChart({
             ))}
         </div>
       )}
+
+      {/* Textfassung: je Zeitraum eine Zeile, je Reihe eine Spalte. */}
+      <table className="visually-hidden">
+        <caption>{label ?? t('Verteilung über die Wochen')}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{t('Woche')}</th>
+            {series.map((name) => <th key={name} scope="col">{name}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {points.map((point, index) => (
+            <tr key={`${point.label}-${index}`}>
+              <th scope="row">{point.detail ?? point.label}</th>
+              {series.map((name) => (
+                <td key={name}>{point.values[name] ?? 0} {unit}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -550,20 +612,36 @@ export function YearHeatmap({
               ? Math.min(4, Math.ceil((entry.value / max) * 4))
               : 0;
             const future = iso > todayIso;
+            const className = `heatmap__cell heatmap__cell--${level}${future ? ' heatmap__cell--future' : ''}`;
+
+            /*
+             * Nur Tage mit Training sind anspringbar. Sonst waeren es
+             * einhundertneunundachtzig Haltepunkte mit der Tabulatortaste,
+             * von denen die allermeisten nichts zu sagen haben.
+             */
+            if (!entry || entry.value <= 0 || future || !onSelect) {
+              return <div key={iso} className={className} aria-hidden="true" />;
+            }
+
             return (
               <button
                 key={iso}
-                className={`heatmap__cell heatmap__cell--${level}${future ? ' heatmap__cell--future' : ''}`}
-                title={entry?.title ?? iso}
-                aria-label={entry?.title ?? iso}
-                disabled={future || !onSelect}
-                onClick={onSelect ? () => onSelect(iso) : undefined}
+                className={className}
+                title={entry.title ?? iso}
+                aria-label={entry.title ?? iso}
+                onClick={() => onSelect(iso)}
               />
             );
           })}
         </div>
       ))}
     </div>
+
+    <p className="visually-hidden">
+      {t('{count} Trainingstage in den letzten 27 Wochen.', {
+        count: days.filter((day) => day.value > 0).length,
+      })}
+    </p>
     </div>
   );
 }

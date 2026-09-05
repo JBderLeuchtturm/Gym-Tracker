@@ -1,5 +1,4 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { EN } from './en';
 
 /**
  * Mehrsprachigkeit ohne Schluesselwirrwarr.
@@ -19,7 +18,26 @@ export type Language = 'de' | 'en';
 
 const STORAGE_KEY = 'gym-tracker:language';
 
-const DICTIONARIES: Record<Language, Record<string, string>> = { de: {}, en: EN };
+/*
+ * Deutsch braucht kein Woerterbuch - der Quelltext ist die deutsche Fassung.
+ * Das englische wird erst geholt, wenn es gebraucht wird: rund vierzig
+ * Kilobyte, die eine deutschsprachige Installation sonst bei jedem Start
+ * mitschleppt, ohne sie je zu benutzen.
+ */
+const DICTIONARIES: Record<Language, Record<string, string>> = { de: {}, en: {} };
+
+let dictionaryLoaded = false;
+
+export async function loadDictionary(language: Language): Promise<void> {
+  if (language !== 'en' || dictionaryLoaded) return;
+  try {
+    const module = await import('./en');
+    DICTIONARIES.en = module.EN;
+    dictionaryLoaded = true;
+  } catch {
+    // Ohne Woerterbuch bleibt es beim deutschen Text - unschoen, aber lesbar.
+  }
+}
 
 export const LANGUAGE_LABELS: Record<Language, string> = {
   de: 'Deutsch',
@@ -70,10 +88,14 @@ export function I18nProvider({ children }: { children: (language: Language) => R
   });
 
   const setLanguage = useCallback((next: Language) => {
-    current = next;
-    document.documentElement.lang = next;
-    try { localStorage.setItem(STORAGE_KEY, next); } catch { /* egal */ }
-    setLanguageState(next);
+    // Erst das Woerterbuch, dann umschalten - sonst steht die Oberflaeche
+    // einen Wimpernschlag lang halb uebersetzt da.
+    void loadDictionary(next).then(() => {
+      current = next;
+      document.documentElement.lang = next;
+      try { localStorage.setItem(STORAGE_KEY, next); } catch { /* egal */ }
+      setLanguageState(next);
+    });
   }, []);
 
   const value = useMemo(() => ({ language, setLanguage }), [language, setLanguage]);

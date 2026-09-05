@@ -1,5 +1,6 @@
 import { t } from '../i18n';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { IconX } from './icons';
 import { formatDateLong } from '../lib/date';
 
@@ -25,7 +26,13 @@ export function Modal({
     };
   }, [onClose]);
 
-  return (
+  /*
+   * Der Dialog haengt am Dokument, nicht an der Stelle, von der er geoeffnet
+   * wurde. "position: fixed" bezieht sich sonst auf den naechsten Vorfahren
+   * mit transform, filter oder Aehnlichem - und dann klebt ein Dialog, der aus
+   * einer Uebungskarte heraus aufgeht, an dieser Karte statt am Bildschirm.
+   */
+  return createPortal(
     <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="modal" role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal__head">
@@ -37,7 +44,8 @@ export function Modal({
         </div>
         <div className={flush ? 'modal__body modal__body--flush' : 'modal__body'}>{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -226,6 +234,33 @@ export function DateInput({
   );
 }
 
+/**
+ * Uhrzeitfeld mit Klartext daneben - aus demselben Grund wie beim Datum.
+ *
+ * Auf einem englisch eingestellten Geraet steht im nativen Feld "05:00 PM";
+ * wer 17 Uhr eingestellt hat, liest dort erst einmal etwas anderes.
+ */
+export function TimeInput({
+  value, onChange, ariaLabel,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel?: string;
+}) {
+  return (
+    <div className="datefield">
+      <input
+        className="input"
+        type="time"
+        value={value}
+        aria-label={ariaLabel}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {value && <span className="datefield__read">{t('{time} Uhr', { time: value })}</span>}
+    </div>
+  );
+}
+
 /* ----------------------------------------------------------------- Stat */
 
 export function Stat({
@@ -262,6 +297,52 @@ export function Collapsible({
 }) {
   if (!open) return null;
   return <>{children}</>;
+}
+
+/* ------------------------------------------------------------- Abschnitt */
+
+/**
+ * Ueberschrift mit Linie statt Kasten.
+ *
+ * Neun gleich schwere Karten untereinander sind eine Liste ohne Rhythmus: Man
+ * sieht nicht, was zusammengehoert und was neu anfaengt. Eine Ueberschrift mit
+ * einer Linie darunter kostet nichts und gliedert.
+ */
+export function Section({
+  title, note, children,
+}: {
+  title: string;
+  note?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="section">
+      <div className="section__head">
+        <h2 className="section__title">{title}</h2>
+        {note && <span className="section__note">{note}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Ein Block innerhalb eines Abschnitts - mit Zeile darueber, ohne Rahmen. */
+export function Block({
+  title, note, children,
+}: {
+  title: string;
+  note?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="block">
+      <div className="row row--between" style={{ marginBottom: 8 }}>
+        <span className="block__title">{title}</span>
+        {note && <span className="tiny dim">{note}</span>}
+      </div>
+      {children}
+    </div>
+  );
 }
 
 /* --------------------------------------------------------------- Leerer Zustand */
