@@ -2,6 +2,82 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Siebte Runde: Bedienung, Funktionen, Technik
+
+*Branch `claude/siebte-runde`*
+
+Setzt die Abschnitte „Bedienung und Funktionen" und „Technik" aus
+[#17](https://github.com/JBderLeuchtturm/Gym-Tracker/issues/17) um.
+
+**Im Studio**
+- **Plus/Minus an Gewicht und Wiederholungen** – unter dem Satz, an dem man
+  gerade steht, nicht unter jedem. An der Langhantel ist die Schrittweite die
+  kleinste Scheibe je Seite.
+- **Wischen auf einer Satzzeile**: nach rechts abhaken, nach links zurück. Der
+  Haken bleibt zusätzlich.
+- **Aufwärmsätze werden angeboten**, sobald ein Arbeitsgewicht steht – statt
+  vergraben unter „Mehr".
+- **Pause je Übung**: ein eigener Wert an der Übung schlägt Plan und Standard.
+- **„Auf alle offenen übernehmen"** – Gewicht und Wiederholungen eines Satzes
+  auf den Rest.
+- **Supersatz-Zähler**: in welchem Durchgang die Gruppe steht.
+
+**Auswertung**
+- **Vergleich zweier Zeiträume nebeneinander** – der Vorzeitraum steht als Zahl
+  neben dem aktuellen, nicht nur als Prozentchip versteckt.
+- **Volumen je Muskelregion**, nicht nur Sätze. Zwölf Sätze Seitheben und zwölf
+  Sätze Kniebeugen sind nicht dieselbe Arbeit.
+- **Belastung**, zurückhaltend: aus Volumen und RPE der letzten Woche gegen die
+  Woche davor, drei Stufen, kein Trainingsrat.
+- **Wochentags-Muster**: an welchem Tag trainiert wird, an welchem es ausfällt.
+- **Bestleistungen aller Übungen auf einer Liste**, sortiert nach geschätztem
+  Maximum – statt je Übung verstreut.
+- **Jahresrückblick** mit den Zahlen des Kalenderjahres, ab fünf Einheiten.
+
+**Pläne**
+- **Vorschau, bevor man einen Plan aktiviert**: der ganze Plan zum Durchlesen,
+  Tag für Tag mit Vorgaben.
+- **Wochenvolumen je Muskelgruppe schon beim Planen** – aus den Vorgaben
+  gerechnet, mit Ziel daneben. Man sieht vor dem ersten Training, wo zu wenig
+  steht und wo zu viel.
+- **Übungen zwischen Tagen verschieben** (Kalendersymbol am Eintrag) statt
+  löschen und neu anlegen.
+- **Ersatzübungen im Plan hinterlegen**. Der Ersatz-Dialog im Training stellt
+  sie nach oben, statt jedes Mal neu zu raten.
+
+**Ernährung**
+- **Nährwerte als Balken**: Eiweiß, Kohlenhydrate und Fett im Verhältnis (nach
+  Kalorien gewichtet), mit einem Strich für das Eiweißziel.
+- **Open Food Facts angebunden**: Barcode eintippen oder mit der Kamera scannen,
+  Nährwerte auf eine Menge umrechnen und auf den Tag drauflegen. Kostenlos, ohne
+  Konto; übermittelt wird nur der Barcode.
+- **Wiederkehrende Mahlzeiten speichern** und mit einem Tipp dazurechnen.
+
+**Freunde**
+- **Gemeinsames Training** ohne gemeinsamen Zustand: Jeder hakt auf seinem Gerät
+  ab; auf der Heute-Seite steht, wer am selben Tag trainiert hat und was
+  zusammengekommen ist – aus dem geteilten Fortschritt.
+- **Wochenrückblick als Bild** zum Teilen oder Speichern – die vier Zahlen und
+  die Wochen als Balken, in den Farben der App, ohne fremde Bibliothek.
+
+**Technik**
+- **Der Übungskatalog liegt fertig geparst als JSON vor**, erzeugt beim Bauen
+  aus der kompakten Textfassung. Zur Laufzeit läuft nur noch ein `JSON.parse`
+  statt gut zweihundert Zeilen einzeln zu zerlegen.
+- **Ein kleiner Zwischenspeicher** für `parseISODate` und `weekdayOf` – in
+  langen Listen wird dasselbe Datum sehr oft zerlegt.
+- **Fehlerabfang um die Seiten**: Ein Fehler in einer Komponente nimmt nicht
+  mehr die ganze App mit. Statt weißem Bildschirm steht da, was los ist, und ein
+  Knopf lädt neu; beim nächsten Reiterwechsel setzt es sich zurück.
+- **Der Service Worker kennt jetzt alle App-Dateien vorab** – ein Vite-Schritt
+  trägt die gebauten Bündel in ihn ein. Wer offline zum ersten Mal die
+  Auswertung öffnet, bekommt sie.
+- **Ein Browser für alle Testläufe** statt dreizehn – spart je Lauf ein bis
+  zwei Sekunden.
+- **Läufe ohne Browser für die reine Rechnerei** (`tests/unit.mjs`): Scheiben,
+  1RM, Kalorien, Statistik, Belastung, Zusammenführen – zweiundzwanzig
+  Prüfungen, in Sekunden statt Minuten.
+
 ## Sechste Runde: die Durchsicht vom September
 
 *Branch `claude/gestaltung-durchsicht`*

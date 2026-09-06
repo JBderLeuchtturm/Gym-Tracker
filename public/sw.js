@@ -4,6 +4,10 @@
  * im localStorage und sind davon unabhaengig.
  */
 const CACHE = 'gym-tracker-v1';
+// Wird beim Bauen durch die Liste aller App-Dateien ersetzt (vite.config.ts).
+// Ohne das kennt der Worker nur die Startseite und laedt Diagramm- und
+// Seitenbuendel beim ersten Offline-Aufruf nicht.
+const PRECACHE = ['./', './index.html'];
 // Uebungsbilder aus der wger-Datenbank liegen getrennt, damit sie beim
 // Aktualisieren der App nicht jedes Mal neu geladen werden muessen.
 const IMAGE_CACHE = 'gym-tracker-wger-images-v1';
@@ -12,7 +16,7 @@ const IMAGE_LIMIT = 150;
 self.addEventListener('install', (event) => {
   // Bewusst kein skipWaiting: Die neue Fassung wartet, bis die App Bescheid
   // sagt. Sonst tauschen wir dem Nutzer die Dateien mitten im Training aus.
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['./', './index.html'])).catch(() => undefined));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).catch(() => undefined));
 });
 
 // Die App meldet sich, wenn der Nutzer das Update annehmen will.

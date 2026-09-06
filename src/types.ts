@@ -100,6 +100,12 @@ export interface PlanExercise {
   restSec: number | null;
   note?: string;
   /**
+   * Ausdruecklich hinterlegte Ersatzuebungen ("Bankdruecken, sonst Kurzhantel").
+   * Der Ersatz-Dialog im Training stellt sie nach oben, statt jedes Mal neu zu
+   * raten.
+   */
+  alternativeIds?: ID[];
+  /**
    * Doppelte Progression: Erreichen alle Arbeitssaetze das obere Ende des
    * Wiederholungsbereichs, wird beim naechsten Mal um diesen Betrag erhoeht.
    * null oder fehlend = keine automatische Steigerung.
@@ -189,6 +195,11 @@ export interface LoggedExercise {
   groupId?: string;
   sets: SetLog[];
   note?: string;
+  /**
+   * Pausenlaenge fuer genau diese Uebung an diesem Tag, in Sekunden.
+   * Schlaegt den Wert aus dem Plan und die globale Einstellung.
+   */
+  restSec?: number;
 }
 
 export interface Workout {
@@ -228,6 +239,19 @@ export interface YazioSettings {
   token: string;
   enabled: boolean;
   lastSyncAt: string | null;
+}
+
+/**
+ * Eine gespeicherte Mahlzeit fuer den schnellen Eintrag - wer jeden Morgen
+ * dasselbe isst, tippt es sonst jeden Morgen neu.
+ */
+export interface MealPreset {
+  id: ID;
+  name: string;
+  kcal: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
 }
 
 /* ----------------------------------------------------------------- State */
@@ -289,6 +313,8 @@ export interface Settings {
   /** Taegliche Sicherung in den eigenen Supabase-Speicher. */
   autoBackup: boolean;
   yazio: YazioSettings;
+  /** Gespeicherte Mahlzeiten fuer den schnellen Eintrag. */
+  mealPresets: MealPreset[];
 }
 
 export interface AppState {

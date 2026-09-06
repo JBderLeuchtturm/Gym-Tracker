@@ -64,6 +64,7 @@ export function migrate(raw: unknown): AppState {
       reminder: { ...DEFAULT_SETTINGS.reminder, ...(isObject(settings.reminder) ? settings.reminder : {}) },
       weather: { ...DEFAULT_SETTINGS.weather, ...(isObject(settings.weather) ? settings.weather : {}) },
       yazio: { ...DEFAULT_SETTINGS.yazio, ...(yazio as object) },
+      mealPresets: asArray(settings.mealPresets),
     },
   };
 

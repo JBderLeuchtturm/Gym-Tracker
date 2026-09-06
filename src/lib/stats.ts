@@ -1,5 +1,5 @@
 import type { AppState, Exercise, ID, LoggedExercise, SetLog, Workout } from '../types';
-import { weekKey } from './date';
+import { parseISODate, weekKey } from './date';
 import { formatSet } from './setFormat';
 
 /** Volumen eines Satzes (Gewicht x Wiederholungen). */
@@ -370,6 +370,200 @@ export function buildReview(
     focus: [...focusMap.entries()]
       .map(([category, sets]) => ({ category, sets }))
       .sort((a, b) => b.sets - a.sets),
+  };
+}
+
+/* -------------------------------------------------- Wochentags-Muster */
+
+export interface WeekdayCount {
+  /** 0 = Montag ... 6 = Sonntag. */
+  weekday: number;
+  workouts: number;
+  sets: number;
+}
+
+/**
+ * An welchem Wochentag wird trainiert, an welchem faellt es aus.
+ *
+ * Nur Tage mit gearbeiteten Saetzen zaehlen. Wer sonntags immer eintraegt, aber
+ * nie abhakt, trainiert sonntags nicht.
+ */
+export function weekdayPattern(state: AppState, sinceDate?: string): WeekdayCount[] {
+  const counts: WeekdayCount[] = Array.from({ length: 7 }, (_, weekday) => ({
+    weekday, workouts: 0, sets: 0,
+  }));
+  for (const workout of state.workouts) {
+    if (sinceDate && workout.date < sinceDate) continue;
+    const sets = workoutSetCount(workout);
+    if (sets === 0) continue;
+    const weekday = (parseISODate(workout.date).getDay() + 6) % 7;
+    counts[weekday].workouts += 1;
+    counts[weekday].sets += sets;
+  }
+  return counts;
+}
+
+/* --------------------------------------------- Bestleistungen, alle Uebungen */
+
+export interface AllTimeRecord {
+  exerciseId: ID;
+  name: string;
+  kind?: Exercise['kind'];
+  /** Bestwert als lesbarer Text, z. B. "100 kg × 5" oder "1:30". */
+  best: string;
+  /** Zahl fuer die Sortierung: 1RM, sonst Dauer, sonst Wiederholungen. */
+  score: number;
+  date: string;
+  sessions: number;
+}
+
+/**
+ * Die Bestleistung jeder Uebung, mit Verlauf, auf einer Liste - statt je Uebung
+ * verstreut. Sortiert nach dem geschaetzten Maximum, damit die schweren
+ * Bewegungen oben stehen.
+ */
+export function allTimeRecords(
+  state: AppState,
+  lookup: (id: ID) => Exercise | undefined,
+): AllTimeRecord[] {
+  const ids = new Set<ID>();
+  for (const workout of state.workouts) {
+    for (const logged of workout.exercises) {
+      if (logged.sets.some(countsAsWork)) ids.add(logged.exerciseId);
+    }
+  }
+
+  const rows: AllTimeRecord[] = [];
+  for (const id of ids) {
+    const records = personalRecords(state, id);
+    if (records.totalSessions === 0) continue;
+    const exercise = lookup(id);
+    let best = '';
+    let score = 0;
+    if (records.best1RM) {
+      best = `1RM ≈ ${fmtKg(records.best1RM.value)}`;
+      score = records.best1RM.value;
+      if (records.maxWeight) best = formatSet(records.maxWeight.value, records.maxWeight.reps, exercise?.kind);
+    } else if (records.maxDurationSec) {
+      const seconds = records.maxDurationSec.value;
+      best = seconds >= 60 ? `${Math.floor(seconds / 60)}:${`${seconds % 60}`.padStart(2, '0')}` : `${seconds} s`;
+      score = seconds;
+    } else if (records.maxReps) {
+      best = `${records.maxReps.value} Wdh`;
+      score = records.maxReps.value;
+    } else {
+      continue;
+    }
+    rows.push({
+      exerciseId: id,
+      name: exercise?.name ?? 'Übung',
+      kind: exercise?.kind,
+      best,
+      score,
+      date: records.best1RM?.date ?? records.maxDurationSec?.date ?? records.maxReps?.date ?? '',
+      sessions: records.totalSessions,
+    });
+  }
+  return rows.sort((a, b) => b.score - a.score);
+}
+
+const fmtKg = (value: number): string =>
+  `${value.toLocaleString('de-DE', { maximumFractionDigits: value % 1 === 0 ? 0 : 1 })} kg`;
+
+/* ----------------------------------------------------------- Jahresrückblick */
+
+export interface YearReview {
+  year: number;
+  workouts: number;
+  sets: number;
+  volume: number;
+  minutes: number;
+  activeWeeks: number;
+  bestStreakWeeks: number;
+  topExercise: { name: string; sessions: number } | null;
+  topCategory: { category: string; sets: number } | null;
+  records: number;
+  heaviestLift: { name: string; value: string; date: string } | null;
+}
+
+/** Die Zahlen eines Kalenderjahres auf einen Blick. */
+export function yearReview(
+  state: AppState,
+  year: number,
+  lookup: (id: ID) => Exercise | undefined,
+): YearReview {
+  const from = `${year}-01-01`;
+  const to = `${year}-12-31`;
+  const workouts = state.workouts.filter(
+    (workout) => workout.date >= from && workout.date <= to && workoutSetCount(workout) > 0,
+  );
+
+  const sessionsByExercise = new Map<ID, number>();
+  const setsByCategory = new Map<string, number>();
+  let heaviest: { name: string; value: number; reps: number; date: string; kind?: Exercise['kind'] } | null = null;
+
+  for (const workout of workouts) {
+    for (const logged of workout.exercises) {
+      const working = logged.sets.filter(countsAsWork);
+      if (working.length === 0) continue;
+      sessionsByExercise.set(logged.exerciseId, (sessionsByExercise.get(logged.exerciseId) ?? 0) + 1);
+      const category = lookup(logged.exerciseId)?.category ?? 'other';
+      setsByCategory.set(category, (setsByCategory.get(category) ?? 0) + working.length);
+      for (const set of working) {
+        const weight = set.weightKg ?? 0;
+        if (weight > 0 && (!heaviest || weight > heaviest.value)) {
+          heaviest = {
+            name: lookup(logged.exerciseId)?.name ?? 'Übung',
+            value: weight,
+            reps: set.reps ?? 0,
+            date: workout.date,
+            kind: lookup(logged.exerciseId)?.kind,
+          };
+        }
+      }
+    }
+  }
+
+  const weeks = new Set(workouts.map((workout) => weekKey(workout.date)));
+  let bestRun = 0;
+  let run = 0;
+  let previous: string | null = null;
+  for (const week of [...weeks].sort()) {
+    const [ya, wa] = week.split('-KW').map(Number);
+    const cont = previous
+      && (() => { const [yb, wb] = previous!.split('-KW').map(Number); return ya === yb ? wa === wb + 1 : (ya === yb + 1 && wa === 1); })();
+    run = cont ? run + 1 : 1;
+    bestRun = Math.max(bestRun, run);
+    previous = week;
+  }
+
+  const topExerciseEntry = [...sessionsByExercise.entries()].sort((a, b) => b[1] - a[1])[0];
+  const topCategoryEntry = [...setsByCategory.entries()].sort((a, b) => b[1] - a[1])[0];
+
+  let records = 0;
+  for (const id of sessionsByExercise.keys()) {
+    const best = personalRecords(state, id).maxWeight;
+    if (best && best.date >= from && best.date <= to) records += 1;
+  }
+
+  return {
+    year,
+    workouts: workouts.length,
+    sets: workouts.reduce((sum, workout) => sum + workoutSetCount(workout), 0),
+    volume: workouts.reduce((sum, workout) => sum + workoutVolume(workout), 0),
+    minutes: workouts.reduce((sum, workout) => sum + (workout.durationMin ?? 0), 0),
+    activeWeeks: weeks.size,
+    bestStreakWeeks: bestRun,
+    topExercise: topExerciseEntry
+      ? { name: lookup(topExerciseEntry[0])?.name ?? 'Übung', sessions: topExerciseEntry[1] }
+      : null,
+    topCategory: topCategoryEntry
+      ? { category: topCategoryEntry[0], sets: topCategoryEntry[1] }
+      : null,
+    records,
+    heaviestLift: heaviest
+      ? { name: heaviest.name, value: formatSet(heaviest.value, heaviest.reps, heaviest.kind), date: heaviest.date }
+      : null,
   };
 }
 

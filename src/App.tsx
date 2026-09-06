@@ -21,6 +21,7 @@ import { applyUpdate, onUpdateAvailable } from './lib/appUpdate';
 import { workoutSetCount } from './lib/stats';
 import { formatDateLong, todayISO, weekdayOf } from './lib/date';
 import { PageSkeleton } from './components/ui';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { IconCalendar, IconChart, IconDumbbell, IconFlame, IconUser } from './components/icons';
 import { IconUsers } from './components/icons';
 
@@ -154,25 +155,32 @@ export function App() {
         id="inhalt"
         tabIndex={-1}
       >
-        <Suspense fallback={<PageSkeleton />}>
-          {historyOpen ? (
-            <>
-              <button className="btn btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => setHistoryOpen(false)}>
-                ← Zurück
-              </button>
-              <HistoryPage />
-            </>
-          ) : (
-            <>
-              {tab === 'today' && <TodayPage onNavigate={setTab} />}
-              {tab === 'plans' && <PlansPage />}
-              {tab === 'progress' && <ProgressPage />}
-              {tab === 'calories' && <CaloriesPage />}
-              {tab === 'friends' && <FriendsPage />}
-              {tab === 'profile' && <ProfilePage />}
-            </>
-          )}
-        </Suspense>
+        {/*
+          * Ein Fehler in einer Seite nimmt sonst die ganze App mit - im Studio
+          * ein weisser Bildschirm. Der Fehlerabfang faengt ihn je Seite ab und
+          * setzt sich beim naechsten Reiterwechsel von selbst zurueck.
+          */}
+        <ErrorBoundary resetKey={historyOpen ? 'history' : tab}>
+          <Suspense fallback={<PageSkeleton />}>
+            {historyOpen ? (
+              <>
+                <button className="btn btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => setHistoryOpen(false)}>
+                  ← Zurück
+                </button>
+                <HistoryPage />
+              </>
+            ) : (
+              <>
+                {tab === 'today' && <TodayPage onNavigate={setTab} />}
+                {tab === 'plans' && <PlansPage />}
+                {tab === 'progress' && <ProgressPage />}
+                {tab === 'calories' && <CaloriesPage />}
+                {tab === 'friends' && <FriendsPage />}
+                {tab === 'profile' && <ProfilePage />}
+              </>
+            )}
+          </Suspense>
+        </ErrorBoundary>
       </main>
     </div>
   );

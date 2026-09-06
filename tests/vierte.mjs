@@ -14,10 +14,11 @@ const WGER_BASEINFO = {
 /** Antwort von Open-Meteo: heute Regen. */
 function meteoAnswer() {
   const today = new Date();
-  const days = Array.from({ length: 5 }, (_, index) => {
-    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + index - 2);
-    return date.toISOString().slice(0, 10);
-  });
+  // Ortszeit, nicht UTC: "toISOString" verschiebt in manchen Zeitzonen um einen
+  // Tag, und dann trifft "heute" im Mock nicht "heute" im Browser.
+  const iso = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const days = Array.from({ length: 5 }, (_, index) =>
+    iso(new Date(today.getFullYear(), today.getMonth(), today.getDate() + index - 2)));
   return {
     daily: {
       time: days,

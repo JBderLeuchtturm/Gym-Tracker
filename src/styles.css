@@ -1117,6 +1117,50 @@ table.data tr:last-child td { border-bottom: 0; }
   font-weight: 600;
   color: var(--violet);
 }
+.exercise__group-round { color: var(--text-dim); font-weight: 500; }
+
+/*
+ * Plus/Minus fuer den Satz, an dem man gerade steht. Mit feuchten Fingern ist
+ * die Zahlentastatur der schlechteste Weg - hier reicht ein Tipper je Scheibe.
+ * Steht nur unter der einen offenen Zeile, nicht unter jeder.
+ */
+.set-steppers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 6px 2px 10px 28px;
+}
+.set-steppers__group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.set-steppers__btn {
+  flex: 0 0 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.set-steppers__btn:active { background: var(--surface-3); transform: scale(0.94); }
+.set-steppers__val {
+  flex: 1;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.set-steppers__unit { font-size: 0.72rem; font-weight: 400; color: var(--text-dim); }
+
+/* Wischen auf einer Satzzeile: kurzer Versatz als Rueckmeldung. */
+.set-row { touch-action: pan-y; }
+.set-row--swiping { transition: none; }
 
 .exercise__sort {
   display: flex;
@@ -1518,6 +1562,113 @@ table.data tr:last-child td { border-bottom: 0; }
   color: var(--text-muted);
 }
 .day-strip__item--filled .day-strip__num { color: var(--text); }
+
+/* ---------------------------------------------------- Wochentags-Muster */
+
+.weekday-bars {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  align-items: end;
+}
+.weekday-bars__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.weekday-bars__track {
+  width: 100%;
+  height: 64px;
+  display: flex;
+  align-items: flex-end;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.weekday-bars__fill {
+  width: 100%;
+  background: var(--time);
+  min-height: 2px;
+  transition: height 0.3s var(--ease);
+}
+.weekday-bars__num {
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.weekday-bars__wd {
+  font-size: 0.66rem;
+  color: var(--text-dim);
+}
+
+/* ------------------------------------------------------- Makro-Balken */
+
+/*
+ * Eiweiss, Kohlenhydrate, Fett in einem Balken statt vier Zahlenfeldern. Die
+ * Farben sind aus dem zeitlichen Ton abgeleitet, damit nichts mit der Bedeutung
+ * von Messing, Gruen oder Gelb kollidiert.
+ */
+.macrobar {
+  position: relative;
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.macrobar__seg { height: 100%; }
+.macrobar__seg--protein { background: var(--time); }
+.macrobar__seg--carbs { background: color-mix(in srgb, var(--time) 55%, var(--surface-3)); }
+.macrobar__seg--fat { background: color-mix(in srgb, var(--violet) 70%, var(--surface-3)); }
+.macrobar__mark {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--text);
+}
+.macrobar__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 7px;
+  font-size: 0.73rem;
+  color: var(--text-muted);
+}
+.macrobar__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+.macrobar__dot--protein { background: var(--time); }
+.macrobar__dot--carbs { background: color-mix(in srgb, var(--time) 55%, var(--surface-3)); }
+.macrobar__dot--fat { background: color-mix(in srgb, var(--violet) 70%, var(--surface-3)); }
+
+/* Kamerabild des Barcode-Scanners. */
+.scan-video {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: #000;
+}
+
+/* Hinweis zur Belastung - ein eingerueckter Absatz, kein Warnton. */
+.load-note {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border-left: 2px solid var(--time);
+  font-size: 0.85rem;
+}
+.load-note--rising { border-left-color: var(--warn); }
+.load-note--high { border-left-color: var(--danger); }
+.load-note--quiet { border-left-color: var(--success); }
 
 /* ------------------------------------------------------- Duenne Datenlage */
 

@@ -1,13 +1,17 @@
 import { t } from '../i18n';
-import { useMemo, useRef, useState } from 'react';
-import type { Goal } from '../types';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Goal, MealPreset } from '../types';
 import { ACTIVITY_LABELS, GOAL_ADJUSTMENT, GOAL_LABELS, calcDayEnergy, proteinTarget } from '../lib/calories';
 import { addDays, formatDateShort, formatDateTiny, todayISO } from '../lib/date';
 import { useStore } from '../storage/store';
 import { fetchYazioDay, parseYazioCsv } from '../api/yazio';
+import { isBarcode, lookupProduct, scaleProduct, type FoodProduct } from '../api/foodfacts';
+import { uid } from '../storage/defaults';
 import { BarChart, type Point } from '../components/charts/Charts';
 import { Block, Modal, NumberInput, Section, Stat, fmt, useToast } from '../components/ui';
-import { IconChevronLeft, IconChevronRight, IconInfo, IconRefresh, IconUpload } from '../components/icons';
+import {
+  IconCamera, IconChevronLeft, IconChevronRight, IconInfo, IconPlus, IconRefresh, IconTrash, IconUpload,
+} from '../components/icons';
 
 /** Passt die Bilanz zum Ziel? Beim Abnehmen ist ein Defizit gut, beim Aufbauen ein Ueberschuss. */
 function isOnTrack(goal: Goal, balance: number): boolean {
@@ -23,11 +27,15 @@ function balanceHint(goal: Goal, balance: number): string {
 }
 
 export function CaloriesPage() {
-  const { state, getExercise, setNutrition } = useStore();
+  const { state, getExercise, setNutrition, updateSettings } = useStore();
+  const toast = useToast();
 
   const [date, setDate] = useState(todayISO());
   const [yazioOpen, setYazioOpen] = useState(false);
   const [explainOpen, setExplainOpen] = useState(false);
+  const [foodOpen, setFoodOpen] = useState(false);
+  const [mealsOpen, setMealsOpen] = useState(false);
+  const [mealNameOpen, setMealNameOpen] = useState(false);
 
   const workout = state.workouts.find((item) => item.date === date);
   const energy = useMemo(
@@ -67,6 +75,40 @@ export function CaloriesPage() {
       source: 'manual',
       ...patch,
     });
+  };
+
+  /** Legt Werte auf den Tag drauf, statt sie zu ersetzen - fuer Barcode und Mahlzeiten. */
+  const addToEntry = (add: {
+    kcal?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null;
+  }) => {
+    const sum = (a: number | null | undefined, b: number | null | undefined) =>
+      (a == null && b == null ? null : Math.round((a ?? 0) + (b ?? 0)));
+    patchEntry({
+      kcalIn: sum(entry?.kcalIn, add.kcal),
+      proteinG: sum(entry?.proteinG, add.proteinG),
+      carbsG: sum(entry?.carbsG, add.carbsG),
+      fatG: sum(entry?.fatG, add.fatG),
+    });
+  };
+
+  const presets = state.settings.mealPresets ?? [];
+
+  const addMeal = (meal: MealPreset) => {
+    addToEntry({ kcal: meal.kcal, proteinG: meal.proteinG, carbsG: meal.carbsG, fatG: meal.fatG });
+    toast.show(t('„{name}“ dazugerechnet', { name: meal.name }));
+  };
+
+  const saveCurrentAsMeal = (name: string) => {
+    const meal: MealPreset = {
+      id: uid('meal'),
+      name: name.trim(),
+      kcal: entry?.kcalIn ?? null,
+      proteinG: entry?.proteinG ?? null,
+      carbsG: entry?.carbsG ?? null,
+      fatG: entry?.fatG ?? null,
+    };
+    updateSettings({ mealPresets: [...presets, meal] });
+    toast.show(t('„{name}“ gespeichert', { name: meal.name }));
   };
 
   return (
@@ -150,11 +192,27 @@ export function CaloriesPage() {
       <Section
         title={t("Zufuhr")}
         note={(
-          <button className="btn btn--sm" onClick={() => setYazioOpen(true)}>
-            <IconRefresh /> {t('Yazio')}
+          <button className="btn btn--sm" onClick={() => setFoodOpen(true)}>
+            <IconCamera /> {t('Barcode')}
           </button>
         )}
       >
+        {/*
+          * Schneller Eintrag: gespeicherte Mahlzeiten werden dazugerechnet,
+          * nicht ersetzt. Wer jeden Morgen dasselbe isst, tippt einmal.
+          */}
+        {presets.length > 0 && (
+          <div className="chip-scroll" style={{ marginBottom: 10 }}>
+            {presets.map((meal) => (
+              <button key={meal.id} className="chip chip--button" onClick={() => addMeal(meal)}>
+                <IconPlus style={{ width: 12, height: 12 }} /> {meal.name}
+                {meal.kcal != null && <span className="dim">{' '}{meal.kcal}</span>}
+              </button>
+            ))}
+            <button className="chip chip--button" onClick={() => setMealsOpen(true)}>{t('verwalten')}</button>
+          </div>
+        )}
+
         <div className="grid-2">
           <div className="field">
             <label className="field__label">{t("Kalorien (kcal)")}</label>
@@ -172,6 +230,29 @@ export function CaloriesPage() {
             <label className="field__label">{t("Fett (g)")}</label>
             <NumberInput value={entry?.fatG ?? null} min={0} onChange={(value) => patchEntry({ fatG: value })} />
           </div>
+        </div>
+
+        <MacroBar
+          proteinG={entry?.proteinG ?? null}
+          carbsG={entry?.carbsG ?? null}
+          fatG={entry?.fatG ?? null}
+          proteinTargetG={proteinTarget(state.profile.weightKg)}
+        />
+
+        <div className="row row--wrap" style={{ gap: 7, marginTop: 10 }}>
+          <button className="btn btn--sm" onClick={() => setYazioOpen(true)}>
+            <IconRefresh /> {t('Yazio')}
+          </button>
+          {(entry?.kcalIn != null || entry?.proteinG != null) && (
+            <button className="btn btn--sm" onClick={() => setMealNameOpen(true)}>
+              {t('Als Mahlzeit speichern')}
+            </button>
+          )}
+          {presets.length > 0 && (
+            <button className="btn btn--sm btn--ghost" onClick={() => setMealsOpen(true)}>
+              {t('Mahlzeiten')}
+            </button>
+          )}
         </div>
 
         {balance != null && (
@@ -223,6 +304,35 @@ export function CaloriesPage() {
 
       {yazioOpen && <YazioDialog date={date} onClose={() => setYazioOpen(false)} />}
 
+      {foodOpen && (
+        <FoodDialog
+          onClose={() => setFoodOpen(false)}
+          onAdd={(add, label) => {
+            addToEntry(add);
+            setFoodOpen(false);
+            toast.show(t('„{name}“ dazugerechnet', { name: label }));
+          }}
+        />
+      )}
+
+      {mealsOpen && (
+        <MealManager
+          presets={presets}
+          onClose={() => setMealsOpen(false)}
+          onDelete={(id) => updateSettings({ mealPresets: presets.filter((meal) => meal.id !== id) })}
+        />
+      )}
+
+      {mealNameOpen && (
+        <NameDialog
+          title={t('Als Mahlzeit speichern')}
+          label={t('Name der Mahlzeit')}
+          placeholder={t('z. B. Frühstück')}
+          onClose={() => setMealNameOpen(false)}
+          onSave={(name) => { saveCurrentAsMeal(name); setMealNameOpen(false); }}
+        />
+      )}
+
       {explainOpen && (
         <Modal title={t("Wie wird gerechnet?")} onClose={() => setExplainOpen(false)}>
           <div className="list small muted">
@@ -254,6 +364,297 @@ export function CaloriesPage() {
         {t('Aktivitätsstufe, Ziel und Körperdaten änderst du im Profil.')}
       </div>
     </>
+  );
+}
+
+/* ----------------------------------------------------------- Makro-Balken */
+
+/**
+ * Eiweiss, Kohlenhydrate und Fett im Verhaeltnis - als ein Balken, nicht als
+ * vier Zahlen. Die Anteile sind nach Kalorien gewichtet (4 / 4 / 9 kcal je
+ * Gramm), weil so das Bild stimmt: 50 g Fett sind mehr als 50 g Eiweiss. Ein
+ * Strich markiert das Eiweissziel.
+ */
+function MacroBar({
+  proteinG, carbsG, fatG, proteinTargetG,
+}: {
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+  proteinTargetG: number;
+}) {
+  const p = proteinG ?? 0;
+  const c = carbsG ?? 0;
+  const f = fatG ?? 0;
+  const pKcal = p * 4;
+  const cKcal = c * 4;
+  const fKcal = f * 9;
+  const total = pKcal + cKcal + fKcal;
+  if (total <= 0) return null;
+
+  const pct = (value: number) => `${(value / total) * 100}%`;
+  const proteinTargetPct = Math.min(100, (proteinTargetG * 4 / total) * 100);
+  const proteinShort = proteinTargetG - p;
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div className="macrobar">
+        <div className="macrobar__seg macrobar__seg--protein" style={{ width: pct(pKcal) }} />
+        <div className="macrobar__seg macrobar__seg--carbs" style={{ width: pct(cKcal) }} />
+        <div className="macrobar__seg macrobar__seg--fat" style={{ width: pct(fKcal) }} />
+        {proteinTargetPct < 100 && (
+          <div
+            className="macrobar__mark"
+            style={{ left: `${proteinTargetPct}%` }}
+            title={t('Eiweißziel {g} g', { g: proteinTargetG })}
+          />
+        )}
+      </div>
+      <div className="macrobar__legend">
+        <span><span className="macrobar__dot macrobar__dot--protein" />{t('Eiweiß')} {fmt(p)} g</span>
+        <span><span className="macrobar__dot macrobar__dot--carbs" />{t('Kohlenhydrate')} {fmt(c)} g</span>
+        <span><span className="macrobar__dot macrobar__dot--fat" />{t('Fett')} {fmt(f)} g</span>
+      </div>
+      {proteinShort > 3 && (
+        <div className="tiny dim" style={{ marginTop: 4 }}>
+          {t('noch {g} g Eiweiß bis zum Ziel', { g: fmt(proteinShort) })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------ Barcode / Open Food Facts */
+
+/**
+ * Barcode nachschlagen und die Naehrwerte auf den Tag drauflegen.
+ *
+ * Der Kamera-Scanner braucht "BarcodeDetector" (Chrome, Edge, Android). Wo es
+ * den nicht gibt, tippt man den Barcode ein - der Rest funktioniert gleich.
+ */
+function FoodDialog({
+  onClose, onAdd,
+}: {
+  onClose: () => void;
+  onAdd: (
+    add: { kcal: number | null; proteinG: number | null; carbsG: number | null; fatG: number | null },
+    label: string,
+  ) => void;
+}) {
+  const [code, setCode] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [product, setProduct] = useState<FoodProduct | null>(null);
+  const [grams, setGrams] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const canScan = typeof window !== 'undefined' && 'BarcodeDetector' in window
+    && Boolean(navigator.mediaDevices?.getUserMedia);
+
+  const search = async (value: string) => {
+    if (!isBarcode(value)) { setError(t('Das ist kein gültiger Barcode.')); return; }
+    setBusy(true);
+    setError(null);
+    const found = await lookupProduct(value);
+    setBusy(false);
+    if (!found) { setError(t('Dazu ist in der Datenbank nichts hinterlegt.')); return; }
+    setProduct(found);
+    setGrams(found.servingG ?? 100);
+  };
+
+  // Kamera-Scanner: laeuft, solange der Dialog im Scan-Modus ist.
+  useEffect(() => {
+    if (!scanning || !canScan) return;
+    let stream: MediaStream | null = null;
+    let raf = 0;
+    let stopped = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const Detector = (window as any).BarcodeDetector;
+    const detector = new Detector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] });
+
+    const tick = async () => {
+      if (stopped || !videoRef.current) return;
+      try {
+        const hits = await detector.detect(videoRef.current);
+        if (hits[0]?.rawValue) {
+          setScanning(false);
+          setCode(hits[0].rawValue);
+          void search(hits[0].rawValue);
+          return;
+        }
+      } catch { /* zwischen zwei Frames ist ein Fehlversuch normal */ }
+      raf = requestAnimationFrame(tick);
+    };
+
+    void navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then((got) => {
+        if (stopped) { got.getTracks().forEach((track) => track.stop()); return; }
+        stream = got;
+        if (videoRef.current) {
+          videoRef.current.srcObject = got;
+          void videoRef.current.play();
+        }
+        raf = requestAnimationFrame(tick);
+      })
+      .catch(() => { setScanning(false); setError(t('Kein Zugriff auf die Kamera.')); });
+
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+      stream?.getTracks().forEach((track) => track.stop());
+    };
+  }, [scanning, canScan]);
+
+  const scaled = product && grams ? scaleProduct(product, grams) : null;
+
+  return (
+    <Modal title={t('Barcode nachschlagen')} onClose={onClose}>
+      <div className="list">
+        {scanning ? (
+          <div>
+            <video ref={videoRef} className="scan-video" muted playsInline />
+            <button className="btn btn--block" style={{ marginTop: 8 }} onClick={() => setScanning(false)}>
+              {t('Scan abbrechen')}
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="field">
+              <label className="field__label">{t('Barcode')}</label>
+              <div className="row" style={{ gap: 7 }}>
+                <input
+                  className="input"
+                  inputMode="numeric"
+                  value={code}
+                  placeholder="4008400…"
+                  onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
+                  onKeyDown={(event) => { if (event.key === 'Enter') void search(code); }}
+                />
+                <button className="btn" disabled={busy || !code} onClick={() => void search(code)}>
+                  {busy ? '…' : t('Suchen')}
+                </button>
+              </div>
+              <span className="field__hint">
+                {t('Daten von Open Food Facts – kostenlos, ohne Konto. Übermittelt wird nur der Barcode.')}
+              </span>
+            </div>
+            {canScan && (
+              <button className="btn btn--block" onClick={() => { setError(null); setScanning(true); }}>
+                <IconCamera /> {t('Mit der Kamera scannen')}
+              </button>
+            )}
+          </>
+        )}
+
+        {error && <div className="small" style={{ color: 'var(--danger)' }}>{error}</div>}
+
+        {product && (
+          <div className="card card--inset">
+            <div className="bold small">{product.name}</div>
+            {product.brand && <div className="tiny dim">{product.brand}</div>}
+            <div className="tiny dim" style={{ marginTop: 4 }}>
+              {product.kcal100 != null ? `${product.kcal100} kcal` : t('keine Kalorienangabe')}
+              {product.protein100 != null && ` · ${product.protein100} g Eiweiß`}
+              {' '}{t('je 100 g')}
+            </div>
+            <div className="field" style={{ marginTop: 10 }}>
+              <label className="field__label">{t('Menge (g)')}</label>
+              <NumberInput value={grams} min={0} onChange={setGrams} />
+            </div>
+            {scaled && (
+              <div className="tiny" style={{ marginTop: 6 }}>
+                {t('Ergibt')} {scaled.kcal ?? '–'} kcal
+                {scaled.proteinG != null && ` · ${scaled.proteinG} g Eiweiß`}
+              </div>
+            )}
+            <button
+              className="btn btn--primary btn--block"
+              style={{ marginTop: 10 }}
+              disabled={!scaled || !grams}
+              onClick={() => scaled && onAdd(scaled, product.name)}
+            >
+              {t('Zum Tag dazurechnen')}
+            </button>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+/** Kleiner Dialog fuer eine einzelne Texteingabe - statt window.prompt. */
+function NameDialog({
+  title, label, placeholder, onClose, onSave,
+}: {
+  title: string;
+  label: string;
+  placeholder?: string;
+  onClose: () => void;
+  onSave: (value: string) => void;
+}) {
+  const [value, setValue] = useState('');
+  return (
+    <Modal title={title} onClose={onClose}>
+      <div className="list">
+        <div className="field">
+          <label className="field__label">{label}</label>
+          {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+          <input
+            className="input"
+            autoFocus
+            value={value}
+            placeholder={placeholder}
+            onChange={(event) => setValue(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Enter' && value.trim()) onSave(value.trim()); }}
+          />
+        </div>
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <button className="btn" onClick={onClose}>{t('Abbrechen')}</button>
+          <button className="btn btn--primary" disabled={!value.trim()} onClick={() => onSave(value.trim())}>
+            {t('Speichern')}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* --------------------------------------------------------- Mahlzeiten verwalten */
+
+function MealManager({
+  presets, onClose, onDelete,
+}: {
+  presets: MealPreset[];
+  onClose: () => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <Modal title={t('Gespeicherte Mahlzeiten')} onClose={onClose}>
+      <div className="list">
+        {presets.length === 0 && <div className="empty tiny">{t('Noch keine gespeichert.')}</div>}
+        {presets.map((meal) => (
+          <div key={meal.id} className="row row--between">
+            <div style={{ minWidth: 0 }}>
+              <div className="small bold">{meal.name}</div>
+              <div className="tiny dim">
+                {meal.kcal != null && `${meal.kcal} kcal`}
+                {meal.proteinG != null && ` · ${meal.proteinG} g Eiweiß`}
+                {meal.carbsG != null && ` · ${meal.carbsG} g KH`}
+                {meal.fatG != null && ` · ${meal.fatG} g Fett`}
+              </div>
+            </div>
+            <button
+              className="btn btn--ghost btn--icon btn--sm"
+              onClick={() => onDelete(meal.id)}
+              aria-label={t('Löschen')}
+            >
+              <IconTrash />
+            </button>
+          </div>
+        ))}
+      </div>
+    </Modal>
   );
 }
 

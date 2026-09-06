@@ -1,5 +1,5 @@
 import type { Exercise, Workout } from '../types';
-import { countsAsWork } from './stats';
+import { countsAsWork, exerciseVolume } from './stats';
 import { regionsOf, type MuscleRegion } from './muscles';
 import { daysBetween } from './date';
 
@@ -14,6 +14,12 @@ export const SECONDARY_WEIGHT = 0.5;
 
 export interface RegionLoad {
   sets: number;
+  /**
+   * Bewegtes Gewicht auf dieser Region, in Kilogramm. Zwoelf Saetze Seitheben
+   * und zwoelf Saetze Kniebeugen sind nicht dieselbe Arbeit - die Satzzahl
+   * allein sagt das nicht.
+   */
+  volume: number;
   /** Letzter Tag mit Arbeit an dieser Region, yyyy-mm-dd. */
   lastDate: string | null;
   byExercise: Map<string, number>;
@@ -25,9 +31,13 @@ export function regionLoad(
 ): Map<MuscleRegion, RegionLoad> {
   const map = new Map<MuscleRegion, RegionLoad>();
 
-  const add = (region: MuscleRegion, sets: number, exerciseId: string, date: string) => {
-    const entry = map.get(region) ?? { sets: 0, lastDate: null, byExercise: new Map<string, number>() };
+  const add = (
+    region: MuscleRegion, sets: number, volume: number, exerciseId: string, date: string,
+  ) => {
+    const entry = map.get(region)
+      ?? { sets: 0, volume: 0, lastDate: null, byExercise: new Map<string, number>() };
     entry.sets += sets;
+    entry.volume += volume;
     entry.byExercise.set(exerciseId, (entry.byExercise.get(exerciseId) ?? 0) + sets);
     if (!entry.lastDate || date > entry.lastDate) entry.lastDate = date;
     map.set(region, entry);
@@ -39,9 +49,12 @@ export function regionLoad(
       if (sets === 0) continue;
       const exercise = getExercise(logged.exerciseId);
       if (!exercise) continue;
+      const volume = exerciseVolume(logged);
       const { primary, secondary } = regionsOf(exercise);
-      for (const region of primary) add(region, sets, exercise.id, workout.date);
-      for (const region of secondary) add(region, sets * SECONDARY_WEIGHT, exercise.id, workout.date);
+      for (const region of primary) add(region, sets, volume, exercise.id, workout.date);
+      for (const region of secondary) {
+        add(region, sets * SECONDARY_WEIGHT, volume * SECONDARY_WEIGHT, exercise.id, workout.date);
+      }
     }
   }
   return map;

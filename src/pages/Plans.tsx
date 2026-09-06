@@ -12,10 +12,13 @@ import { PLAN_TEMPLATES, buildTemplatePlan } from '../data/templates';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { ConfirmDialog, DateInput, EmptyState, Modal, NumberInput, useToast } from '../components/ui';
 import {
-  IconCheck, IconChevronDown, IconCopy, IconEdit, IconPlus, IconPrinter, IconShare, IconTrash,
+  IconCalendar, IconCheck, IconChevronDown, IconCopy, IconEdit, IconPlus, IconPrinter, IconShare,
+  IconTrash,
 } from '../components/icons';
 import { customToExercises, decodePlan, encodePlan } from '../lib/planShare';
 import { printPlan } from '../lib/exportData';
+import { plannedWeeklyLoad } from '../lib/planVolume';
+import { loadStatus } from '../lib/muscleLoad';
 
 /**
  * Der Kurzname eines Trainingstags fuer die schmale Spalte.
@@ -41,9 +44,11 @@ export function PlansPage() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const editing = state.plans.find((plan) => plan.id === editingId) ?? null;
   const sharing = state.plans.find((plan) => plan.id === sharingId) ?? null;
+  const preview = state.plans.find((plan) => plan.id === previewId) ?? null;
 
   const createEmpty = () => {
     const now = new Date().toISOString();
@@ -140,6 +145,11 @@ export function PlansPage() {
                     <IconCheck /> {t('Aktivieren')}
                   </button>
                 )}
+                {!isActive && (
+                  <button className="btn btn--sm" onClick={() => setPreviewId(plan.id)}>
+                    {t('Vorschau')}
+                  </button>
+                )}
                 <button className="btn btn--sm" onClick={() => setEditingId(plan.id)}><IconEdit /> {t("Bearbeiten")}</button>
                 <button className="btn btn--sm" onClick={() => duplicate(plan)}><IconCopy /> {t("Kopie")}</button>
                 <button className="btn btn--sm" onClick={() => setSharingId(plan.id)}>
@@ -175,6 +185,19 @@ export function PlansPage() {
           plan={sharing}
           getExercise={getExercise}
           onClose={() => setSharingId(null)}
+        />
+      )}
+
+      {preview && (
+        <PlanPreviewDialog
+          plan={preview}
+          getExercise={getExercise}
+          onClose={() => setPreviewId(null)}
+          onActivate={() => {
+            setActivePlan(preview.id);
+            setPreviewId(null);
+            toast.show(t('„{name}“ ist jetzt aktiv', { name: preview.name }));
+          }}
         />
       )}
 
@@ -272,6 +295,7 @@ function PlanEditor({
   });
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<PlanExercise | null>(null);
+  const [movingId, setMovingId] = useState<string | null>(null);
 
   const day = plan.days[activeDay];
 
@@ -312,6 +336,32 @@ function PlanEditor({
 
   const removeExercise = (id: string) => {
     patchDay({ exercises: day.exercises.filter((item) => item.id !== id) });
+  };
+
+  /** Verschiebt einen Eintrag auf einen anderen Wochentag - statt loeschen und neu anlegen. */
+  const moveToDay = (id: string, target: Weekday) => {
+    const item = day.exercises.find((entry) => entry.id === id);
+    setMovingId(null);
+    if (!item || target === activeDay) return;
+    const exercise = getExercise(item.exerciseId);
+    onChange((current) => ({
+      ...current,
+      days: current.days.map((entry, index) => {
+        if (index === activeDay) {
+          return { ...entry, exercises: entry.exercises.filter((one) => one.id !== id) };
+        }
+        if (index === target) {
+          const wasEmpty = entry.isRestDay || !entry.title || entry.title === 'Ruhetag';
+          return {
+            ...entry,
+            isRestDay: false,
+            title: wasEmpty && exercise ? suggestTitle(exercise) : entry.title,
+            exercises: [...entry.exercises, { ...item }],
+          };
+        }
+        return entry;
+      }),
+    }));
   };
 
   const patchExercise = (id: string, patch: Partial<PlanExercise>) => {
@@ -415,6 +465,13 @@ function PlanEditor({
                             <button className="btn btn--ghost btn--icon btn--sm" onClick={() => move(index, 1)} disabled={index === day.exercises.length - 1} aria-label={t("Nach unten")}>
                               <IconChevronDown />
                             </button>
+                            <button
+                              className={`btn btn--ghost btn--icon btn--sm ${movingId === planExercise.id ? 'btn--on' : ''}`}
+                              onClick={() => setMovingId(movingId === planExercise.id ? null : planExercise.id)}
+                              aria-label={t("Auf anderen Tag verschieben")}
+                            >
+                              <IconCalendar />
+                            </button>
                             <button className="btn btn--ghost btn--icon btn--sm" onClick={() => setEditingExercise(planExercise)} aria-label={t("Vorgaben bearbeiten")}>
                               <IconEdit />
                             </button>
@@ -423,6 +480,21 @@ function PlanEditor({
                             </button>
                           </div>
                         </div>
+
+                        {movingId === planExercise.id && (
+                          <div className="row row--wrap" style={{ gap: 5, marginTop: 8 }}>
+                            <span className="tiny dim" style={{ alignSelf: 'center' }}>{t('Verschieben nach')}</span>
+                            {([0, 1, 2, 3, 4, 5, 6] as Weekday[]).filter((weekday) => weekday !== activeDay).map((weekday) => (
+                              <button
+                                key={weekday}
+                                className="chip chip--button"
+                                onClick={() => moveToDay(planExercise.id, weekday)}
+                              >
+                                {t(WEEKDAY_SHORT[weekday])}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -443,6 +515,8 @@ function PlanEditor({
         </div>
 
         <CopyDayRow activeDay={activeDay} onChange={onChange} />
+
+        <WeeklyLoadPanel plan={plan} getExercise={getExercise} />
       </div>
 
       {pickerOpen && (
@@ -458,6 +532,7 @@ function PlanEditor({
         <TargetEditor
           planExercise={editingExercise}
           exerciseName={exerciseName(getExercise(editingExercise.exerciseId))}
+          getExercise={getExercise}
           onClose={() => setEditingExercise(null)}
           onSave={(patch) => { patchExercise(editingExercise.id, patch); setEditingExercise(null); }}
         />
@@ -558,10 +633,11 @@ function CopyDayRow({
 /* --------------------------------------------------------- Vorgaben-Editor */
 
 function TargetEditor({
-  planExercise, exerciseName, onClose, onSave,
+  planExercise, exerciseName, getExercise, onClose, onSave,
 }: {
   planExercise: PlanExercise;
   exerciseName: string;
+  getExercise: (id: string) => Exercise | undefined;
   onClose: () => void;
   onSave: (patch: Partial<PlanExercise>) => void;
 }) {
@@ -574,6 +650,8 @@ function TargetEditor({
   const [progression, setProgression] = useState<number | null>(
     planExercise.progressionKg ?? null,
   );
+  const [alts, setAlts] = useState<string[]>(planExercise.alternativeIds ?? []);
+  const [pickAlt, setPickAlt] = useState(false);
 
   return (
     <Modal title={exerciseName || t('Vorgaben')} onClose={onClose}>
@@ -621,6 +699,31 @@ function TargetEditor({
           <label className="field__label">{t("Notiz")}</label>
           <input className="input" value={note} placeholder={t("z. B. langsam ablassen")} onChange={(event) => setNote(event.target.value)} />
         </div>
+
+        {/*
+          * Ersatzuebungen fuer den Fall, dass das Geraet besetzt ist. Der
+          * Ersatz-Dialog im Training stellt sie nach oben, statt jedes Mal neu
+          * zu raten.
+          */}
+        <div className="field">
+          <label className="field__label">{t("Ersatzübungen")}</label>
+          <div className="row row--wrap" style={{ gap: 6 }}>
+            {alts.map((id) => (
+              <button
+                key={id}
+                className="chip chip--button"
+                onClick={() => setAlts(alts.filter((one) => one !== id))}
+              >
+                {exerciseNameOf(getExercise(id))} ✕
+              </button>
+            ))}
+            <button className="chip chip--button chip--accent" onClick={() => setPickAlt(true)}>
+              {t('Hinzufügen')}
+            </button>
+          </div>
+          <span className="field__hint">{t("Werden im Training oben vorgeschlagen, wenn du „Ersatz“ tippst.")}</span>
+        </div>
+
         <div className="row" style={{ justifyContent: 'flex-end' }}>
           <button className="btn" onClick={onClose}>{t("Abbrechen")}</button>
           <button
@@ -633,13 +736,137 @@ function TargetEditor({
               restSec: rest,
               progressionKg: progression,
               note: note.trim() || undefined,
+              alternativeIds: alts.length > 0 ? alts : undefined,
             })}
           >
             Speichern
           </button>
         </div>
       </div>
+
+      {pickAlt && (
+        <ExercisePicker
+          title={t('Ersatz für {name}', { name: exerciseName })}
+          onPick={(exercise) => { setAlts([...alts, exercise.id]); setPickAlt(false); }}
+          onClose={() => setPickAlt(false)}
+          excludeIds={[planExercise.exerciseId, ...alts]}
+        />
+      )}
     </Modal>
+  );
+}
+
+const exerciseNameOf = (exercise: Exercise | undefined): string =>
+  exercise?.name ?? 'Übung';
+
+/* --------------------------------------------------------- Plan-Vorschau */
+
+/**
+ * Der ganze Plan zum Durchlesen, bevor man ihn aktiviert - Tag fuer Tag mit
+ * allen Uebungen und Vorgaben, dazu das Wochenvolumen je Muskelgruppe.
+ */
+function PlanPreviewDialog({
+  plan, getExercise, onClose, onActivate,
+}: {
+  plan: Plan;
+  getExercise: (id: string) => Exercise | undefined;
+  onClose: () => void;
+  onActivate: () => void;
+}) {
+  return (
+    <Modal title={plan.name} onClose={onClose}>
+      <div className="list">
+        {plan.description && <p className="small muted">{t(plan.description)}</p>}
+
+        {plan.days.map((day, index) => {
+          if (day.isRestDay || day.exercises.length === 0) return null;
+          return (
+            <div key={day.weekday} className="card card--inset">
+              <div className="row row--between" style={{ marginBottom: 6 }}>
+                <span className="bold small">{t(WEEKDAY_NAMES[index])}</span>
+                <span className="tiny dim">{day.title}</span>
+              </div>
+              <div className="list" style={{ gap: 4 }}>
+                {day.exercises.map((planExercise) => {
+                  const exercise = getExercise(planExercise.exerciseId);
+                  const reps = planExercise.targetRepsMin
+                    ? ` × ${planExercise.targetRepsMin}${
+                        planExercise.targetRepsMax && planExercise.targetRepsMax !== planExercise.targetRepsMin
+                          ? `–${planExercise.targetRepsMax}` : ''}`
+                    : '';
+                  return (
+                    <div key={planExercise.id} className="row row--between small">
+                      <span>{exercise?.name ?? t('Unbekannte Übung')}</span>
+                      <span className="tiny dim mono nowrap">{planExercise.targetSets}{reps}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
+        <WeeklyLoadPanel plan={plan} getExercise={getExercise} />
+
+        <button className="btn btn--primary btn--block" onClick={onActivate}>
+          <IconCheck /> {t('Diesen Plan aktivieren')}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Wochenvolumen je Muskelgruppe aus den Vorgaben des Plans. Zeigt vor dem
+ * ersten Training, wo zu wenig steht und wo zu viel.
+ */
+function WeeklyLoadPanel({
+  plan, getExercise,
+}: {
+  plan: Plan;
+  getExercise: (id: string) => Exercise | undefined;
+}) {
+  const { state } = useStore();
+  const load = useMemo(
+    () => plannedWeeklyLoad(plan, getExercise, state.settings.weeklySetTargets).filter((entry) => entry.sets > 0),
+    [plan, getExercise, state.settings.weeklySetTargets],
+  );
+
+  if (load.length === 0) return null;
+  const max = Math.max(...load.map((entry) => Math.max(entry.sets, entry.target)), 1);
+
+  return (
+    <div>
+      <div className="section-label" style={{ marginBottom: 8 }}>{t('Wochenvolumen je Muskelgruppe')}</div>
+      <div className="list" style={{ gap: 7 }}>
+        {load.map((entry) => {
+          const status = loadStatus(entry.sets, entry.target);
+          const tone = status === 'low' ? 'var(--danger)'
+            : status === 'mid' ? 'var(--warn)'
+            : status === 'over' ? 'var(--violet)'
+            : 'var(--time)';
+          return (
+            <div key={entry.region}>
+              <div className="row row--between tiny" style={{ marginBottom: 3 }}>
+                <span className="muted">{t(entry.label)}</span>
+                <span className="dim mono">
+                  {entry.sets}{entry.target > 0 && <span className="dim"> / {entry.target}</span>}
+                </span>
+              </div>
+              <div className="progress-bar">
+                <div
+                  className="progress-bar__fill"
+                  style={{ width: `${(entry.sets / max) * 100}%`, background: tone }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="tiny dim" style={{ marginTop: 7 }}>
+        {t('Sekundär beanspruchte Muskeln zählen halb.')}
+      </div>
+    </div>
   );
 }
 
