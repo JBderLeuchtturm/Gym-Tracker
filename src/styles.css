@@ -1603,6 +1603,61 @@ table.data tr:last-child td { border-bottom: 0; }
   color: var(--text-dim);
 }
 
+/* ------------------------------------------------------- Makro-Balken */
+
+/*
+ * Eiweiss, Kohlenhydrate, Fett in einem Balken statt vier Zahlenfeldern. Die
+ * Farben sind aus dem zeitlichen Ton abgeleitet, damit nichts mit der Bedeutung
+ * von Messing, Gruen oder Gelb kollidiert.
+ */
+.macrobar {
+  position: relative;
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.macrobar__seg { height: 100%; }
+.macrobar__seg--protein { background: var(--time); }
+.macrobar__seg--carbs { background: color-mix(in srgb, var(--time) 55%, var(--surface-3)); }
+.macrobar__seg--fat { background: color-mix(in srgb, var(--violet) 70%, var(--surface-3)); }
+.macrobar__mark {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--text);
+}
+.macrobar__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 7px;
+  font-size: 0.73rem;
+  color: var(--text-muted);
+}
+.macrobar__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+.macrobar__dot--protein { background: var(--time); }
+.macrobar__dot--carbs { background: color-mix(in srgb, var(--time) 55%, var(--surface-3)); }
+.macrobar__dot--fat { background: color-mix(in srgb, var(--violet) 70%, var(--surface-3)); }
+
+/* Kamerabild des Barcode-Scanners. */
+.scan-video {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: #000;
+}
+
 /* Hinweis zur Belastung - ein eingerueckter Absatz, kein Warnton. */
 .load-note {
   padding: 10px 12px;

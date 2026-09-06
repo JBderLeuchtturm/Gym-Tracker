@@ -34,6 +34,7 @@ export const DEFAULT_SETTINGS: Settings = {
   weather: { enabled: false, lat: null, lon: null, placeName: '' },
   autoBackup: false,
   yazio: { bridgeUrl: '', token: '', enabled: false, lastSyncAt: null },
+  mealPresets: [],
 };
 
 export const emptyDays = (): PlanDay[] =>
@@ -126,6 +127,7 @@ export function createInitialState(): AppState {
       reminder: { ...DEFAULT_SETTINGS.reminder },
       weather: { ...DEFAULT_SETTINGS.weather },
       yazio: { ...DEFAULT_SETTINGS.yazio },
+      mealPresets: [],
     },
   };
 }

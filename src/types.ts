@@ -241,6 +241,19 @@ export interface YazioSettings {
   lastSyncAt: string | null;
 }
 
+/**
+ * Eine gespeicherte Mahlzeit fuer den schnellen Eintrag - wer jeden Morgen
+ * dasselbe isst, tippt es sonst jeden Morgen neu.
+ */
+export interface MealPreset {
+  id: ID;
+  name: string;
+  kcal: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+}
+
 /* ----------------------------------------------------------------- State */
 
 /** Erinnerung an geplante Trainingstage. */
@@ -300,6 +313,8 @@ export interface Settings {
   /** Taegliche Sicherung in den eigenen Supabase-Speicher. */
   autoBackup: boolean;
   yazio: YazioSettings;
+  /** Gespeicherte Mahlzeiten fuer den schnellen Eintrag. */
+  mealPresets: MealPreset[];
 }
 
 export interface AppState {
