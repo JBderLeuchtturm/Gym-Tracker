@@ -2,6 +2,53 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Sechste Runde: die Durchsicht vom September
+
+*Branch `claude/gestaltung-durchsicht`*
+
+Setzt die neun Punkte aus [`docs/gestaltung-durchsicht-2026-09.md`](docs/gestaltung-durchsicht-2026-09.md)
+um – eine erneute Durchsicht der Oberfläche mit dem Blick von außen: Wo sieht
+die App aus wie eine App und nicht wie das Trainingsbuch, das sie sein will?
+
+**Beschriftung**
+- **Keine gesperrten Versalien mehr.** Kleine, breit getrackte Großbuchstaben
+  markierten fast jede Beschriftung – Blocküberschriften, Kennzahlen,
+  Tabellenköpfe, die Spalten der Satzliste, das Wochenblatt. Das ist der
+  häufigste Griff generierter Oberflächen und widersprach dem eigenen Grundsatz,
+  dass nichts dekoriert wird. Jetzt überall dieselbe Lesart wie bei den
+  Abschnittsüberschriften: normale Schreibung, eine Stufe leiser.
+
+**Die großen Zahlen**
+- **Ein eigener Schnitt für die Zahlen.** Kennzahlen, Tagesbilanz und Pausenuhr
+  stehen jetzt in einem leichten, eng gesetzten Schnitt in großem Grad – dieselbe
+  Haltung wie die Zahl der Vollbild-Pausenuhr. Versalziffern, damit nichts unter
+  die Grundlinie fällt. Der Seitentitel ist schwerer und enger und hebt sich
+  damit klar von den Abschnittsüberschriften ab.
+- **Die Schriftkette ist gekürzt** auf die vier Systemschriften, die es
+  wirklich gibt.
+
+**Breite Fenster**
+- **Die Reiterleiste ist ein Band über die volle Breite** – Fläche und
+  Trennlinie wie der Kopfbalken darüber, statt zentriert in leeren Bahnen zu
+  hängen. Die Reiter selbst sitzen mittig.
+- **Die Wochenleiste bläht sich nicht mehr auf.** Sieben Tage brauchen auf
+  1280 Pixeln nicht mehr Platz als auf 400 – sonst wird jeder Tag zu einer
+  großen leeren Kachel.
+- **Die Satzzeile bleibt schmal**, auch wenn die Spalte breit wird. Sonst
+  stehen Gewicht, Wiederholungen und RPE weit weg von ihrer Kopfzeile.
+- **Die Achsenbeschriftung der Diagramme klebt nicht mehr am Rand.**
+
+**Kleinigkeiten**
+- **Kein Begrüßungstitel mehr.** „Hallo Jan" über der Startseite sagte nichts –
+  ein Trainingsbuch begrüßt einen nicht. Der Titel heißt „Training", wo man
+  steht, sagt die Zeile darunter.
+- **Die Vorleistung steht auf einer eigenen Zeile** in der Übungskarte, nicht
+  mit Mittelpunkten an Kategorie und Sollwert gehängt – sie ist die Angabe, die
+  man zwischen zwei Sätzen wirklich abliest.
+- **„Sätze je Woche" ist ein flacher Streifen** unter dem Volumendiagramm. Die
+  Satzzahl je Woche schwankt kaum; ein zweites Diagramm in voller Höhe daneben
+  doppelte nur die Form darüber.
+
 ## Fünfte Runde: die Funde und die Gestaltung
 
 *Branch `claude/fuenfte-runde`*
