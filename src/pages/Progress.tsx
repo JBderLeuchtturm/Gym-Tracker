@@ -23,8 +23,9 @@ import { Block, EmptyState, Section, Stat, fmt, useToast } from '../components/u
 import { formatSet } from '../lib/setFormat';
 import { formatClock } from '../lib/date';
 import {
-  IconChevronRight, IconDownload, IconPrinter, IconSearch, IconTrophy,
+  IconChevronRight, IconDownload, IconPrinter, IconSearch, IconShare, IconTrophy,
 } from '../components/icons';
+import { renderWeekCard, shareOrDownload } from '../lib/shareCard';
 import {
   bodyToCsv, downloadText, printReport, summaryToCsv, workoutsToCsv,
 } from '../lib/exportData';
@@ -594,6 +595,31 @@ export function ProgressPage() {
           </button>
           <button className="btn" onClick={printReport_}>
             <IconPrinter /> {t('Bericht drucken')}
+          </button>
+          <button
+            className="btn"
+            onClick={async () => {
+              const weeks = weekly.slice(-12).map((week) => ({
+                label: week.key.replace(/^\d{4}-KW/, 'KW'),
+                value: Math.round(week.volume),
+              }));
+              const blob = await renderWeekCard({
+                title: t('Trainingsrückblick'),
+                rangeLabel: RANGE_LABELS[range],
+                stats: [
+                  { label: t('Einheiten'), value: String(totals.count) },
+                  { label: t('Sätze'), value: String(totals.sets) },
+                  { label: t('Volumen'), value: `${fmt(totals.volume)} kg` },
+                  { label: t('Wochen-Serie'), value: String(streak.current) },
+                ],
+                weeks,
+                footer: t('Aufgezeichnet mit dem Gym-Tracker'),
+              });
+              const how = await shareOrDownload(blob, `gym-tracker-rueckblick-${todayISO()}.png`);
+              toast.show(how === 'shared' ? t('Bild geteilt') : t('Bild gespeichert'));
+            }}
+          >
+            <IconShare /> {t('Woche als Bild')}
           </button>
         </div>
       </Section>

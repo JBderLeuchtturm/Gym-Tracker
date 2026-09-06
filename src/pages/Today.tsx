@@ -610,6 +610,8 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
 
       <WeatherNote rows={rows} date={date} />
 
+      <TrainingCompanions date={date} />
+
       <SessionMuscles rows={rows} />
 
       <GuidePrefetch rows={rows} />
@@ -1635,6 +1637,61 @@ function WeatherNote({ rows, date }: { rows: Row[]; date: string }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Wer von den Freunden am selben Tag trainiert hat.
+ *
+ * "Gemeinsames Training" ohne echten gemeinsamen Zustand: Jeder hakt auf
+ * seinem Geraet ab, und hier steht, was beim anderen zusammengekommen ist -
+ * aus dem, was er ohnehin als Fortschritt freigibt.
+ */
+function TrainingCompanions({ date }: { date: string }) {
+  const sync = useSync();
+
+  const companions = useMemo(() => {
+    const out: Array<{ id: string; name: string; emoji: string; sets: number; volume: number; title: string }> = [];
+    for (const friend of sync.friends) {
+      if (friend.state !== 'accepted') continue;
+      const session = sync.friendData[friend.userId]?.progress?.recent?.find((item) => item.date === date);
+      if (session && session.sets > 0) {
+        out.push({
+          id: friend.userId,
+          name: friend.displayName,
+          emoji: friend.emoji,
+          sets: session.sets,
+          volume: session.volume,
+          title: session.title,
+        });
+      }
+    }
+    return out;
+  }, [sync.friends, sync.friendData, date]);
+
+  if (companions.length === 0) return null;
+
+  return (
+    <Section title={t("Heute auch dabei")}>
+      <div className="list">
+        {companions.map((companion) => (
+          <div key={companion.id} className="row row--between small">
+            <span className="row" style={{ gap: 8, minWidth: 0 }}>
+              <span className="feed-item__avatar" style={{ width: 28, height: 28, fontSize: '0.95rem' }}>
+                {companion.emoji}
+              </span>
+              <span style={{ minWidth: 0 }}>
+                <span className="bold">{companion.name}</span>
+                <span className="tiny dim" style={{ display: 'block' }}>{companion.title}</span>
+              </span>
+            </span>
+            <span className="tiny dim mono nowrap">
+              {t('{sets} Sätze · {kg} kg', { sets: companion.sets, kg: fmt(companion.volume) })}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Section>
   );
 }
 
