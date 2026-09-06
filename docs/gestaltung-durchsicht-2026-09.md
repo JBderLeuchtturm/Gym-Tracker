@@ -1,5 +1,8 @@
 # Gestaltung: Durchsicht September 2026
 
+> **Umgesetzt** in der sechsten Runde – siehe [CHANGELOG](../CHANGELOG.md).
+> Alle neun Punkte sind eingearbeitet.
+
 Eine erneute Durchsicht der Oberfläche, diesmal mit dem Blick von außen: Wo
 sieht die App aus wie eine App, und nicht wie das Trainingsbuch, das sie sein
 will? Grundlage sind Screenshots aller sechs Reiter in beiden Themen, dazu die

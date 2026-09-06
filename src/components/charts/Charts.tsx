@@ -137,7 +137,7 @@ export function LineChart({
   const [ref, width] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
 
-  const padding = { top: 12, right: 10, bottom: 24, left: 38 };
+  const padding = { top: 12, right: 10, bottom: 24, left: 44 };
   const sparse = points.length < MIN_POINTS;
   const innerWidth = Math.max(10, width - padding.left - padding.right);
   const innerHeight = height - padding.top - padding.bottom;
@@ -286,7 +286,7 @@ export function BarChart({
     return <div ref={ref}><SparseNote points={points} unit={unit} /></div>;
   }
 
-  const padding = { top: 12, right: 8, bottom: 22, left: 38 };
+  const padding = { top: 12, right: 8, bottom: 22, left: 44 };
   const innerWidth = Math.max(10, width - padding.left - padding.right);
   const innerHeight = height - padding.top - padding.bottom;
   const max = Math.max(...points.map((point) => point.value), 1);
@@ -427,7 +427,7 @@ export function StackedBarChart({
   const [ref, width] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
 
-  const padding = { top: 12, right: 8, bottom: 22, left: 34 };
+  const padding = { top: 12, right: 8, bottom: 22, left: 40 };
   const innerWidth = Math.max(10, width - padding.left - padding.right);
   const innerHeight = height - padding.top - padding.bottom;
 

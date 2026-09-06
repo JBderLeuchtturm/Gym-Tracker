@@ -77,7 +77,6 @@ export function App() {
   }, [state.settings.theme]);
 
   const activePlan = state.plans.find((plan) => plan.id === state.activePlanId);
-  const greeting = state.profile.name ? t('Hallo {name}', { name: state.profile.name }) : 'Gym Tracker';
 
   const workoutCount = state.workouts.filter((workout) => workoutSetCount(workout) > 0).length;
   const subtitle =
@@ -96,7 +95,11 @@ export function App() {
 
       <header className="topbar">
         <div className="topbar__title">
-          <h1>{tab === 'today' ? greeting : title(tab)}</h1>
+          {/*
+            * Der Titel benennt die Sache, nicht die Person - ein Trainingsbuch
+            * begruesst einen nicht. Wo man steht, sagt die Zeile darunter.
+            */}
+          <h1>{title(tab)}</h1>
           {/*
             * Die Unterzeile stand frueher auf jeder Seite und wiederholte dort
             * nur die Ueberschrift. Jetzt erscheint sie nur, wo sie etwas sagt.

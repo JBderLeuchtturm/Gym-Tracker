@@ -245,9 +245,14 @@ export function ProgressPage() {
           </Block>
 
           <Block title={t("Sätze je Woche")} note={t("abgehakte Arbeitssätze")}>
-            {/* Dieselbe Familie wie das Volumen, eine Stufe blasser. */}
+            {/*
+              * Flacher als das Volumen und eine Stufe blasser: die Satzzahl je
+              * Woche schwankt kaum, ein zweites Diagramm in voller Höhe
+              * daneben doppelt nur die Form darüber.
+              */}
             <BarChart
               points={weeklySetPoints}
+              height={96}
               color="color-mix(in srgb, var(--time) 52%, var(--surface-3))"
               label={t("Sätze je Woche")}
             />

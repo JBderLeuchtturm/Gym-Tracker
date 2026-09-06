@@ -162,10 +162,18 @@ Symbole sind gezeichnet, nicht aus Emoji zusammengesetzt. Wo ein Emoji auftaucht
 hat es jemand selbst gewählt: das Profilbild, das Zeichen einer Gruppe, eine
 Reaktion auf ein Training.
 
+Beschriftungen stehen in normaler Schreibung, nicht in gesperrten Versalien:
+kleine getrackte Großbuchstaben sind der häufigste Griff generierter
+Oberflächen und dekorieren, statt zu gliedern. Eine Blocküberschrift liest sich
+wie die Abschnittsüberschrift, nur eine Stufe leiser.
+
 Zahlen stehen in Tabellenziffern, damit Spalten untereinander stehen. Eine
 eigene Schrift dafür wäre schöner, kostet aber einen Ladevorgang, den eine App,
 die offline starten soll, nicht braucht – die Systemschriften von Apple, Google
-und Microsoft bringen tabellarische Ziffern alle mit.
+und Microsoft bringen tabellarische Ziffern alle mit. Die großen Zahlen –
+Kennzahlen, Tagesbilanz, Pausenuhr – tragen die App und stehen deshalb in einem
+leichten, eng gesetzten Schnitt in großem Grad; der Seitentitel ist schwerer
+und enger und hebt sich damit vom Rest der Überschriften ab.
 
 **Farbe hat eine Bedeutung, und zwar genau eine.** Messing heißt Bedienung:
 hier bist du, hier drückst du. Grün heißt erledigt. Gelb und Rot heißen sieh

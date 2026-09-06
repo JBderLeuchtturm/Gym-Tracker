@@ -942,9 +942,16 @@ function ExerciseCard({
               {t(CATEGORY_LABELS[row.exercise?.category ?? 'other'])}
             </span>
             {` · ${targetText}`}
-            {previous
-              ? ` · ${t('zuletzt')} ${formatDateShort(previous.date)}: ${summarizeSets(previous.sets, isTimed, row.exercise?.kind)}`
-              : ` · ${t('noch keine Vorleistung')}`}
+            {/*
+              * Die Vorleistung steht auf einer eigenen Zeile, nicht mit
+              * Mittelpunkten an Kategorie und Sollwert gehaengt - sie ist die
+              * Angabe, die man beim Training abliest.
+              */}
+            <span className="exercise__last">
+              {previous
+                ? `${t('zuletzt')} ${formatDateShort(previous.date)}: ${summarizeSets(previous.sets, isTimed, row.exercise?.kind)}`
+                : t('noch keine Vorleistung')}
+            </span>
           </div>
         </div>
 
