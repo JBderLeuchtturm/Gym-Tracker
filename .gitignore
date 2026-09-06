@@ -4,3 +4,7 @@ dist
 *.local
 .vite
 tsconfig.tsbuildinfo
+
+# Lokale Screenshot-Hilfe (nicht Teil des Projekts)
+_shots*.mjs
+_shots/

@@ -238,7 +238,7 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
       if (!isLast) return;
     }
 
-    const rest = row.planExercise?.restSec ?? state.settings.restTimerSec;
+    const rest = row.logged?.restSec ?? row.planExercise?.restSec ?? state.settings.restTimerSec;
     if (rest > 0) startRest(rest);
   };
 
@@ -565,7 +565,17 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
       )}
 
       <div className="list">
-        {rows.map((row, index) => (
+        {rows.map((row, index) => {
+          // Beim Supersatz: in welchem Durchgang steht die Gruppe? Der Durchgang
+          // ist so weit, wie die schwaechste Uebung der Gruppe abgehakt ist.
+          const group = row.groupId ? rows.filter((item) => item.groupId === row.groupId) : null;
+          const groupRound = group
+            ? Math.min(...group.map((item) => item.sets.filter(countsAsWork).length)) + 1
+            : null;
+          const groupTotal = group
+            ? Math.max(...group.map((item) => item.planExercise?.targetSets ?? item.sets.length))
+            : null;
+          return (
           <ExerciseCard
             key={row.key}
             row={row}
@@ -574,6 +584,8 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
             date={date}
             sortMode={sortMode}
             groupedWithAbove={index > 0 && !!row.groupId && row.groupId === rows[index - 1].groupId}
+            groupRound={groupRound}
+            groupTotal={groupTotal}
             flashSet={flashSet}
             onToggleSet={(setId) => toggleSet(row, setId)}
             onUpdate={updateRow}
@@ -585,7 +597,8 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
             onMove={(direction) => moveRow(index, direction)}
             onToggleSuperset={() => toggleSuperset(index)}
           />
-        ))}
+          );
+        })}
       </div>
 
       <button className="btn btn--primary btn--block" onClick={() => setPickerOpen(true)}>
@@ -782,7 +795,7 @@ function WeekStrip({
 /* ------------------------------------------------------------- Übungskarte */
 
 function ExerciseCard({
-  row, index, total, date, sortMode, groupedWithAbove, flashSet,
+  row, index, total, date, sortMode, groupedWithAbove, groupRound, groupTotal, flashSet,
   onToggleSet, onUpdate, onAddSet, onRemove, onOpenDetail, onSwap, onStartRest, onMove, onToggleSuperset,
 }: {
   row: Row;
@@ -791,6 +804,9 @@ function ExerciseCard({
   date: string;
   sortMode: boolean;
   groupedWithAbove: boolean;
+  /** Supersatz: laufender Durchgang und Gesamtzahl der Durchgaenge. */
+  groupRound?: number | null;
+  groupTotal?: number | null;
   onToggleSet: (setId: string) => void;
   onUpdate: (row: Row, mutate: (logged: LoggedExercise) => LoggedExercise) => void;
   onAddSet: () => void;
@@ -841,6 +857,14 @@ function ExerciseCard({
     }));
   };
 
+  /** Plus/Minus auf einem Zahlenwert des Satzes, um den gegebenen Schritt. */
+  const bumpSet = (set: SetLog, field: 'weightKg' | 'reps', delta: number) => {
+    const current = (field === 'weightKg' ? set.weightKg : set.reps) ?? 0;
+    const next = Math.max(0, Math.round((current + delta) * 1000) / 1000);
+    patchSet(set.id, { [field]: next || null });
+    navigator.vibrate?.(8);
+  };
+
   /** Denselben Satz noch einmal - mit Gewicht und Wiederholungen, ohne Haken. */
   const duplicateSet = (setId: string) => {
     onUpdate(row, (logged) => {
@@ -885,6 +909,71 @@ function ExerciseCard({
     }));
   };
 
+  /** Gewicht, Wiederholungen und Dauer dieses Satzes auf alle offenen uebernehmen. */
+  const applySetToRest = (setId: string) => {
+    onUpdate(row, (logged) => {
+      const source = logged.sets.find((set) => set.id === setId);
+      if (!source) return logged;
+      return {
+        ...logged,
+        sets: logged.sets.map((set) => (
+          set.id === setId || set.done || set.isWarmup
+            ? set
+            : { ...set, weightKg: source.weightKg, reps: source.reps, durationSec: source.durationSec }
+        )),
+      };
+    });
+  };
+
+  /** Pausenlaenge fuer genau diese Uebung - undefined nimmt den Standard zurueck. */
+  const effectiveRest = row.logged?.restSec ?? row.planExercise?.restSec ?? state.settings.restTimerSec;
+  const planRest = row.planExercise?.restSec ?? state.settings.restTimerSec;
+  const setRest = (seconds: number | undefined) => {
+    onUpdate(row, (logged) => ({ ...logged, restSec: seconds }));
+  };
+
+  // Ein Aufwaermangebot lohnt sich nur, solange nichts abgehakt ist und noch
+  // keine Aufwaermsaetze stehen - und nur, wenn daraus ueberhaupt Saetze werden.
+  const warmupBase = (row.sets.find((set) => !set.isWarmup && (set.weightKg ?? 0) > 0)?.weightKg)
+    ?? suggestion?.weightKg ?? 0;
+  // Erst ab einem echten Arbeitsgewicht anbieten - der eine lockere Satz, den
+  // "warmupSets" darunter erzeugt, will fast niemand vor Seitheben oder Curls.
+  const canOfferWarmup = !isTimed && doneSets === 0
+    && warmupBase >= 40
+    && !row.sets.some((set) => set.isWarmup)
+    && warmupSets(warmupBase, row.exercise).length > 0;
+
+  // Schrittweite fuer Plus/Minus: an der Langhantel die kleinste Scheibe, mal
+  // zwei (je Seite eine). Sonst die uebliche Kurzhantel-/Maschinenstufe.
+  const kgStep = usesBarbell(row.exercise)
+    ? Math.min(...(state.settings.plateSet.length > 0 ? state.settings.plateSet : [1.25])) * 2
+    : 2.5;
+
+  // Wischen auf einer Satzzeile: nach rechts abhaken, nach links zurueck. Der
+  // Haken bleibt; die ganze Zeile ist zusaetzlich Trefferflaeche.
+  const swipeStart = useRef<{ x: number; y: number; id: string } | null>(null);
+  const rowSwipe = (setId: string, done: boolean) => ({
+    onTouchStart: (event: React.TouchEvent) => {
+      if ((event.target as HTMLElement).closest('input, button, textarea, select')) {
+        swipeStart.current = null;
+        return;
+      }
+      const touch = event.touches[0];
+      swipeStart.current = { x: touch.clientX, y: touch.clientY, id: setId };
+    },
+    onTouchEnd: (event: React.TouchEvent) => {
+      const start = swipeStart.current;
+      swipeStart.current = null;
+      if (!start || start.id !== setId) return;
+      const touch = event.changedTouches[0];
+      const dx = touch.clientX - start.x;
+      const dy = touch.clientY - start.y;
+      if (Math.abs(dx) < 55 || Math.abs(dy) > 35) return;
+      if (dx > 0 && !done) onToggleSet(setId);
+      if (dx < 0 && done) onToggleSet(setId);
+    },
+  });
+
   // Der Rechner soll den Satz zeigen, an dem man gerade steht: den ersten
   // offenen Arbeitssatz, sonst den letzten abgehakten.
   const currentSet = row.sets.find((set) => !set.done && !set.isWarmup)
@@ -906,7 +995,14 @@ function ExerciseCard({
       style={{ '--cat': accent, '--cat-tint': row.exercise ? categoryTint(row.exercise.category) : undefined } as React.CSSProperties}
     >
       {row.groupId && !groupedWithAbove && (
-        <div className="exercise__group-label">{t("Supersatz")}</div>
+        <div className="exercise__group-label">
+          {t("Supersatz")}
+          {groupRound != null && groupTotal != null && groupTotal > 0 && groupRound <= groupTotal && (
+            <span className="exercise__group-round">
+              {` · ${t('Durchgang {n}/{total}', { n: groupRound, total: groupTotal })}`}
+            </span>
+          )}
+        </div>
       )}
 
       {sortMode && (
@@ -999,6 +1095,19 @@ function ExerciseCard({
             </div>
           )}
 
+          {/*
+            * Aufwaermsaetze werden dort angeboten, wo man sie braucht - sobald
+            * ein Arbeitsgewicht steht und noch nichts abgehakt ist. Vorher lag
+            * der Handgriff unter "Mehr" und niemand fand ihn.
+            */}
+          {canOfferWarmup && (
+            <div className="row row--wrap tiny" style={{ gap: 6, padding: '10px 0 0' }}>
+              <button className="chip chip--button" onClick={addWarmup}>
+                {t('Aufwärmsätze davor')}
+              </button>
+            </div>
+          )}
+
           {/* Die Einheit steht einmal ueber der Spalte, nicht in jedem Feld. */}
           <div className="set-header">
             <span>#</span>
@@ -1011,6 +1120,7 @@ function ExerciseCard({
           {row.sets.map((set, index) => (
             <Fragment key={set.id}>
             <div
+              {...rowSwipe(set.id, set.done)}
               className={[
                 'set-row',
                 set.done ? 'set-row--done' : '',
@@ -1060,7 +1170,7 @@ function ExerciseCard({
                     value={set.weightKg}
                     ariaLabel={t('Gewicht in Kilogramm')}
                     onChange={(value) => patchSet(set.id, { weightKg: value })}
-                    step={2.5}
+                    step={kgStep}
                   />
                   <NumberInput
                     value={set.reps}
@@ -1098,6 +1208,30 @@ function ExerciseCard({
               </div>
             </div>
 
+            {/*
+              * Plus/Minus nur unter dem Satz, an dem man gerade steht - nicht
+              * unter jeder Zeile. Ein Tipper je Scheibe statt der Zahlentastatur.
+              */}
+            {set.id === currentSet?.id && !set.done && !isTimed && (
+              <div className="set-steppers">
+                <div className="set-steppers__group">
+                  <button className="set-steppers__btn" onClick={() => bumpSet(set, 'weightKg', -kgStep)} aria-label={t('Gewicht verringern')}>−</button>
+                  <span className="set-steppers__val">
+                    {set.weightKg != null ? fmt(set.weightKg, set.weightKg % 1 ? 1 : 0) : '–'}
+                    <span className="set-steppers__unit"> kg</span>
+                  </span>
+                  <button className="set-steppers__btn" onClick={() => bumpSet(set, 'weightKg', kgStep)} aria-label={t('Gewicht erhöhen')}>+</button>
+                </div>
+                <div className="set-steppers__group">
+                  <button className="set-steppers__btn" onClick={() => bumpSet(set, 'reps', -1)} aria-label={t('Eine Wiederholung weniger')}>−</button>
+                  <span className="set-steppers__val">
+                    {set.reps ?? '–'}<span className="set-steppers__unit"> Wdh</span>
+                  </span>
+                  <button className="set-steppers__btn" onClick={() => bumpSet(set, 'reps', 1)} aria-label={t('Eine Wiederholung mehr')}>+</button>
+                </div>
+              </div>
+            )}
+
             {openSet === set.id && (
               <div className="set-extra" key={`${set.id}-extra`}>
                 <input
@@ -1112,6 +1246,14 @@ function ExerciseCard({
                 >
                   {t('Satz duplizieren')}
                 </button>
+                {row.sets.filter((item) => !item.done && !item.isWarmup).length > 1 && (
+                  <button
+                    className="chip chip--button"
+                    onClick={() => applySetToRest(set.id)}
+                  >
+                    {t('Auf alle offenen übernehmen')}
+                  </button>
+                )}
                 <PlateHint exercise={row.exercise} weightKg={set.weightKg} />
                 {partnerName && (
                   <button
@@ -1136,7 +1278,7 @@ function ExerciseCard({
             <button className="btn btn--sm" onClick={onAddSet}><IconPlus /> {t("Satz")}</button>
             <button
               className="btn btn--sm"
-              onClick={() => onStartRest(row.planExercise?.restSec ?? state.settings.restTimerSec)}
+              onClick={() => onStartRest(effectiveRest)}
             >
               <IconClock /> {t('Pause')}
             </button>
@@ -1155,6 +1297,19 @@ function ExerciseCard({
 
           {moreOpen && (
             <div className="exercise__more">
+              {/* Pause fuer genau diese Uebung - schlaegt Plan und Standard. */}
+              <div className="row row--wrap" style={{ gap: 6, alignItems: 'center', marginBottom: 9 }}>
+                <span className="tiny dim">{t('Pause')}</span>
+                {[60, 90, 120, 150, 180].map((sec) => (
+                  <button
+                    key={sec}
+                    className={`chip chip--button ${effectiveRest === sec ? 'chip--accent' : ''}`}
+                    onClick={() => setRest(sec === planRest ? undefined : sec)}
+                  >
+                    {sec % 60 === 0 ? t('{min} min', { min: sec / 60 }) : t('{sec} s', { sec })}
+                  </button>
+                ))}
+              </div>
               <div className="row row--wrap" style={{ gap: 7 }}>
                 {!isTimed && !row.sets.some((set) => set.isWarmup) && (
                   <button className="btn btn--sm" onClick={addWarmup} title={t("Aufwärmsätze davorstellen")}>

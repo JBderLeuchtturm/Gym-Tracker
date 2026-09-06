@@ -189,6 +189,11 @@ export interface LoggedExercise {
   groupId?: string;
   sets: SetLog[];
   note?: string;
+  /**
+   * Pausenlaenge fuer genau diese Uebung an diesem Tag, in Sekunden.
+   * Schlaegt den Wert aus dem Plan und die globale Einstellung.
+   */
+  restSec?: number;
 }
 
 export interface Workout {
