@@ -5,8 +5,39 @@ export const BASE_URL = process.env.TEST_URL ?? 'http://127.0.0.1:4173/';
 /** Pfad zum vorinstallierten Chromium, falls einer gesetzt ist. */
 const executablePath = process.env.CHROMIUM_PATH || undefined;
 
+/*
+ * Ein Browser fuer alle Laeufe.
+ *
+ * Vorher startete jeder der dreizehn Laeufe seinen eigenen Chromium - das kostet
+ * jedes Mal ein bis zwei Sekunden. Jetzt laeuft einer, und jeder Lauf bekommt
+ * frische Kontexte (eigener Speicher, eigene Seiten). "browser.close()" in einem
+ * Lauf schliesst nur dessen Kontexte; den Prozess beendet run.mjs am Schluss.
+ */
+let shared = null;
+
 export async function launchBrowser() {
-  return chromium.launch(executablePath ? { executablePath } : {});
+  if (!shared) shared = await chromium.launch(executablePath ? { executablePath } : {});
+  return new Proxy(shared, {
+    get(target, prop) {
+      if (prop === 'close') {
+        return async () => {
+          for (const context of target.contexts()) {
+            await context.close().catch(() => undefined);
+          }
+        };
+      }
+      const value = target[prop];
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+}
+
+/** Beendet den gemeinsamen Browser wirklich - am Ende von run.mjs. */
+export async function closeSharedBrowser() {
+  if (shared) {
+    await shared.close().catch(() => undefined);
+    shared = null;
+  }
 }
 
 /**

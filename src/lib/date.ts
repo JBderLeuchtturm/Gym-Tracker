@@ -10,9 +10,23 @@ export const toISODate = (date: Date): string => {
 
 export const todayISO = (): string => toISODate(new Date());
 
+/*
+ * Kleiner Zwischenspeicher: In langen Listen wird dasselbe Datum sehr oft
+ * zerlegt. Gemerkt werden nur die drei Zahlen - der Aufrufer bekommt jedes Mal
+ * ein frisches Date, damit niemand versehentlich einen geteilten Wert veraendert
+ * (addDays tut genau das).
+ */
+const partsCache = new Map<string, [number, number, number]>();
+
 export const parseISODate = (iso: string): Date => {
-  const [year, month, day] = iso.split('-').map(Number);
-  return new Date(year, (month ?? 1) - 1, day ?? 1);
+  let parts = partsCache.get(iso);
+  if (!parts) {
+    const [year, month, day] = iso.split('-').map(Number);
+    parts = [year, (month ?? 1) - 1, day ?? 1];
+    if (partsCache.size > 4000) partsCache.clear();
+    partsCache.set(iso, parts);
+  }
+  return new Date(parts[0], parts[1], parts[2]);
 };
 
 export const addDays = (iso: string, days: number): string => {
@@ -22,7 +36,16 @@ export const addDays = (iso: string, days: number): string => {
 };
 
 /** 0 = Montag ... 6 = Sonntag */
-export const weekdayOf = (iso: string): number => (parseISODate(iso).getDay() + 6) % 7;
+const weekdayCache = new Map<string, number>();
+export const weekdayOf = (iso: string): number => {
+  let value = weekdayCache.get(iso);
+  if (value === undefined) {
+    value = (parseISODate(iso).getDay() + 6) % 7;
+    if (weekdayCache.size > 4000) weekdayCache.clear();
+    weekdayCache.set(iso, value);
+  }
+  return value;
+};
 
 export const WEEKDAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
 

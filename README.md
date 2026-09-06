@@ -223,14 +223,21 @@ damit nie zu einer leeren Stelle. Die Wörterbuchdatei ist
 ```bash
 npm run build && npm test        # alle Läufe
 npm test training                # nur einen Lauf
+node tests/unit.mjs              # nur die Rechnerei, ohne Browser
 ```
+
+Zuerst laufen die Prüfungen ohne Browser: Scheiben, 1RM, Kalorien, Statistik,
+Belastung und das Zusammenführen zweier Geräte-Stände – in Sekunden statt
+Minuten, und die Fehlermeldung zeigt genau auf die Zeile. Die `.ts`-Dateien
+werden dafür einmal mit dem esbuild gebündelt, das ohnehin in Vite steckt.
 
 Dreizehn Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
 Übungssuche ohne Netz, Layout auf schmalen Geräten, Muskelkarte, Wochenziele
 und Zyklen, Rückgängig und Querformat, Rechner und Studio-Handgriffe,
 Gestaltung und Zugänglichkeit, Mehrsprachigkeit, Freunde und Freigaben,
-Gruppen und Challenges sowie Einladungslinks ab. Kontraste und Farbabstände
-werden dabei im laufenden Browser nachgerechnet, nicht nach Augenmaß beurteilt.
+Gruppen und Challenges sowie Einladungslinks ab. Alle teilen sich einen
+Browser statt jeweils einen eigenen zu starten. Kontraste und Farbabstände
+werden im laufenden Browser nachgerechnet, nicht nach Augenmaß beurteilt.
 
 Kein Testlauf fasst einen fremden Dienst an: Die Läufe mit Konto arbeiten gegen
 ein nachgebautes Supabase unter

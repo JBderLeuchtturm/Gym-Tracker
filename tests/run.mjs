@@ -7,7 +7,9 @@
  * Der Server wird selbst gestartet, sofern unter TEST_URL keiner erreichbar ist.
  */
 import { spawn } from 'node:child_process';
+import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { closeSharedBrowser } from './helpers.mjs';
 
 const URL = process.env.TEST_URL ?? 'http://127.0.0.1:4173/';
 const only = process.argv[2];
@@ -54,6 +56,18 @@ if (!(await reachable())) {
 }
 
 let failed = 0;
+
+// Zuerst die Rechnerei ohne Browser - schnell, und wenn hier etwas bricht,
+// muss man die langsamen Browser-Laeufe gar nicht erst abwarten.
+if (!only || only === 'unit') {
+  await new Promise((resolve) => {
+    const child = spawn(process.execPath, [join(import.meta.dirname, 'unit.mjs')], {
+      stdio: 'inherit',
+    });
+    child.on('exit', (code) => { failed += code ? 1 : 0; resolve(); });
+  });
+}
+
 for (const [name, load] of SUITES) {
   if (only && only !== name) continue;
   console.log(`\n▸ ${name}`);
@@ -66,6 +80,7 @@ for (const [name, load] of SUITES) {
   }
 }
 
+await closeSharedBrowser();
 server?.kill();
 console.log(failed === 0 ? '\nAlles grün.' : `\n${failed} Prüfungen fehlgeschlagen.`);
 process.exit(failed === 0 ? 0 : 1);

@@ -8,3 +8,4 @@ tsconfig.tsbuildinfo
 # Lokale Screenshot-Hilfe (nicht Teil des Projekts)
 _shots*.mjs
 _shots/
+tests/.unit-bundle.mjs

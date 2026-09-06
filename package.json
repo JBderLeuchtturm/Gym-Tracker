@@ -5,7 +5,9 @@
   "type": "module",
   "description": "Persoenlicher Gym-Tracker: Wochenplaene, Trainings-Logging, Fortschritts-Charts und Kalorienverbrauch.",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run catalog && vite",
+    "catalog": "node scripts/build-catalog.mjs",
+    "prebuild": "node scripts/build-catalog.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
