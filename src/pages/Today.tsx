@@ -1771,18 +1771,28 @@ function SwapDialog({
   onClose: () => void;
   onPick: (exercise: Exercise) => void;
 }) {
-  const { state, allExercises } = useStore();
+  const { state, allExercises, getExercise } = useStore();
   const available = state.settings.availableEquipment;
+
+  // Im Plan hinterlegte Ersatzuebungen stehen oben - dort hat sich jemand die
+  // Frage schon einmal beantwortet.
+  const chosenAlternatives = useMemo(() => {
+    const ids = row.planExercise?.alternativeIds ?? [];
+    return ids
+      .map((id) => getExercise(id))
+      .filter((exercise): exercise is Exercise => Boolean(exercise));
+  }, [row.planExercise?.alternativeIds, getExercise]);
 
   const candidates = useMemo(() => {
     if (!row.exercise) return [];
     const { primary } = regionsOf(row.exercise);
     if (primary.size === 0) return [];
 
+    const chosen = new Set(chosenAlternatives.map((exercise) => exercise.id));
     const seen = new Map<string, { exercise: Exercise; hits: number }>();
     for (const region of primary) {
       for (const exercise of suggestForRegion(allExercises, region)) {
-        if (exercise.id === row.exerciseId) continue;
+        if (exercise.id === row.exerciseId || chosen.has(exercise.id)) continue;
         const entry = seen.get(exercise.id) ?? { exercise, hits: 0 };
         entry.hits += 1;
         seen.set(exercise.id, entry);
@@ -1797,7 +1807,7 @@ function SwapDialog({
         || a.exercise.name.localeCompare(b.exercise.name)
       ))
       .slice(0, 30);
-  }, [row.exercise, row.exerciseId, allExercises, available]);
+  }, [row.exercise, row.exerciseId, allExercises, available, chosenAlternatives]);
 
   const regions = row.exercise ? [...regionsOf(row.exercise).primary] : [];
 
@@ -1815,7 +1825,27 @@ function SwapDialog({
       </div>
 
       <div style={{ maxHeight: '54vh', overflowY: 'auto' }}>
-        {candidates.length === 0 && (
+        {chosenAlternatives.length > 0 && (
+          <>
+            <div className="section-label" style={{ padding: '4px 14px 6px' }}>{t('Aus dem Plan')}</div>
+            {chosenAlternatives.map((exercise) => (
+              <button key={exercise.id} className="search-result" onClick={() => onPick(exercise)}>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span className="search-result__name">{exerciseName(exercise)}</span>
+                  <span className="search-result__meta" style={{ display: 'block' }}>
+                    <span
+                      className="cat-dot"
+                      style={{ '--cat': categoryColor(exercise.category) } as React.CSSProperties}
+                    />
+                    <span style={{ fontWeight: 550 }}>{t(CATEGORY_LABELS[exercise.category])}</span>
+                  </span>
+                </span>
+              </button>
+            ))}
+            <div className="section-label" style={{ padding: '10px 14px 6px' }}>{t('Weitere')}</div>
+          </>
+        )}
+        {candidates.length === 0 && chosenAlternatives.length === 0 && (
           <div className="empty tiny">{t("Keine passende Alternative gefunden.")}</div>
         )}
         {candidates.map(({ exercise, fits }) => (

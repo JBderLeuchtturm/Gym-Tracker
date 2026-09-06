@@ -1048,6 +1048,18 @@ export const EN: Record<string, string> = {
   'Weniger zeigen': 'Show fewer',
   'Alle {count} zeigen': 'Show all {count}',
   '{kg} kg bewegt': '{kg} kg moved',
+  'Vorschau': 'Preview',
+  'Diesen Plan aktivieren': 'Activate this plan',
+  'Wochenvolumen je Muskelgruppe': 'Weekly volume per muscle group',
+  'Sekundär beanspruchte Muskeln zählen halb.': 'Secondary muscles count half.',
+  'Auf anderen Tag verschieben': 'Move to another day',
+  'Verschieben nach': 'Move to',
+  'Ersatzübungen': 'Alternatives',
+  'Hinzufügen': 'Add',
+  'Werden im Training oben vorgeschlagen, wenn du „Ersatz“ tippst.':
+    'Shown at the top when you tap “Alternative” during a workout.',
+  'Aus dem Plan': 'From the plan',
+  'Weitere': 'More',
   'Volumen und Anstrengung ziehen beide deutlich an. Eine leichtere Woche könnte sich lohnen.':
     'Volume and effort are both climbing sharply. An easier week might be worth it.',
   'Es wird gerade mehr als in der Woche davor – nichts Dramatisches, nur zum Mitdenken.':

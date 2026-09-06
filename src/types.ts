@@ -100,6 +100,12 @@ export interface PlanExercise {
   restSec: number | null;
   note?: string;
   /**
+   * Ausdruecklich hinterlegte Ersatzuebungen ("Bankdruecken, sonst Kurzhantel").
+   * Der Ersatz-Dialog im Training stellt sie nach oben, statt jedes Mal neu zu
+   * raten.
+   */
+  alternativeIds?: ID[];
+  /**
    * Doppelte Progression: Erreichen alle Arbeitssaetze das obere Ende des
    * Wiederholungsbereichs, wird beim naechsten Mal um diesen Betrag erhoeht.
    * null oder fehlend = keine automatische Steigerung.
