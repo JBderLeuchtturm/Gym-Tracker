@@ -139,8 +139,12 @@ Volumen, deine Bestleistungen oder deinen Kalorienverbrauch.
 Aus den Profildaten wird der Grundumsatz berechnet, daraus der Alltagsumsatz, und
 das Training kommt über MET-Werte je Übung obendrauf. Eine gemessene
 Trainingsdauer skaliert die Schätzung – sie muss aber mindestens so lang sein
-wie die reine Hebezeit, sonst ist sie nachweislich falsch und wird verworfen. Die Zufuhr kann von Hand,
-per Yazio-CSV-Export oder über eine eigene Bridge dazukommen (siehe unten).
+wie die reine Hebezeit, sonst ist sie nachweislich falsch und wird verworfen.
+Die Seite öffnet mit der einen Frage: Wie viel darfst du heute noch essen, und
+passt das zum Ziel – eine große Zahl, ein Balken, ein Satz. Der Rest steht
+darunter. Die Zufuhr kann von Hand, über die Lebensmittelsuche (Name oder
+Barcode, Daten von [Open Food Facts](https://openfoodfacts.org)), per
+Yazio-CSV-Export oder über eine eigene Bridge dazukommen (siehe unten).
 
 **Übungssuche mit vielen Vorschlägen**
 Über 200 Übungen sind fest eingebaut – deutsch und englisch benannt, mit Muskeln,

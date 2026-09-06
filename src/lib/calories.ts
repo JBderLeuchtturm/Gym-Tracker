@@ -199,3 +199,34 @@ export function calcDayEnergy(
 
 /** Empfohlene Proteinmenge in Gramm (1,8 g je kg Koerpergewicht). */
 export const proteinTarget = (weightKg: number): number => Math.round(weightKg * 1.8);
+
+export type BudgetTone = 'good' | 'warn' | 'open';
+
+export interface BudgetVerdict {
+  /** Kurzer Satz fuer die Anzeige. */
+  label: string;
+  tone: BudgetTone;
+}
+
+/**
+ * Ein Satz zur Tagesbilanz, passend zum Ziel.
+ *
+ * "target" hat den Ziel-Aufschlag schon drin: Wer es genau trifft, macht alles
+ * richtig. Beim Abnehmen ist Weniger gut, beim Aufbauen ist Weniger noch offen,
+ * beim Halten zaehlt die Naehe.
+ */
+export function budgetVerdict(goal: Goal, eaten: number, target: number): BudgetVerdict {
+  const diff = eaten - target;
+  if (goal === 'lose') {
+    if (diff <= 0) return { label: 'Im Defizit – passt zum Abnehmen', tone: 'good' };
+    return { label: 'Über dem Ziel – das Defizit ist weg', tone: 'warn' };
+  }
+  if (goal === 'gain') {
+    if (diff >= 0) return { label: 'Im Überschuss – passt zum Aufbauen', tone: 'good' };
+    if (diff > -300) return { label: 'Fast am Aufbau-Ziel', tone: 'good' };
+    return { label: 'Noch Luft bis zum Aufbau-Ziel', tone: 'open' };
+  }
+  if (Math.abs(diff) <= 200) return { label: 'Nah am Ziel – gut zum Halten', tone: 'good' };
+  if (diff > 200) return { label: 'Über dem Verbrauch', tone: 'warn' };
+  return { label: 'Noch Luft zum Ziel', tone: 'open' };
+}

@@ -2,6 +2,31 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Kalorienseite neu gestaltet · Lebensmittelsuche
+
+*Branch `claude/kalorien-redesign`*
+
+**Die eine Frage zuerst.** Statt vier gleich großer Kacheln, einer Tabelle und
+zwei Diagrammen öffnet die Seite jetzt mit dem Tagesbudget: eine große Zahl
+(*Noch übrig*), ein Balken (gegessen gegen Ziel, mit einer Marke, wo das Budget
+ohne das heutige Training läge) und ein Satz, der zum Ziel passt – im Defizit,
+im Überschuss, nah dran. Direkt darunter das Eiweiß mit seinem Ziel. Alles
+Weitere steht darunter und tritt zurück.
+
+- **Der Verbrauch sind drei Posten, die sich addieren** – Grundumsatz, Bewegung
+  im Alltag, Training – statt vier Kacheln, von denen zwei einander enthielten.
+  „Verbrauch je Übung" liegt jetzt aufklappbar darunter.
+- **Der Verlauf zeigt zuerst den Wochenschnitt** (Ø gegessen, Ø verbraucht,
+  Ø Bilanz), dann die Balken. Er erscheint nur, wenn überhaupt eine Zufuhr
+  eingetragen ist.
+- **Ein Makro-Balken statt zweier.** Das Eiweißziel hat seinen eigenen Balken
+  oben; der Balken bei den Feldern zeigt nur noch die Aufteilung.
+
+**Lebensmittel über einen Suchbegriff finden**, nicht nur über den Barcode. Ein
+Feld für beides: eine Ziffernfolge wird als Barcode nachgeschlagen, alles andere
+als Suchbegriff. Ergebnisse ohne Namen oder Kalorienangabe fallen raus. Der
+Kamera-Scanner bleibt, wo der Browser ihn kann.
+
 ## Siebte Runde: Bedienung, Funktionen, Technik
 
 *Branch `claude/siebte-runde`*
