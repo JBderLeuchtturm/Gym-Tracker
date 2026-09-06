@@ -1,30 +1,28 @@
 import { t } from '../i18n';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Goal, MealPreset } from '../types';
-import { ACTIVITY_LABELS, GOAL_ADJUSTMENT, GOAL_LABELS, calcDayEnergy, proteinTarget } from '../lib/calories';
-import { addDays, formatDateShort, formatDateTiny, todayISO } from '../lib/date';
+import type { MealPreset } from '../types';
+import {
+  ACTIVITY_LABELS, GOAL_LABELS, budgetVerdict, calcDayEnergy, proteinTarget, type BudgetTone,
+} from '../lib/calories';
+import { addDays, formatDateShort, formatDateTiny, relativeDayLabel, todayISO } from '../lib/date';
 import { useStore } from '../storage/store';
 import { fetchYazioDay, parseYazioCsv } from '../api/yazio';
-import { isBarcode, lookupProduct, scaleProduct, type FoodProduct } from '../api/foodfacts';
+import {
+  isBarcode, lookupProduct, scaleProduct, searchProducts, type FoodProduct,
+} from '../api/foodfacts';
 import { uid } from '../storage/defaults';
 import { BarChart, type Point } from '../components/charts/Charts';
-import { Block, Modal, NumberInput, Section, Stat, fmt, useToast } from '../components/ui';
+import { Modal, NumberInput, Section, fmt, useToast } from '../components/ui';
 import {
-  IconCamera, IconChevronLeft, IconChevronRight, IconInfo, IconPlus, IconRefresh, IconTrash, IconUpload,
+  IconCamera, IconChevronLeft, IconChevronRight, IconInfo, IconPlus, IconRefresh, IconSearch,
+  IconTrash, IconUpload,
 } from '../components/icons';
 
-/** Passt die Bilanz zum Ziel? Beim Abnehmen ist ein Defizit gut, beim Aufbauen ein Ueberschuss. */
-function isOnTrack(goal: Goal, balance: number): boolean {
-  if (goal === 'lose') return balance <= 0;
-  if (goal === 'gain') return balance >= 0;
-  return Math.abs(balance) <= 200;
-}
-
-function balanceHint(goal: Goal, balance: number): string {
-  if (goal === 'lose') return balance <= 0 ? t('Defizit – passt zum Abnehmen') : t('Überschuss – über dem Verbrauch');
-  if (goal === 'gain') return balance >= 0 ? t('Überschuss – passt zum Aufbauen') : t('Defizit – zu wenig für Aufbau');
-  return Math.abs(balance) <= 200 ? t('Nah am Verbrauch – gut zum Halten') : t('Deutlich vom Verbrauch entfernt');
-}
+const TONE_COLOR: Record<BudgetTone, string> = {
+  good: 'var(--success)',
+  warn: 'var(--warn)',
+  open: 'var(--time)',
+};
 
 export function CaloriesPage() {
   const { state, getExercise, setNutrition, updateSettings } = useStore();
@@ -44,13 +42,17 @@ export function CaloriesPage() {
   );
 
   const entry = state.nutrition.find((item) => item.date === date);
-  const balance = entry?.kcalIn != null ? entry.kcalIn - energy.total : null;
-  const onTrack = balance == null ? true : isOnTrack(state.profile.goal, balance);
+  const eaten = entry?.kcalIn ?? null;
+  const proteinGoal = proteinTarget(state.profile.weightKg);
+  const trained = energy.workoutKcal > 0;
 
-  /* Verlauf: Verbrauch und Zufuhr der letzten 30 Tage. */
-  const history: { burn: Point[]; intake: Point[] } = useMemo(() => {
+  /* Verlauf: Verbrauch und Zufuhr, dazu der Schnitt der letzten sieben Tage. */
+  const history = useMemo(() => {
     const burn: Point[] = [];
     const intake: Point[] = [];
+    let sumIn = 0;
+    let sumBurn = 0;
+    let daysWithIntake = 0;
     for (let offset = 29; offset >= 0; offset -= 1) {
       const day = addDays(todayISO(), -offset);
       const dayWorkout = state.workouts.find((item) => item.date === day);
@@ -60,9 +62,13 @@ export function CaloriesPage() {
       const dayEntry = state.nutrition.find((item) => item.date === day);
       if (dayEntry?.kcalIn != null) {
         intake.push({ label: formatDateTiny(day), value: dayEntry.kcalIn, detail: formatDateShort(day) });
+        if (offset < 7) { sumIn += dayEntry.kcalIn; sumBurn += dayEnergy.total; daysWithIntake += 1; }
       }
     }
-    return { burn, intake };
+    const week = daysWithIntake > 0
+      ? { avgIn: Math.round(sumIn / daysWithIntake), avgBurn: Math.round(sumBurn / daysWithIntake), days: daysWithIntake }
+      : null;
+    return { burn, intake, week };
   }, [state.workouts, state.nutrition, state.profile, getExercise, state.settings.restTimerSec]);
 
   const patchEntry = (patch: Partial<NonNullable<typeof entry>>) => {
@@ -111,96 +117,132 @@ export function CaloriesPage() {
     toast.show(t('„{name}“ gespeichert', { name: meal.name }));
   };
 
+  /* ------------------------------------------------------ Tagesbudget */
+  const target = energy.target;
+  const remaining = eaten == null ? target : target - eaten;
+  const eatenPct = eaten == null ? 0 : Math.max(0, Math.min(112, (eaten / target) * 100));
+  const verdict = eaten == null ? null : budgetVerdict(state.profile.goal, eaten, target);
+  const tone: BudgetTone = verdict?.tone ?? 'open';
+  // Wo das Budget ohne das heutige Training laege - als Markierung im Balken.
+  const basePct = trained ? Math.min(100, ((target - energy.workoutKcal) / target) * 100) : 100;
+
+  const protein = entry?.proteinG ?? null;
+  const proteinPct = protein == null ? 0 : Math.min(100, (protein / proteinGoal) * 100);
+  const proteinShort = proteinGoal - (protein ?? 0);
+
+  const activityKcal = Math.max(0, energy.tdee - energy.bmr);
+
   return (
     <>
-      <div className="row row--between">
-        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, -1))} aria-label={t("Vorheriger Tag")}>
+      {/* Ein Tag, ein Pfeil je Richtung - schmal wie die Wochenleiste. */}
+      <div className="cal-daynav">
+        <button className="cal-daynav__arrow" onClick={() => setDate(addDays(date, -1))} aria-label={t("Vorheriger Tag")}>
           <IconChevronLeft />
         </button>
-        <div className="center" style={{ flex: 1 }}>
-          <div className="bold">{formatDateShort(date)}</div>
-          <div className="tiny dim">{date === todayISO() ? t('Heute') : t('Anderer Tag')}</div>
+        <div className="cal-daynav__label">
+          <span className="cal-daynav__day">{relativeDayLabel(date)}</span>
+          {date !== todayISO() && <span className="tiny dim">{formatDateShort(date)}</span>}
         </div>
-        <button className="btn btn--ghost btn--icon" onClick={() => setDate(addDays(date, 1))} aria-label={t("Nächster Tag")}>
+        <button
+          className="cal-daynav__arrow"
+          onClick={() => setDate(addDays(date, 1))}
+          disabled={date >= todayISO()}
+          aria-label={t("Nächster Tag")}
+        >
           <IconChevronRight />
         </button>
       </div>
 
-      <Section
-        title={t("Verbrauch an diesem Tag")}
-        note={(
-          <button className="btn btn--ghost btn--icon btn--sm" onClick={() => setExplainOpen(true)} aria-label={t("Erklärung")}>
+      {/*
+        * Die eine Frage zuerst: Wie viel darf ich heute noch essen, und passt
+        * das zum Ziel? Grosse Zahl, ein Balken, ein Satz - alles andere steht
+        * darunter.
+        */}
+      <div className="budget">
+        <div className="budget__head">
+          <span className="budget__caption">
+            {eaten == null ? t('Budget heute') : remaining >= 0 ? t('Noch übrig') : t('Über dem Ziel')}
+          </span>
+          <button
+            className="btn btn--ghost btn--icon btn--sm"
+            onClick={() => setExplainOpen(true)}
+            aria-label={t("Wie wird gerechnet?")}
+          >
             <IconInfo />
           </button>
-        )}
-      >
-        <div className="grid-auto">
-          <Stat label={t("Grundumsatz")} value={fmt(energy.bmr)} unit={t("kcal")} sub={t("im Ruhezustand")} />
-          <Stat label={t("Alltag (TDEE)")} value={fmt(energy.tdee)} unit={t("kcal")} sub={t(ACTIVITY_LABELS[state.profile.activityLevel]).split(' (')[0]} />
-          <Stat
-            label={t("Training")}
-            value={fmt(energy.workoutKcal)}
-            unit={t("kcal")}
-            tone="warn"
-            sub={energy.workoutMinutes > 0
-              ? `${fmt(energy.workoutMinutes)} min aktiv${energy.estimated ? ' (gesch.)' : ''}`
-              : t('kein Training')}
+        </div>
+
+        <div className="budget__figure">
+          <span className="budget__value" style={{ color: TONE_COLOR[tone] }}>
+            {remaining < 0 ? '−' : ''}{fmt(Math.abs(remaining))}
+          </span>
+          <span className="budget__of">{t('von {kcal} kcal', { kcal: fmt(target) })}</span>
+        </div>
+
+        <div
+          className="budget__bar"
+          role="img"
+          aria-label={t('{eaten} von {target} kcal gegessen', { eaten: fmt(eaten ?? 0), target: fmt(target) })}
+        >
+          <div
+            className="budget__bar-fill"
+            style={{ width: `${eatenPct}%`, background: TONE_COLOR[tone] }}
           />
-          <Stat label={t("Gesamt")} value={fmt(energy.total)} unit={t("kcal")} tone="accent" />
+          {trained && basePct < 100 && (
+            <div className="budget__bar-mark" style={{ left: `${basePct}%` }} title={t('Budget ohne Training')} />
+          )}
         </div>
 
-        <div className="divider" style={{ margin: '12px 0' }} />
-
-        <div className="row row--between">
-          <span className="small muted">
-            {t('Empfehlung für „{goal}“', { goal: t(GOAL_LABELS[state.profile.goal]) })}
-          </span>
-          <span className="bold mono">
-            {fmt(energy.target)} kcal
-            {GOAL_ADJUSTMENT[state.profile.goal] !== 0 && (
-              <span className="tiny dim" style={{ marginLeft: 5 }}>
-                ({GOAL_ADJUSTMENT[state.profile.goal] > 0 ? '+' : ''}{GOAL_ADJUSTMENT[state.profile.goal]})
-              </span>
-            )}
+        <div className="budget__foot">
+          <span>{t('{kcal} gegessen', { kcal: fmt(eaten ?? 0) })}</span>
+          <span className="budget__dot">·</span>
+          <span>
+            {t('{kcal} verbraucht', { kcal: fmt(energy.total) })}
+            {trained && <span className="dim">{t(' (+{kcal} Training)', { kcal: fmt(energy.workoutKcal) })}</span>}
           </span>
         </div>
-        <div className="row row--between" style={{ marginTop: 4 }}>
-          <span className="small muted">{t("Protein-Ziel")}</span>
-          <span className="bold mono">{proteinTarget(state.profile.weightKg)} g</span>
+
+        {verdict && (
+          <div className={`budget__verdict budget__verdict--${tone}`}>
+            {t(verdict.label)}
+          </div>
+        )}
+      </div>
+
+      {/* Eiweiss ist der Makro, der beim Training zaehlt - eigener Balken, mit Ziel. */}
+      <div className="macro-goal">
+        <div className="macro-goal__head">
+          <span className="macro-goal__label">{t('Eiweiß')}</span>
+          <span className="mono">
+            <span className={proteinPct >= 100 ? 'pos' : ''}>{fmt(protein ?? 0)}</span>
+            <span className="dim"> / {proteinGoal} g</span>
+          </span>
         </div>
-      </Section>
+        <div className="progress-bar">
+          <div
+            className="progress-bar__fill"
+            style={{
+              width: `${proteinPct}%`,
+              background: proteinPct >= 100 ? 'var(--success)' : 'var(--time)',
+            }}
+          />
+        </div>
+        {protein != null && proteinShort > 3 && (
+          <div className="tiny dim" style={{ marginTop: 5 }}>
+            {t('noch {g} g bis zum Ziel', { g: fmt(proteinShort) })}
+          </div>
+        )}
+      </div>
 
-      {energy.perExercise.length > 0 && (
-        <Section title={t("Verbrauch je Übung")}>
-          <table className="data">
-            <thead>
-              <tr><th>{t("Übung")}</th><th className="right">{t("Aktiv")}</th><th className="right">{t("kcal")}</th></tr>
-            </thead>
-            <tbody>
-              {energy.perExercise.map((row) => (
-                <tr key={row.exerciseId}>
-                  <td>{row.name}</td>
-                  <td className="right mono nowrap">{fmt(row.minutes)} min</td>
-                  <td className="right mono">{fmt(row.kcal)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Section>
-      )}
-
+      {/* -------------------------------------------------------- Eintragen */}
       <Section
-        title={t("Zufuhr")}
+        title={t("Eintragen")}
         note={(
           <button className="btn btn--sm" onClick={() => setFoodOpen(true)}>
-            <IconCamera /> {t('Barcode')}
+            <IconSearch /> {t('Suchen')}
           </button>
         )}
       >
-        {/*
-          * Schneller Eintrag: gespeicherte Mahlzeiten werden dazugerechnet,
-          * nicht ersetzt. Wer jeden Morgen dasselbe isst, tippt einmal.
-          */}
         {presets.length > 0 && (
           <div className="chip-scroll" style={{ marginBottom: 10 }}>
             {presets.map((meal) => (
@@ -236,71 +278,129 @@ export function CaloriesPage() {
           proteinG={entry?.proteinG ?? null}
           carbsG={entry?.carbsG ?? null}
           fatG={entry?.fatG ?? null}
-          proteinTargetG={proteinTarget(state.profile.weightKg)}
         />
 
-        <div className="row row--wrap" style={{ gap: 7, marginTop: 10 }}>
+        <div className="row row--wrap" style={{ gap: 7, marginTop: 12 }}>
+          <button className="btn btn--sm" onClick={() => setFoodOpen(true)}>
+            <IconCamera /> {t('Suchen / Barcode')}
+          </button>
           <button className="btn btn--sm" onClick={() => setYazioOpen(true)}>
             <IconRefresh /> {t('Yazio')}
           </button>
           {(entry?.kcalIn != null || entry?.proteinG != null) && (
-            <button className="btn btn--sm" onClick={() => setMealNameOpen(true)}>
+            <button className="btn btn--sm btn--ghost" onClick={() => setMealNameOpen(true)}>
               {t('Als Mahlzeit speichern')}
-            </button>
-          )}
-          {presets.length > 0 && (
-            <button className="btn btn--sm btn--ghost" onClick={() => setMealsOpen(true)}>
-              {t('Mahlzeiten')}
             </button>
           )}
         </div>
 
-        {balance != null && (
-          <div
-            className="row row--between"
-            style={{
-              marginTop: 12, padding: '10px 12px', borderRadius: 'var(--radius-sm)',
-              background: onTrack ? 'var(--success-soft)' : 'var(--warn-soft)',
-            }}
-          >
-            <div>
-              <div className="small bold">{t("Bilanz")}</div>
-              <div className="tiny dim">{balanceHint(state.profile.goal, balance)}</div>
-            </div>
-            <span className="bold mono" style={{ color: onTrack ? 'var(--success)' : 'var(--warn)' }}>
-              {balance > 0 ? '+' : ''}{fmt(balance)} kcal
-            </span>
-          </div>
-        )}
         {entry?.source === 'yazio' && (
-          <div className="tiny dim" style={{ marginTop: 6 }}>{t("Werte stammen aus Yazio.")}</div>
+          <div className="tiny dim" style={{ marginTop: 8 }}>{t("Werte stammen aus Yazio.")}</div>
         )}
       </Section>
 
-      {/*
-        * Balken, keine Linie: An Ruhetagen liegt der Verbrauch auf dem
-        * Alltagswert, an Trainingstagen darueber. Eine Linie dazwischen
-        * behauptet einen Uebergang, den es nicht gibt - was herauskam, war
-        * ein Saegezahn.
-        */}
-      <Section title={t("Verbrauch der letzten 30 Tage")} note={t("je Tag")}>
-        {/*
-          * Kuehler Ton statt Warnfarbe: Der Verbrauch ist eine Messreihe, keine
-          * Warnung. Gelb bedeutet in dieser App "sieh dir das an" - und das
-          * gilt hier fuer die Bilanz weiter unten, nicht fuer das Diagramm.
-          */}
-        <BarChart points={history.burn} unit={t("kcal")} color="var(--time)" label={t("Verbrauch je Tag")} />
-        {history.intake.length > 1 && (
-          <Block title={t("Zufuhr")}>
-            <BarChart
-              points={history.intake}
-              unit={t("kcal")}
-              color="color-mix(in srgb, var(--time) 52%, var(--surface-3))"
-              label={t("Zufuhr je Tag")}
-            />
-          </Block>
+      {/* --------------------------------------------------------- Verbrauch */}
+      <Section
+        title={t("Verbrauch")}
+        note={t('{kcal} kcal · Ziel „{goal}“', {
+          kcal: fmt(energy.total), goal: t(GOAL_LABELS[state.profile.goal]),
+        })}
+      >
+        {/* Drei Posten, die sich zum Verbrauch addieren - keine vier Kacheln,
+            von denen zwei einander enthalten. */}
+        <div className="burn-rows">
+          <div className="burn-rows__row">
+            <span className="muted">{t('Grundumsatz')}</span>
+            <span className="dim tiny">{t('im Ruhezustand')}</span>
+            <span className="mono">{fmt(energy.bmr)}</span>
+          </div>
+          <div className="burn-rows__row">
+            <span className="muted">{t('Bewegung im Alltag')}</span>
+            <span className="dim tiny">{t(ACTIVITY_LABELS[state.profile.activityLevel]).split(' (')[0]}</span>
+            <span className="mono">+{fmt(activityKcal)}</span>
+          </div>
+          <div className="burn-rows__row">
+            <span className="muted">{t('Training')}</span>
+            <span className="dim tiny">
+              {energy.workoutMinutes > 0
+                ? t('{min} min{estimated}', { min: fmt(energy.workoutMinutes), estimated: energy.estimated ? ' (gesch.)' : '' })
+                : t('kein Training')}
+            </span>
+            <span className="mono">{energy.workoutKcal > 0 ? `+${fmt(energy.workoutKcal)}` : '0'}</span>
+          </div>
+          <div className="burn-rows__row burn-rows__row--total">
+            <span className="bold">{t('Verbrauch')}</span>
+            <span />
+            <span className="bold mono">{fmt(energy.total)} kcal</span>
+          </div>
+        </div>
+
+        {energy.perExercise.length > 0 && (
+          <details className="burn-details">
+            <summary>{t('Verbrauch je Übung')}</summary>
+            <table className="data" style={{ marginTop: 8 }}>
+              <thead>
+                <tr><th>{t("Übung")}</th><th className="right">{t("Aktiv")}</th><th className="right">{t("kcal")}</th></tr>
+              </thead>
+              <tbody>
+                {energy.perExercise.map((row) => (
+                  <tr key={row.exerciseId}>
+                    <td>{row.name}</td>
+                    <td className="right mono nowrap">{fmt(row.minutes)} min</td>
+                    <td className="right mono">{fmt(row.kcal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
         )}
       </Section>
+
+      {/* ----------------------------------------------------------- Verlauf */}
+      {history.intake.length > 0 && (
+        <Section title={t("Verlauf")} note={t("30 Tage")}>
+          {history.week && (
+            <div className="grid-3" style={{ marginBottom: 12 }}>
+              <div className="cal-avg">
+                <span className="cal-avg__label">{t('Ø gegessen')}</span>
+                <span className="cal-avg__value">{fmt(history.week.avgIn)}</span>
+              </div>
+              <div className="cal-avg">
+                <span className="cal-avg__label">{t('Ø verbraucht')}</span>
+                <span className="cal-avg__value">{fmt(history.week.avgBurn)}</span>
+              </div>
+              <div className="cal-avg">
+                <span className="cal-avg__label">{t('Ø Bilanz')}</span>
+                <span
+                  className="cal-avg__value"
+                  style={{ color: history.week.avgIn - history.week.avgBurn >= 0 ? 'var(--warn)' : 'var(--time)' }}
+                >
+                  {history.week.avgIn - history.week.avgBurn >= 0 ? '+' : '−'}
+                  {fmt(Math.abs(history.week.avgIn - history.week.avgBurn))}
+                </span>
+              </div>
+            </div>
+          )}
+          {/*
+            * Balken, keine Linie: An Ruhetagen liegt der Verbrauch auf dem
+            * Alltagswert, an Trainingstagen darueber. Eine Linie dazwischen
+            * behauptet einen Uebergang, den es nicht gibt.
+            */}
+          <BarChart points={history.burn} unit={t("kcal")} color="var(--time)" label={t("Verbrauch je Tag")} />
+          {history.intake.length > 1 && (
+            <div style={{ marginTop: 14 }}>
+              <div className="section-label" style={{ marginBottom: 6 }}>{t('Zufuhr')}</div>
+              <BarChart
+                points={history.intake}
+                height={96}
+                unit={t("kcal")}
+                color="color-mix(in srgb, var(--time) 52%, var(--surface-3))"
+                label={t("Zufuhr je Tag")}
+              />
+            </div>
+          )}
+        </Section>
+      )}
 
       {yazioOpen && <YazioDialog date={date} onClose={() => setYazioOpen(false)} />}
 
@@ -372,16 +472,16 @@ export function CaloriesPage() {
 /**
  * Eiweiss, Kohlenhydrate und Fett im Verhaeltnis - als ein Balken, nicht als
  * vier Zahlen. Die Anteile sind nach Kalorien gewichtet (4 / 4 / 9 kcal je
- * Gramm), weil so das Bild stimmt: 50 g Fett sind mehr als 50 g Eiweiss. Ein
- * Strich markiert das Eiweissziel.
+ * Gramm), weil so das Bild stimmt: 50 g Fett sind mehr als 50 g Eiweiss. Das
+ * Eiweissziel steht oben in seinem eigenen Balken - hier geht es nur um die
+ * Aufteilung.
  */
 function MacroBar({
-  proteinG, carbsG, fatG, proteinTargetG,
+  proteinG, carbsG, fatG,
 }: {
   proteinG: number | null;
   carbsG: number | null;
   fatG: number | null;
-  proteinTargetG: number;
 }) {
   const p = proteinG ?? 0;
   const c = carbsG ?? 0;
@@ -393,8 +493,6 @@ function MacroBar({
   if (total <= 0) return null;
 
   const pct = (value: number) => `${(value / total) * 100}%`;
-  const proteinTargetPct = Math.min(100, (proteinTargetG * 4 / total) * 100);
-  const proteinShort = proteinTargetG - p;
 
   return (
     <div style={{ marginTop: 12 }}>
@@ -402,35 +500,23 @@ function MacroBar({
         <div className="macrobar__seg macrobar__seg--protein" style={{ width: pct(pKcal) }} />
         <div className="macrobar__seg macrobar__seg--carbs" style={{ width: pct(cKcal) }} />
         <div className="macrobar__seg macrobar__seg--fat" style={{ width: pct(fKcal) }} />
-        {proteinTargetPct < 100 && (
-          <div
-            className="macrobar__mark"
-            style={{ left: `${proteinTargetPct}%` }}
-            title={t('Eiweißziel {g} g', { g: proteinTargetG })}
-          />
-        )}
       </div>
       <div className="macrobar__legend">
         <span><span className="macrobar__dot macrobar__dot--protein" />{t('Eiweiß')} {fmt(p)} g</span>
         <span><span className="macrobar__dot macrobar__dot--carbs" />{t('Kohlenhydrate')} {fmt(c)} g</span>
         <span><span className="macrobar__dot macrobar__dot--fat" />{t('Fett')} {fmt(f)} g</span>
       </div>
-      {proteinShort > 3 && (
-        <div className="tiny dim" style={{ marginTop: 4 }}>
-          {t('noch {g} g Eiweiß bis zum Ziel', { g: fmt(proteinShort) })}
-        </div>
-      )}
     </div>
   );
 }
 
-/* ------------------------------------------------------ Barcode / Open Food Facts */
+/* ---------------------------------------------------- Lebensmittel suchen */
 
 /**
- * Barcode nachschlagen und die Naehrwerte auf den Tag drauflegen.
- *
- * Der Kamera-Scanner braucht "BarcodeDetector" (Chrome, Edge, Android). Wo es
- * den nicht gibt, tippt man den Barcode ein - der Rest funktioniert gleich.
+ * Ein Feld fuer beides: eine Ziffernfolge wird als Barcode nachgeschlagen,
+ * alles andere als Suchbegriff. Dazu, wo der Browser es kann, der Kamera-Scanner.
+ * Daten von Open Food Facts - kostenlos, ohne Konto; uebermittelt wird nur die
+ * Eingabe.
  */
 function FoodDialog({
   onClose, onAdd,
@@ -441,9 +527,10 @@ function FoodDialog({
     label: string,
   ) => void;
 }) {
-  const [code, setCode] = useState('');
+  const [query, setQuery] = useState('');
   const [scanning, setScanning] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [hits, setHits] = useState<FoodProduct[] | null>(null);
   const [product, setProduct] = useState<FoodProduct | null>(null);
   const [grams, setGrams] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -452,15 +539,29 @@ function FoodDialog({
   const canScan = typeof window !== 'undefined' && 'BarcodeDetector' in window
     && Boolean(navigator.mediaDevices?.getUserMedia);
 
-  const search = async (value: string) => {
-    if (!isBarcode(value)) { setError(t('Das ist kein gültiger Barcode.')); return; }
-    setBusy(true);
-    setError(null);
-    const found = await lookupProduct(value);
-    setBusy(false);
-    if (!found) { setError(t('Dazu ist in der Datenbank nichts hinterlegt.')); return; }
+  const pick = (found: FoodProduct) => {
     setProduct(found);
     setGrams(found.servingG ?? 100);
+    setHits(null);
+  };
+
+  const run = async (value: string) => {
+    const term = value.trim();
+    if (term.length < 2) return;
+    setBusy(true);
+    setError(null);
+    setProduct(null);
+    if (isBarcode(term)) {
+      const found = await lookupProduct(term);
+      setBusy(false);
+      if (found) pick(found);
+      else setError(t('Zu diesem Barcode ist nichts hinterlegt.'));
+      return;
+    }
+    const list = await searchProducts(term);
+    setBusy(false);
+    setHits(list);
+    if (list.length === 0) setError(t('Dazu wurde nichts gefunden.'));
   };
 
   // Kamera-Scanner: laeuft, solange der Dialog im Scan-Modus ist.
@@ -476,11 +577,11 @@ function FoodDialog({
     const tick = async () => {
       if (stopped || !videoRef.current) return;
       try {
-        const hits = await detector.detect(videoRef.current);
-        if (hits[0]?.rawValue) {
+        const found = await detector.detect(videoRef.current);
+        if (found[0]?.rawValue) {
           setScanning(false);
-          setCode(hits[0].rawValue);
-          void search(hits[0].rawValue);
+          setQuery(found[0].rawValue);
+          void run(found[0].rawValue);
           return;
         }
       } catch { /* zwischen zwei Frames ist ein Fehlversuch normal */ }
@@ -509,53 +610,83 @@ function FoodDialog({
   const scaled = product && grams ? scaleProduct(product, grams) : null;
 
   return (
-    <Modal title={t('Barcode nachschlagen')} onClose={onClose}>
-      <div className="list">
-        {scanning ? (
-          <div>
-            <video ref={videoRef} className="scan-video" muted playsInline />
-            <button className="btn btn--block" style={{ marginTop: 8 }} onClick={() => setScanning(false)}>
-              {t('Scan abbrechen')}
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="field">
-              <label className="field__label">{t('Barcode')}</label>
-              <div className="row" style={{ gap: 7 }}>
+    <Modal title={t('Lebensmittel suchen')} onClose={onClose} flush>
+      {scanning ? (
+        <div style={{ padding: 14 }}>
+          <video ref={videoRef} className="scan-video" muted playsInline />
+          <button className="btn btn--block" style={{ marginTop: 8 }} onClick={() => setScanning(false)}>
+            {t('Scan abbrechen')}
+          </button>
+        </div>
+      ) : (
+        <>
+          <div style={{ padding: '12px 14px 8px' }}>
+            <div className="row" style={{ gap: 7 }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <IconSearch style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: 'var(--text-dim)' }} />
+                {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
                 <input
                   className="input"
-                  inputMode="numeric"
-                  value={code}
-                  placeholder="4008400…"
-                  onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
-                  onKeyDown={(event) => { if (event.key === 'Enter') void search(code); }}
+                  style={{ paddingLeft: 32 }}
+                  autoFocus
+                  value={query}
+                  placeholder={t('Name oder Barcode')}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === 'Enter') void run(query); }}
                 />
-                <button className="btn" disabled={busy || !code} onClick={() => void search(code)}>
-                  {busy ? '…' : t('Suchen')}
-                </button>
               </div>
-              <span className="field__hint">
-                {t('Daten von Open Food Facts – kostenlos, ohne Konto. Übermittelt wird nur der Barcode.')}
-              </span>
-            </div>
-            {canScan && (
-              <button className="btn btn--block" onClick={() => { setError(null); setScanning(true); }}>
-                <IconCamera /> {t('Mit der Kamera scannen')}
+              {canScan && (
+                <button
+                  className="btn btn--icon"
+                  onClick={() => { setError(null); setScanning(true); }}
+                  aria-label={t('Mit der Kamera scannen')}
+                >
+                  <IconCamera />
+                </button>
+              )}
+              <button className="btn" disabled={busy || query.trim().length < 2} onClick={() => void run(query)}>
+                {busy ? '…' : t('Suchen')}
               </button>
-            )}
-          </>
-        )}
+            </div>
+            <div className="field__hint" style={{ marginTop: 6 }}>
+              {t('Daten von Open Food Facts – kostenlos, ohne Konto.')}
+            </div>
+          </div>
 
-        {error && <div className="small" style={{ color: 'var(--danger)' }}>{error}</div>}
+          {error && (
+            <div className="small" style={{ color: 'var(--danger)', padding: '0 14px 10px' }}>{error}</div>
+          )}
 
-        {product && (
+          {hits && hits.length > 0 && (
+            <div style={{ maxHeight: '46vh', overflowY: 'auto' }}>
+              {hits.map((item) => (
+                <button
+                  key={`${item.barcode}-${item.name}`}
+                  className="search-result"
+                  onClick={() => pick(item)}
+                >
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span className="search-result__name">{item.name}</span>
+                    <span className="search-result__meta" style={{ display: 'block' }}>
+                      {item.brand && `${item.brand} · `}
+                      {item.kcal100 != null && t('{kcal} kcal / 100 g', { kcal: item.kcal100 })}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {product && (
+        <div style={{ padding: 14 }}>
           <div className="card card--inset">
             <div className="bold small">{product.name}</div>
             {product.brand && <div className="tiny dim">{product.brand}</div>}
             <div className="tiny dim" style={{ marginTop: 4 }}>
-              {product.kcal100 != null ? `${product.kcal100} kcal` : t('keine Kalorienangabe')}
-              {product.protein100 != null && ` · ${product.protein100} g Eiweiß`}
+              {product.kcal100 != null ? t('{kcal} kcal', { kcal: product.kcal100 }) : t('keine Kalorienangabe')}
+              {product.protein100 != null && ` · ${product.protein100} g ${t('Eiweiß')}`}
               {' '}{t('je 100 g')}
             </div>
             <div className="field" style={{ marginTop: 10 }}>
@@ -565,7 +696,7 @@ function FoodDialog({
             {scaled && (
               <div className="tiny" style={{ marginTop: 6 }}>
                 {t('Ergibt')} {scaled.kcal ?? '–'} kcal
-                {scaled.proteinG != null && ` · ${scaled.proteinG} g Eiweiß`}
+                {scaled.proteinG != null && ` · ${scaled.proteinG} g ${t('Eiweiß')}`}
               </div>
             )}
             <button
@@ -576,9 +707,16 @@ function FoodDialog({
             >
               {t('Zum Tag dazurechnen')}
             </button>
+            <button
+              className="btn btn--ghost btn--block btn--sm"
+              style={{ marginTop: 6 }}
+              onClick={() => { setProduct(null); if (!isBarcode(query.trim())) void run(query); }}
+            >
+              {t('Zurück zur Suche')}
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </Modal>
   );
 }

@@ -1658,6 +1658,169 @@ table.data tr:last-child td { border-bottom: 0; }
   background: #000;
 }
 
+/* ===================================================================
+   Kalorienseite: die eine Frage zuerst
+   =================================================================== */
+
+/* Tageswahl - schmal, ein Pfeil je Richtung, wie die Wochenleiste. */
+.cal-daynav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.cal-daynav__arrow {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.cal-daynav__arrow:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+.cal-daynav__arrow:disabled { opacity: 0.3; cursor: default; }
+.cal-daynav__arrow svg { width: 17px; height: 17px; }
+.cal-daynav__label { flex: 1; display: flex; align-items: baseline; gap: 8px; }
+.cal-daynav__day { font-size: 1rem; font-weight: 640; letter-spacing: -0.01em; }
+
+/*
+ * Das Tagesbudget - grosse Zahl, ein Balken, ein Satz. Der Hero der Seite: was
+ * darf ich noch essen, und passt das zum Ziel. Alles andere steht darunter.
+ */
+.budget {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.budget__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.budget__caption {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.budget__figure {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.budget__value {
+  font-size: 2.4rem;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.budget__of { font-size: 0.85rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.budget__bar {
+  position: relative;
+  height: 10px;
+  margin: 13px 0 9px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.budget__bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.35s var(--ease), background 0.2s;
+}
+/* Wo das Budget ohne das heutige Training laege. */
+.budget__bar-mark {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--text-muted);
+}
+.budget__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 7px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.budget__dot { color: var(--text-dim); }
+.budget__verdict {
+  margin-top: 11px;
+  padding: 8px 11px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 550;
+  border-left: 2px solid var(--time);
+  background: var(--surface-2);
+}
+.budget__verdict--good { border-left-color: var(--success); color: var(--success); }
+.budget__verdict--warn { border-left-color: var(--warn); color: var(--warn); }
+.budget__verdict--open { border-left-color: var(--time); color: var(--text-muted); }
+
+/* Eiweiss-Balken mit Ziel - der Makro, der beim Training zaehlt. */
+.macro-goal {
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.macro-goal__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 7px;
+  font-size: 0.85rem;
+}
+.macro-goal__label { font-weight: 600; color: var(--text-muted); }
+
+/* Verbrauch: drei Posten, die sich zum Ganzen addieren. */
+.burn-rows { display: flex; flex-direction: column; }
+.burn-rows__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 8px 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 0.9rem;
+}
+.burn-rows__row:last-child { border-bottom: 0; }
+.burn-rows__row .mono { font-variant-numeric: tabular-nums lining-nums; }
+.burn-rows__row--total { padding-top: 9px; border-top: 1px solid var(--border); border-bottom: 0; }
+
+.burn-details { margin-top: 10px; }
+.burn-details > summary {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  list-style: none;
+}
+.burn-details > summary::-webkit-details-marker { display: none; }
+.burn-details > summary::before { content: '+ '; color: var(--text-dim); }
+.burn-details[open] > summary::before { content: '– '; }
+
+/* Wochenschnitt auf der Kalorienseite - drei Zahlen nebeneinander. */
+.cal-avg { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cal-avg__label {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.cal-avg__value {
+  font-size: 1.15rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
 /* Hinweis zur Belastung - ein eingerueckter Absatz, kein Warnton. */
 .load-note {
   padding: 10px 12px;

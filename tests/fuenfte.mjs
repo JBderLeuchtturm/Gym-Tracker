@@ -130,7 +130,12 @@ export async function run() {
   await runner.step('Kalorienverlauf sind Balken, keine Linie', async () => {
     await page.locator('.nav__item', { hasText: 'Kalorien' }).first().click();
     await page.waitForTimeout(900);
-    const section = page.locator('.section', { hasText: 'Verbrauch der letzten 30 Tage' }).first();
+    // Der Verlauf erscheint erst, wenn ueberhaupt eine Zufuhr eingetragen ist.
+    const kcal = page.locator('.field', { hasText: 'Kalorien (kcal)' }).locator('input');
+    await kcal.fill('2400');
+    await kcal.blur();
+    await page.waitForTimeout(500);
+    const section = page.locator('.section', { hasText: 'Verlauf' }).first();
     if (await section.count() === 0) throw new Error('kein Abschnitt für den Verlauf');
     if (await section.locator('rect').count() === 0) throw new Error('keine Balken');
     if (await section.locator('path[d^="M"]').count() > 0) throw new Error('immer noch eine Linie');
