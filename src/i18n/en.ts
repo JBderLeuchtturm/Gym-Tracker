@@ -979,4 +979,43 @@ export const EN: Record<string, string> = {
     '{count} training days in the last 27 weeks.',
   'Zum Inhalt springen': 'Skip to content',
   'einen Moment …': 'one moment …',
+
+  /* ---------------------------- Fünfte Runde: Funde und Gestaltung */
+  'Bestwert': 'Best',
+  '{count} Üb.': '{count} ex.',
+  'kein Vergleichszeitraum': 'no period to compare with',
+  '{label} gegen den Zeitraum davor': '{label} against the period before',
+  'Verbrauch je Tag': 'Burn per day',
+  'Zufuhr je Tag': 'Intake per day',
+  'je Tag': 'per day',
+  'Karte': 'Map',
+  'Liste': 'List',
+  'Plan für heute anlegen': 'Set up a plan for today',
+  'Ganzen Zeitraum zeigen': 'Show the whole history',
+  'Zu zweit macht es mehr her': 'Better with someone else',
+  'Der Tracker läuft ohne Konto vollständig. Mit einem kommt dazu:':
+    'The tracker works fully without an account. With one you also get:',
+  'Sehen, wie es bei den anderen läuft': 'See how the others are doing',
+  'Trainings der Freunde in einer Liste, mit Reaktion und Kommentar.':
+    'Your friends’ workouts in one list, with reactions and comments.',
+  'Vergleichen, wo es sich lohnt': 'Compare where it is worth it',
+  'Gemeinsame Übungen nebeneinander – wer bei was gerade wo steht.':
+    'Shared exercises side by side – who stands where on what.',
+  'Gemeinsame Ziele über ein paar Wochen': 'Shared goals over a few weeks',
+  'Challenges auf Anzahl Trainings, Sätze oder bewegtes Gewicht.':
+    'Challenges on number of workouts, sets or weight moved.',
+  'Pläne weitergeben': 'Pass plans on',
+  'Einen Wochenplan als Baustein verschicken, samt eigener Übungen.':
+    'Send a weekly plan as a snippet, custom exercises included.',
+  'Deine Daten auf allen Geräten': 'Your data on every device',
+  'Handy und Rechner führen ihre Stände zusammen, ohne dass etwas verloren geht.':
+    'Phone and computer merge their states without losing anything.',
+  'Du entscheidest, was sichtbar ist': 'You decide what is visible',
+  'Fortschritt, Gewicht und Kalorien werden einzeln freigegeben – je Freund.':
+    'Progress, weight and calories are shared separately – per friend.',
+  'Dafür braucht es einen gemeinsamen Speicherort. Vorgesehen ist ein kostenloses Supabase-Projekt – ohne Kreditkarte, und die Daten gehören weiter dir.':
+    'This needs a shared place to store things. A free Supabase project is what it is built for – no credit card, and the data stays yours.',
+  'Wie richte ich das ein?': 'How do I set this up?',
+  'Anleitung ausblenden': 'Hide the instructions',
+  'Einrichten, etwa fünf Minuten': 'Setting up, about five minutes',
 };

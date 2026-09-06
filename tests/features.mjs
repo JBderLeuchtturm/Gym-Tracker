@@ -86,7 +86,7 @@ export async function run() {
   await runner.step('Muskelkarte zeigt die Wochenziel-Ampel', async () => {
     await page.locator('.nav__item', { hasText: 'Fortschritt' }).first().click();
     await page.waitForTimeout(700);
-    const card = page.locator('.card', { has: page.locator('.bodymap') }).first();
+    const card = page.locator('.section', { has: page.locator('.bodymap') }).first();
     if (await card.count() === 0) throw new Error('keine Muskelkarte');
     const text = await card.innerText();
     if (!/im Ziel|unter Ziel|drunter/.test(text)) throw new Error(text.slice(0, 80));

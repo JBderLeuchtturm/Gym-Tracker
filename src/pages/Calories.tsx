@@ -5,8 +5,8 @@ import { ACTIVITY_LABELS, GOAL_ADJUSTMENT, GOAL_LABELS, calcDayEnergy, proteinTa
 import { addDays, formatDateShort, formatDateTiny, todayISO } from '../lib/date';
 import { useStore } from '../storage/store';
 import { fetchYazioDay, parseYazioCsv } from '../api/yazio';
-import { LineChart, type Point } from '../components/charts/Charts';
-import { Modal, NumberInput, Stat, fmt, useToast } from '../components/ui';
+import { BarChart, type Point } from '../components/charts/Charts';
+import { Block, Modal, NumberInput, Section, Stat, fmt, useToast } from '../components/ui';
 import { IconChevronLeft, IconChevronRight, IconInfo, IconRefresh, IconUpload } from '../components/icons';
 
 /** Passt die Bilanz zum Ziel? Beim Abnehmen ist ein Defizit gut, beim Aufbauen ein Ueberschuss. */
@@ -84,14 +84,14 @@ export function CaloriesPage() {
         </button>
       </div>
 
-      <div className="card">
-        <div className="card__header">
-          <div className="card__title">{t("Verbrauch an diesem Tag")}</div>
+      <Section
+        title={t("Verbrauch an diesem Tag")}
+        note={(
           <button className="btn btn--ghost btn--icon btn--sm" onClick={() => setExplainOpen(true)} aria-label={t("Erklärung")}>
             <IconInfo />
           </button>
-        </div>
-
+        )}
+      >
         <div className="grid-auto">
           <Stat label={t("Grundumsatz")} value={fmt(energy.bmr)} unit={t("kcal")} sub={t("im Ruhezustand")} />
           <Stat label={t("Alltag (TDEE)")} value={fmt(energy.tdee)} unit={t("kcal")} sub={t(ACTIVITY_LABELS[state.profile.activityLevel]).split(' (')[0]} />
@@ -126,11 +126,10 @@ export function CaloriesPage() {
           <span className="small muted">{t("Protein-Ziel")}</span>
           <span className="bold mono">{proteinTarget(state.profile.weightKg)} g</span>
         </div>
-      </div>
+      </Section>
 
       {energy.perExercise.length > 0 && (
-        <div className="card card--flush">
-          <div className="section-label" style={{ padding: '12px 14px 4px' }}>{t("Verbrauch je Übung")}</div>
+        <Section title={t("Verbrauch je Übung")}>
           <table className="data">
             <thead>
               <tr><th>{t("Übung")}</th><th className="right">{t("Aktiv")}</th><th className="right">{t("kcal")}</th></tr>
@@ -145,17 +144,17 @@ export function CaloriesPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Section>
       )}
 
-      <div className="card">
-        <div className="card__header">
-          <div className="card__title">{t("Zufuhr")}</div>
+      <Section
+        title={t("Zufuhr")}
+        note={(
           <button className="btn btn--sm" onClick={() => setYazioOpen(true)}>
             <IconRefresh /> {t('Yazio')}
           </button>
-        </div>
-
+        )}
+      >
         <div className="grid-2">
           <div className="field">
             <label className="field__label">{t("Kalorien (kcal)")}</label>
@@ -195,20 +194,32 @@ export function CaloriesPage() {
         {entry?.source === 'yazio' && (
           <div className="tiny dim" style={{ marginTop: 6 }}>{t("Werte stammen aus Yazio.")}</div>
         )}
-      </div>
+      </Section>
 
-      <div className="card">
-        <div className="card__header">
-          <div className="card__title">{t("Verbrauch der letzten 30 Tage")}</div>
-        </div>
-        <LineChart points={history.burn} unit={t("kcal")} color="var(--warn)" />
+      {/*
+        * Balken, keine Linie: An Ruhetagen liegt der Verbrauch auf dem
+        * Alltagswert, an Trainingstagen darueber. Eine Linie dazwischen
+        * behauptet einen Uebergang, den es nicht gibt - was herauskam, war
+        * ein Saegezahn.
+        */}
+      <Section title={t("Verbrauch der letzten 30 Tage")} note={t("je Tag")}>
+        {/*
+          * Kuehler Ton statt Warnfarbe: Der Verbrauch ist eine Messreihe, keine
+          * Warnung. Gelb bedeutet in dieser App "sieh dir das an" - und das
+          * gilt hier fuer die Bilanz weiter unten, nicht fuer das Diagramm.
+          */}
+        <BarChart points={history.burn} unit={t("kcal")} color="var(--time)" label={t("Verbrauch je Tag")} />
         {history.intake.length > 1 && (
-          <>
-            <div className="section-label" style={{ margin: '14px 0 6px' }}>{t("Zufuhr")}</div>
-            <LineChart points={history.intake} unit={t("kcal")} color="var(--success)" />
-          </>
+          <Block title={t("Zufuhr")}>
+            <BarChart
+              points={history.intake}
+              unit={t("kcal")}
+              color="color-mix(in srgb, var(--time) 52%, var(--surface-3))"
+              label={t("Zufuhr je Tag")}
+            />
+          </Block>
         )}
-      </div>
+      </Section>
 
       {yazioOpen && <YazioDialog date={date} onClose={() => setYazioOpen(false)} />}
 

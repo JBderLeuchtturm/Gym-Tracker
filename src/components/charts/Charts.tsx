@@ -267,6 +267,9 @@ export function LineChart({
 
 /* --------------------------------------------------------------- Balken */
 
+/** Breiteste Spalte, die ein Balkendiagramm einem Wert zugesteht. */
+const MAX_SLOT = 86;
+
 export function BarChart({
   points, height = 170, color = 'var(--accent)', unit = '', label,
 }: {
@@ -289,8 +292,15 @@ export function BarChart({
   const max = Math.max(...points.map((point) => point.value), 1);
   const ticks = niceTicks(0, max, 3);
   const top = Math.max(max, ticks[ticks.length - 1]);
-  const slot = innerWidth / points.length;
-  const barWidth = Math.max(4, Math.min(34, slot * 0.62));
+  /*
+   * Wenige Balken auf viel Breite trieben frueher weit auseinander - fuenf
+   * Wochen auf 900 Pixel sahen aus wie versehentlich verstreut. Deshalb ein
+   * Hoechstmass je Spalte; bleibt Platz uebrig, rueckt die Gruppe in die Mitte.
+   */
+  const slot = Math.min(innerWidth / points.length, MAX_SLOT);
+  const groupWidth = slot * points.length;
+  const offset = padding.left + (innerWidth - groupWidth) / 2;
+  const barWidth = Math.max(4, Math.min(46, slot * 0.62));
   // Jede Beschriftung braucht ~34 px - sonst nur jede n-te anzeigen.
   const labelStep = Math.max(1, Math.ceil(34 / slot));
 
@@ -317,12 +327,12 @@ export function BarChart({
 
         {points.map((point, index) => {
           const barHeight = (point.value / top) * innerHeight;
-          const x = padding.left + slot * index + (slot - barWidth) / 2;
+          const x = offset + slot * index + (slot - barWidth) / 2;
           const y = padding.top + innerHeight - barHeight;
           return (
             <g key={`${point.label}-${index}`} onMouseEnter={() => setHover(index)}>
               <rect
-                x={padding.left + slot * index} y={padding.top}
+                x={offset + slot * index} y={padding.top}
                 width={slot} height={innerHeight} fill="transparent"
               />
               <rect
@@ -347,7 +357,7 @@ export function BarChart({
         <div
           className="chart-tooltip"
           style={{
-            left: Math.min(Math.max(4, padding.left + slot * hover - 30), Math.max(4, width - 120)),
+            left: Math.min(Math.max(4, offset + slot * hover - 30), Math.max(4, width - 120)),
             top: 2,
           }}
         >

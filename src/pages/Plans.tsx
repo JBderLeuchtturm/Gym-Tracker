@@ -17,6 +17,18 @@ import {
 import { customToExercises, decodePlan, encodePlan } from '../lib/planShare';
 import { printPlan } from '../lib/exportData';
 
+/**
+ * Der Kurzname eines Trainingstags fuer die schmale Spalte.
+ *
+ * "Push (Brust / Schulter / Trizeps)" bricht in 50 Pixeln mitten im Wort ab.
+ * Der Teil vor der Klammer sagt dasselbe und passt.
+ */
+const shortTitle = (title: string): string => {
+  const trimmed = title.trim();
+  const cut = trimmed.indexOf(' (');
+  return cut > 0 ? trimmed.slice(0, cut) : trimmed;
+};
+
 export function PlansPage() {
   const {
     state, addPlan, updatePlan, deletePlan, setActivePlan, getExercise, addExercise,
@@ -92,27 +104,31 @@ export function PlansPage() {
                 </div>
               </div>
 
-              <div className="day-strip" style={{ margin: '11px 0' }}>
+              {/*
+                * Sieben Spalten mit dem Namen des Tages darin. Vorher stand
+                * je Tag nur eine Zahl und der Titel im title-Attribut - auf
+                * dem Handy also nirgends. Man musste den Editor oeffnen, um
+                * den eigenen Plan zu lesen.
+                */}
+              <div className="weeksheet" style={{ margin: '11px 0' }}>
                 {plan.days.map((day, index) => {
                   const empty = day.isRestDay || day.exercises.length === 0;
                   const focus = dominantCategory(day, getExercise);
                   return (
-                    /*
-                     * Trainingstage heben sich ab, Ruhetage treten zurueck.
-                     * Vorher trug jeder Tag die Farbe seiner Muskelgruppe -
-                     * sieben Farben nebeneinander sahen aus wie ein Farbkasten
-                     * und sagten weniger als "hier wird trainiert".
-                     */
                     <div
                       key={day.weekday}
-                      className={`day-strip__item ${empty ? '' : 'day-strip__item--filled'}`}
-                      style={{ cursor: 'default' }}
+                      className={`weeksheet__day ${empty ? '' : 'weeksheet__day--plan'}`}
                       title={empty ? t('Ruhetag') : `${day.title} · ${t(CATEGORY_LABELS[focus])}`}
                     >
-                      <span>{t(WEEKDAY_SHORT[index])}</span>
-                      <span className="day-strip__num" style={{ fontSize: '0.78rem' }}>
-                        {empty ? '–' : day.exercises.length}
+                      <span className="weeksheet__wd">{t(WEEKDAY_SHORT[index])}</span>
+                      <span className="weeksheet__title weeksheet__title--strong">
+                        {empty ? t('frei') : shortTitle(day.title)}
                       </span>
+                      {!empty && (
+                        <span className="weeksheet__sets">
+                          {t('{count} Üb.', { count: day.exercises.length })}
+                        </span>
+                      )}
                     </div>
                   );
                 })}
@@ -240,7 +256,20 @@ function PlanEditor({
   onChange: (updater: (plan: Plan) => Plan) => void;
   getExercise: (id: string) => Exercise | undefined;
 }) {
-  const [activeDay, setActiveDay] = useState<Weekday>(weekdayOf(todayISO()) as Weekday);
+  /*
+   * Der Editor oeffnet auf dem heutigen Tag - es sei denn, heute ist frei.
+   * Dann landete man bisher auf einer leeren Seite und musste erst suchen,
+   * wo ueberhaupt etwas drinsteht.
+   */
+  const [activeDay, setActiveDay] = useState<Weekday>(() => {
+    const today = weekdayOf(todayISO()) as Weekday;
+    const day = plan.days[today];
+    if (day && !day.isRestDay && day.exercises.length > 0) return today;
+    const firstTrainingDay = plan.days.findIndex(
+      (item) => !item.isRestDay && item.exercises.length > 0,
+    );
+    return (firstTrainingDay >= 0 ? firstTrainingDay : today) as Weekday;
+  });
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<PlanExercise | null>(null);
 

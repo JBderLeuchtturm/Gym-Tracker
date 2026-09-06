@@ -215,7 +215,7 @@ export async function run() {
     await second.page.locator('.day-strip__item').first().click();
     await second.page.waitForTimeout(500);
     const card = second.page.locator('.exercise').first();
-    if (await card.locator('.set-row').count() === 0) await card.locator('.exercise__head').click();
+    await openCard(card, second.page);
     const inputs = card.locator('.set-row').first().locator('input');
     await inputs.nth(0).fill('95'); await inputs.nth(0).blur();
     await inputs.nth(1).fill('5');  await inputs.nth(1).blur();
@@ -237,9 +237,11 @@ export async function run() {
     if (!count || Number(count) < 1) throw new Error('Training vom zweiten Gerät kam nicht an');
   
     // Der Startplan darf sich beim Zusammenfuehren nicht verdoppeln.
+    // Je Plan eine Wochenuebersicht - die traegt seit der Umgestaltung die
+    // Tagestitel und heisst deshalb wie das Wochenblatt.
     await a.page.locator('.nav__item').nth(1).click();
     await a.page.waitForTimeout(600);
-    const planCount = await a.page.locator('.day-strip').count();
+    const planCount = await a.page.locator('.weeksheet').count();
     console.log('    Pläne auf Gerät 1:', planCount);
     if (planCount !== 1) throw new Error(`${planCount} Pläne statt 1 - Startplan wurde dupliziert`);
     await second.ctx.close();

@@ -1,6 +1,7 @@
 import { t } from '../i18n';
 import type { AppState, Exercise, ID, PlanExercise, SetLog } from '../types';
 import { estimate1RM, exerciseHistory, personalRecords } from './stats';
+import { formatSet } from './setFormat';
 
 /**
  * Kleine Trainingshelfer: Aufwaermsaetze, Gewichtsvorschlag und das Erkennen
@@ -122,6 +123,7 @@ export function detectRecord(
   exerciseId: ID,
   set: SetLog,
   date: string,
+  kind?: Exercise['kind'],
 ): NewRecord | null {
   if (set.isWarmup) return null;
 
@@ -135,7 +137,7 @@ export function detectRecord(
   const duration = set.durationSec ?? 0;
 
   if (weight > 0 && weight > (before.maxWeight?.value ?? 0)) {
-    return { kind: 'weight', label: t('Neues Bestgewicht'), value: `${fmtKg(weight)} × ${reps}` };
+    return { kind: 'weight', label: t('Neues Bestgewicht'), value: formatSet(weight, reps, kind) };
   }
 
   const oneRm = estimate1RM(weight, reps);

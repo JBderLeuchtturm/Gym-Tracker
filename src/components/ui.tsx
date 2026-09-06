@@ -351,13 +351,42 @@ export function Block({
  * Leerer Zustand.
  *
  * Bewusst ohne Symbol: Ein grosses Emoji ueber jeder leeren Liste sieht auf
- * Dauer beliebig aus und sagt nichts. Ein klarer Satz sagt mehr.
+ * Dauer beliebig aus und sagt nichts. Ein klarer Satz sagt mehr - und wo es
+ * einen naechsten Schritt gibt, steht er als Knopf dabei. "Hier ist nichts"
+ * ist eine Auskunft; "hier ist nichts, und so kommt etwas hin" ist eine Hilfe.
  */
-export function EmptyState({ title, hint }: { title: string; hint?: string }) {
+export function EmptyState({
+  title, hint, actionLabel, onAction,
+}: {
+  title: string;
+  hint?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
   return (
     <div className="empty">
       <div className="empty__title">{title}</div>
       {hint && <div className="empty__hint">{hint}</div>}
+      {actionLabel && onAction && (
+        <button className="btn btn--sm" style={{ marginTop: 12 }} onClick={onAction}>
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Platzhalter, waehrend eine Seite nachgeladen wird - in der Form dessen,
+ * was gleich kommt.
+ */
+export function PageSkeleton() {
+  return (
+    <div className="skeleton" aria-hidden="true">
+      <div className="skeleton__bar" style={{ width: '45%' }} />
+      <div className="skeleton__block" />
+      <div className="skeleton__block" />
+      <div className="skeleton__block" style={{ height: 140 }} />
     </div>
   );
 }

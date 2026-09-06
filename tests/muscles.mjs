@@ -59,14 +59,20 @@ export async function run() {
 
   await runner.step('Heutige Abdeckung erscheint nach dem Abhaken', async () => {
     await logSet(page, page.locator('.exercise').last(), { kg: 40, reps: 10 });
-    const card = page.locator('.card', { has: page.locator('.bodymap') }).first();
-    if (!/Heute beansprucht/.test(await card.innerText())) throw new Error('keine Tagesübersicht');
+    // Der Tagesueberblick steht jetzt als Streifen da; die Karte ist einen
+    // Tipper entfernt.
+    const strip = page.locator('.muscle-strip__item--done');
+    if (await strip.count() === 0) throw new Error('keine trainierte Region im Streifen');
+
+    await page.locator('.section__head .btn', { hasText: 'Karte' }).first().click();
+    await page.waitForTimeout(400);
+    if (await page.locator('.bodymap svg').count() < 2) throw new Error('keine Körperkarte');
   });
 
   await runner.step('Auswertung zeigt die Belastungskarte', async () => {
     await page.locator('.nav__item', { hasText: 'Fortschritt' }).first().click();
     await page.waitForTimeout(700);
-    const card = page.locator('.card', { has: page.locator('.bodymap') }).first();
+    const card = page.locator('.section', { has: page.locator('.bodymap') }).first();
     if (await card.count() === 0) throw new Error('keine Belastungskarte');
     await card.locator('g[role="button"][aria-label="Beinbizeps"] path').first().click();
     await page.waitForTimeout(400);

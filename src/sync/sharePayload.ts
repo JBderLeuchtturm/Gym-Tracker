@@ -1,6 +1,7 @@
 import type { AppState, Exercise, ID } from '../types';
 import { addDays, todayISO } from '../lib/date';
 import { calcDayEnergy } from '../lib/calories';
+import { formatSet } from '../lib/setFormat';
 import {
   exerciseHistory, personalRecords, streakInfo, weeklySummaries, workoutSetCount, workoutVolume,
   countsAsWork,
@@ -128,13 +129,23 @@ export function buildProgressShare(
 
   // Die letzten Trainingstage kurz zusammengefasst.
   const recent: RecentSession[] = done.slice(-40).map((workout) => {
-    let best: { weight: number; reps: number; name: string } | null = null;
+    /*
+      * Der Hoehepunkt eines Tages ist der schwerste Satz - und wenn an dem Tag
+      * nichts gewogen wurde, der mit den meisten Wiederholungen. Frueher blieb
+      * ein reiner Koerpergewichtstag ohne Hoehepunkt.
+      */
+    let best: { weight: number; reps: number; name: string; kind?: Exercise['kind'] } | null = null;
     for (const logged of workout.exercises) {
+      const exercise = getExercise(logged.exerciseId);
       for (const set of logged.sets) {
         if (!countsAsWork(set)) continue;
         const weight = set.weightKg ?? 0;
-        if (weight > 0 && (!best || weight > best.weight)) {
-          best = { weight, reps: set.reps ?? 0, name: getExercise(logged.exerciseId)?.name ?? '' };
+        const reps = set.reps ?? 0;
+        const better = best === null
+          || weight > best.weight
+          || (weight === best.weight && reps > best.reps);
+        if ((weight > 0 || reps > 0) && better) {
+          best = { weight, reps, name: exercise?.name ?? '', kind: exercise?.kind };
         }
       }
     }
@@ -145,7 +156,7 @@ export function buildProgressShare(
       volume: round(workoutVolume(workout)),
       minutes: workout.durationMin ?? null,
       highlight: best && best.name
-        ? `${best.name}: ${round(best.weight)} kg × ${best.reps}`
+        ? `${best.name}: ${formatSet(best.weight, best.reps, best.kind)}`
         : null,
     };
   }).reverse();

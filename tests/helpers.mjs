@@ -94,11 +94,18 @@ export function createRunner(name) {
   };
 }
 
-/** Klappt eine Uebungskarte auf, falls sie zu ist. */
+/**
+ * Klappt eine Uebungskarte auf, falls sie zu ist.
+ *
+ * Geprueft wird die Sichtbarkeit, nicht das Vorhandensein: Seit die Karte mit
+ * einem Uebergang aufklappt, steht ihr Inhalt auch zugeklappt im Dokument -
+ * nur eben mit Hoehe null und "visibility: hidden".
+ */
 export async function openCard(card, page) {
-  if (await card.locator('.set-row').count() === 0) {
+  const firstRow = card.locator('.set-row').first();
+  if (await firstRow.count() === 0 || !(await firstRow.isVisible())) {
     await card.locator('.exercise__head').click();
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(350);
   }
 }
 

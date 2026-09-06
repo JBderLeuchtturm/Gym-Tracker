@@ -2,6 +2,82 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Fünfte Runde: die Funde und die Gestaltung
+
+*Branch `claude/fuenfte-runde`*
+
+Setzt die Abschnitte „Was beim Durchsehen aufgefallen ist" und „Gestaltung"
+aus [#17](https://github.com/JBderLeuchtturm/Gym-Tracker/issues/17) um.
+
+**Die neun Funde**
+- **Körpergewichtsübungen zeigten „0 kg × 9".** Null Kilo ist keine Angabe,
+  sondern eine fehlende. Dieselbe Zeile stand an neun Stellen im Code – das
+  war der Grund, warum der Fehler an neun Stellen zu sehen war. Jetzt einmal
+  in `src/lib/setFormat.ts`: „9 Wdh" bei Körpergewicht, „+10 kg × 9" mit
+  Zusatzgewicht.
+- **Die Körperkarte war im hellen Thema fast unsichtbar** – 1,14 zu 1. Sie hat
+  jetzt eigene Farbtöne, der Umriss erreicht in beiden Themen 3 zu 1.
+- **Der Wochenplan verrät seine Tage.** Statt einer Zahl je Tag steht der Name
+  darin, in derselben Form wie das Wochenblatt.
+- **Der Planeditor öffnet auf einem Trainingstag**, nicht auf dem heutigen
+  Ruhetag mit leerem Inhalt.
+- **Der Kalorienverlauf besteht aus Balken.** Eine Linie zwischen Trainings-
+  und Ruhetagen behauptet einen Übergang, den es nicht gibt.
+- **Die Kalorienseite ist gegliedert** wie die Auswertung – Überschriften mit
+  Linie statt Kartenstapel.
+- **„Kein Vergleichszeitraum" steht einmal** statt dreimal „neu".
+- **Die Freunde-Seite zeigt erst, wozu es gut ist.** Die Einrichtung mit
+  SQL-Editor und Schlüsseln liegt dahinter, hinter einem Knopf.
+- **Breite Fenster laufen nicht mehr auseinander.** Lesebreite 760 Pixel; wo
+  zwei Spalten sinnvoll sind, gibt es zwei.
+
+**Struktur und Raum**
+- **Zwei Spalten ab 900 Pixel** auf Training und Auswertung: links das
+  Laufende, rechts das Nachschlagende. Darunter löst sich das Raster auf.
+- **Eine Kopfzeile weniger.** Wochenleiste und Tagesnavigation sagten dasselbe;
+  jetzt tragen die Pfeile an der Wochenleiste ganze Wochen, und darunter steht
+  eine Zeile mit Tag, Plantitel und Zykluswoche.
+- **Die Körperkarte auf der Startseite ist ein Streifen** aus Punkten und
+  Namen. Zwei ganze Körper waren dort fast ein Bildschirm; die Karte ist einen
+  Tipper entfernt.
+- **Eine Rahmensorte weniger.** Abschnitte gliedern die Seite, Karten sind für
+  Dinge, die man einzeln anfassen kann.
+
+**Satzliste**
+- **Erledigte Sätze treten zurück**, der nächste offene bekommt einen Strich
+  am linken Rand.
+- **Zahlenfelder ohne Dauerrahmen** – sichtbar wird der Rahmen dort, wo man
+  gerade steht.
+- **Einheiten nur in der Kopfzeile**, nicht zusätzlich in jedem Feld.
+- **Größere Ziffern**: 17 px statt 16, halbfett. Es ist eine Zahlenliste.
+
+**Farbe und Schrift**
+- **Messing bedeutet nur noch Bedienung.** Kalender, Wochenblatt und die
+  Diagramme über die Zeit haben einen eigenen, kühlen Ton bekommen; der
+  Tagesbalken ist grün wie ein abgehakter Satz.
+- **Drei Muskelgruppen-Farben lagen auf Systemfarben** – Terrakotta drei Grad
+  neben „Gefahr", Ocker fünf neben dem Akzent. Eine Brustübung sah aus wie ein
+  Fehler, eine Schulterübung wie ein Knopf. Die Palette ist umgeräumt, jeder
+  Ton erreicht auf hellem wie dunklem Grund mindestens 4 zu 1.
+- **Die Kategorie steht als Punkt daneben**, der Name bleibt neutral. Farbe im
+  Text trägt sonst eine Bedeutung, die sie hier nicht hat.
+- **Vier Überschriftengrößen statt sechs.**
+
+**Rückmeldung**
+- **Übungskarten klappen auf**, statt zu erscheinen – über die Zeilenhöhe eines
+  Rasters, dem einzigen Weg, in reinem CSS auf eine unbekannte Höhe zu blenden.
+  Zugeklappt ist der Inhalt auch für Tastatur und Vorleseprogramm weg; vorher
+  wären es zwölf unsichtbare Eingabefelder je Karte gewesen.
+- **Bestleistungen blitzen in der Zeile auf**, in der sie passiert sind.
+- **Leere Zustände bieten einen Weg an** statt nur festzustellen, dass nichts
+  da ist.
+- **Ladeplatzhalter in der Form dessen, was kommt.**
+
+**Geprüft**
+- Dreizehnter Testlauf `tests/fuenfte.mjs`, vierzehn Prüfungen – darunter
+  Kontrast der Silhouette und Abstand der Kategorienfarben zu den
+  Systemfarben, beide im laufenden Browser gerechnet.
+
 ## Vierte Runde: Rechner, Studio-Handgriffe, Anleitungen, Wetter
 
 *Branch `claude/vierte-runde`*

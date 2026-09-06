@@ -5,6 +5,7 @@ import { CATEGORY_LABELS, KIND_LABELS } from '../data/catalog';
 import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { formatClock, formatDateShort, formatDateTiny } from '../lib/date';
 import { exerciseHistory, familyHistory, personalRecords } from '../lib/stats';
+import { formatSet } from '../lib/setFormat';
 import { familyMembers, familyOf } from '../lib/variants';
 import { GOAL_LABELS, GOAL_UNITS, PACE_LABELS, goalPace, goalStatus } from '../lib/goals';
 import { addDays, todayISO } from '../lib/date';
@@ -216,7 +217,7 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
                       <td className="right mono nowrap">
                         {session.topSet?.durationSec
                           ? formatClock(session.topSet.durationSec)
-                          : `${fmt(session.topSet?.weightKg ?? 0, 1)} kg × ${session.topSet?.reps ?? 0}`}
+                          : formatSet(session.topSet?.weightKg, session.topSet?.reps, exercise.kind)}
                       </td>
                       <td className="right mono nowrap">{session.volume > 0 ? `${fmt(session.volume)} kg` : '–'}</td>
                     </tr>
@@ -231,7 +232,11 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
               </div>
               <div className="list">
                 {records.maxWeight && (
-                  <RecordRow label={t("Schwerster Satz")} value={`${fmt(records.maxWeight.value, 1)} kg × ${records.maxWeight.reps}`} date={records.maxWeight.date} />
+                  <RecordRow
+                    label={t("Schwerster Satz")}
+                    value={formatSet(records.maxWeight.value, records.maxWeight.reps, exercise.kind)}
+                    date={records.maxWeight.date}
+                  />
                 )}
                 {records.maxReps && (
                   <RecordRow label={t("Meiste Wiederholungen")} value={`${records.maxReps.value} Wdh`} date={records.maxReps.date} />

@@ -167,6 +167,19 @@ eigene Schrift dafür wäre schöner, kostet aber einen Ladevorgang, den eine Ap
 die offline starten soll, nicht braucht – die Systemschriften von Apple, Google
 und Microsoft bringen tabellarische Ziffern alle mit.
 
+**Farbe hat eine Bedeutung, und zwar genau eine.** Messing heißt Bedienung:
+hier bist du, hier drückst du. Grün heißt erledigt. Gelb und Rot heißen sieh
+her. Ein kühler Ton trägt alles Zeitliche – Kalender, Wochenblatt, Verläufe.
+Die Farben der Muskelgruppen erscheinen nur als Punkt neben einem neutral
+gesetzten Namen: Farbe im Text würde eine Bedeutung tragen, die sie dort nicht
+hat, und drei von ihnen lagen so nah an Akzent und Warnfarbe, dass eine
+Brustübung wie ein Fehler aussah.
+
+**Auf breiten Fenstern stehen zwei Spalten**, links das Laufende und rechts das
+Nachschlagende. Sonst bleibt der Text auf Lesebreite: Eine Zeile ist bei etwa
+65 Zeichen am besten zu lesen, und eine Eingabemaske über den halben Monitor
+zwingt die Augen bei jeder Zeile einmal quer.
+
 ## Zugänglichkeit
 
 Jede Textfarbe erreicht auf jedem Untergrund mindestens 4,5 zu 1 nach WCAG AA;
@@ -179,6 +192,11 @@ dieselben Zahlen als unsichtbare Tabelle daneben. Eine Kurzbeschreibung
 („steigt leicht") wäre eine Auslegung; die Zahlen selbst sind es nicht. Im
 Trainingskalender sind nur die Tage mit Training anspringbar – sonst wären es
 189 Haltepunkte, von denen die meisten nichts zu sagen haben.
+
+Zugeklappte Übungskarten sind auch für Tastatur und Vorleseprogramm zu; sonst
+stünden dort zwölf Eingabefelder je Karte, die man anspringen kann, ohne sie zu
+sehen. Die Körperkarte hebt sich in beiden Themen mit mindestens 3 zu 1 vom
+Untergrund ab – das Maß für Grafik, die etwas bedeutet.
 
 ## Sprache
 
@@ -199,11 +217,12 @@ npm run build && npm test        # alle Läufe
 npm test training                # nur einen Lauf
 ```
 
-Zwölf Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
+Dreizehn Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
 Übungssuche ohne Netz, Layout auf schmalen Geräten, Muskelkarte, Wochenziele
 und Zyklen, Rückgängig und Querformat, Rechner und Studio-Handgriffe,
-Mehrsprachigkeit, Freunde und Freigaben, Gruppen und Challenges sowie
-Einladungslinks ab.
+Gestaltung und Zugänglichkeit, Mehrsprachigkeit, Freunde und Freigaben,
+Gruppen und Challenges sowie Einladungslinks ab. Kontraste und Farbabstände
+werden dabei im laufenden Browser nachgerechnet, nicht nach Augenmaß beurteilt.
 
 Kein Testlauf fasst einen fremden Dienst an: Die Läufe mit Konto arbeiten gegen
 ein nachgebautes Supabase unter
