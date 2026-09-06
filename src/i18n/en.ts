@@ -1027,4 +1027,32 @@ export const EN: Record<string, string> = {
   'Wie richte ich das ein?': 'How do I set this up?',
   'Anleitung ausblenden': 'Hide the instructions',
   'Einrichten, etwa fünf Minuten': 'Setting up, about five minutes',
+
+  /* ------------------------ Siebte Runde: Auswertung, Pläne, Ernährung */
+  'Wochentage': 'Weekdays',
+  '{count} Trainings': '{count} workouts',
+  'Jahr {year}': '{year}',
+  '{weeks} aktive Wochen': '{weeks} active weeks',
+  'Häufigste Übung': 'Most-trained exercise',
+  '{count}×': '{count}×',
+  'Schwerpunkt': 'Focus',
+  'Neue Bestwerte': 'New bests',
+  'Zeit unter der Hantel': 'Time under the bar',
+  '{hours} h': '{hours} h',
+  'Belastung': 'Load',
+  'letzte 7 Tage': 'last 7 days',
+  'RPE ø': 'RPE avg',
+  'Zeitraum davor': 'Period before',
+  'Bestleistungen': 'Personal bests',
+  '{count} Übungen': '{count} exercises',
+  'Weniger zeigen': 'Show fewer',
+  'Alle {count} zeigen': 'Show all {count}',
+  '{kg} kg bewegt': '{kg} kg moved',
+  'Volumen und Anstrengung ziehen beide deutlich an. Eine leichtere Woche könnte sich lohnen.':
+    'Volume and effort are both climbing sharply. An easier week might be worth it.',
+  'Es wird gerade mehr als in der Woche davor – nichts Dramatisches, nur zum Mitdenken.':
+    'You are doing more than the week before – nothing dramatic, just worth noticing.',
+  'Belastung etwa wie in der Woche davor.': 'Load is about the same as the week before.',
+  'Ruhigere Woche als die davor – gut für die Erholung.':
+    'A quieter week than the one before – good for recovery.',
 };

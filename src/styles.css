@@ -1563,6 +1563,58 @@ table.data tr:last-child td { border-bottom: 0; }
 }
 .day-strip__item--filled .day-strip__num { color: var(--text); }
 
+/* ---------------------------------------------------- Wochentags-Muster */
+
+.weekday-bars {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  align-items: end;
+}
+.weekday-bars__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.weekday-bars__track {
+  width: 100%;
+  height: 64px;
+  display: flex;
+  align-items: flex-end;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.weekday-bars__fill {
+  width: 100%;
+  background: var(--time);
+  min-height: 2px;
+  transition: height 0.3s var(--ease);
+}
+.weekday-bars__num {
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.weekday-bars__wd {
+  font-size: 0.66rem;
+  color: var(--text-dim);
+}
+
+/* Hinweis zur Belastung - ein eingerueckter Absatz, kein Warnton. */
+.load-note {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border-left: 2px solid var(--time);
+  font-size: 0.85rem;
+}
+.load-note--rising { border-left-color: var(--warn); }
+.load-note--high { border-left-color: var(--danger); }
+.load-note--quiet { border-left-color: var(--success); }
+
 /* ------------------------------------------------------- Duenne Datenlage */
 
 /*

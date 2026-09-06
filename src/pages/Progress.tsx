@@ -5,10 +5,12 @@ import { CATEGORY_LABELS } from '../data/catalog';
 import { categoryColor } from '../lib/categoryColors';
 import { addDays, formatDateShort, formatDateTiny, startOfWeek, todayISO } from '../lib/date';
 import {
-  buildReview, categoryTrend, exerciseHistory, personalRecords, streakInfo, volumeByCategory,
-  weeklySummaries, workoutSetCount, workoutVolume,
+  allTimeRecords, buildReview, categoryTrend, exerciseHistory, personalRecords, streakInfo,
+  volumeByCategory, weekdayPattern, weeklySummaries, workoutSetCount, workoutVolume, yearReview,
   countsAsWork,
 } from '../lib/stats';
+import { fatigueSignal } from '../lib/fatigue';
+import { WEEKDAY_SHORT } from '../lib/date';
 import { useStore } from '../storage/store';
 import {
   BarChart, LineChart, Sparkline, StackedBarChart, YearHeatmap, type Point,
@@ -54,6 +56,7 @@ export function ProgressPage() {
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [filter, setFilter] = useState('');
   const [calendarDay, setCalendarDay] = useState<string | null>(null);
+  const [recordsOpen, setRecordsOpen] = useState(false);
   const toast = useToast();
 
   const since = range === 0 ? '0000-01-01' : addDays(todayISO(), -range);
@@ -202,6 +205,12 @@ export function ProgressPage() {
     return trackedExercises.filter((item) => item.exercise!.name.toLowerCase().includes(needle));
   }, [trackedExercises, filter]);
 
+  const weekdays = useMemo(() => weekdayPattern(state, since), [state, since]);
+  const fatigue = useMemo(() => fatigueSignal(state), [state]);
+  const records = useMemo(() => allTimeRecords(state, getExercise), [state, getExercise]);
+  const thisYear = new Date().getFullYear();
+  const year = useMemo(() => yearReview(state, thisYear, getExercise), [state, thisYear, getExercise]);
+
   return (
     <>
       <div className="chip-scroll">
@@ -326,6 +335,32 @@ export function ProgressPage() {
             </Section>
           )}
 
+          {weekdays.some((day) => day.workouts > 0) && (
+            <Section title={t("Wochentage")} note={RANGE_LABELS[range]}>
+              {/*
+                * An welchem Tag wird trainiert, an welchem faellt es aus. Nur
+                * Tage mit gearbeiteten Saetzen zaehlen.
+                */}
+              <div className="weekday-bars">
+                {weekdays.map((day) => {
+                  const max = Math.max(1, ...weekdays.map((item) => item.workouts));
+                  return (
+                    <div className="weekday-bars__col" key={day.weekday} title={t('{count} Trainings', { count: day.workouts })}>
+                      <div className="weekday-bars__track">
+                        <div
+                          className="weekday-bars__fill"
+                          style={{ height: `${(day.workouts / max) * 100}%` }}
+                        />
+                      </div>
+                      <span className="weekday-bars__num">{day.workouts}</span>
+                      <span className="weekday-bars__wd">{t(WEEKDAY_SHORT[day.weekday])}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </Section>
+          )}
+
           <Section title={t("Trainingskalender")} note={t("letzte 27 Wochen")}>
             <YearHeatmap
               days={calendarDays}
@@ -344,9 +379,73 @@ export function ProgressPage() {
               </div>
             )}
           </Section>
+
+          {year.workouts >= 5 && (
+            <Section
+              title={t('Jahr {year}', { year: year.year })}
+              note={t('{weeks} aktive Wochen', { weeks: year.activeWeeks })}
+            >
+              <div className="grid-auto">
+                <Stat label={t("Einheiten")} value={year.workouts} />
+                <Stat label={t("Sätze")} value={fmt(year.sets)} />
+                <Stat label={t("Volumen")} value={fmt(year.volume)} unit={t("kg")} />
+                <Stat
+                  label={t("Wochen-Serie")}
+                  value={year.bestStreakWeeks}
+                  unit={year.bestStreakWeeks === 1 ? t('Woche') : t('Wochen')}
+                />
+              </div>
+              <div className="list" style={{ marginTop: 12 }}>
+                {year.topExercise && (
+                  <div className="row row--between small">
+                    <span className="muted">{t("Häufigste Übung")}</span>
+                    <span className="bold">{year.topExercise.name} · {t('{count}×', { count: year.topExercise.sessions })}</span>
+                  </div>
+                )}
+                {year.topCategory && (
+                  <div className="row row--between small">
+                    <span className="muted">{t("Schwerpunkt")}</span>
+                    <span className="bold">
+                      {labelOf(year.topCategory.category)} · {t('{count} Sätze', { count: year.topCategory.sets })}
+                    </span>
+                  </div>
+                )}
+                {year.heaviestLift && (
+                  <div className="row row--between small">
+                    <span className="muted">{t("Schwerster Satz")}</span>
+                    <span className="bold mono">{year.heaviestLift.value}</span>
+                  </div>
+                )}
+                {year.records > 0 && (
+                  <div className="row row--between small">
+                    <span className="muted">{t("Neue Bestwerte")}</span>
+                    <span className="bold">{year.records}</span>
+                  </div>
+                )}
+                {year.minutes > 0 && (
+                  <div className="row row--between small">
+                    <span className="muted">{t("Zeit unter der Hantel")}</span>
+                    <span className="bold">{t('{hours} h', { hours: Math.round(year.minutes / 60) })}</span>
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
           </div>
 
           <div className="split__side">
+            {fatigue && fatigue.level !== 'steady' && (
+              <Section title={t("Belastung")} note={t("letzte 7 Tage")}>
+                <div className={`load-note load-note--${fatigue.level}`}>
+                  {t(fatigue.text)}
+                </div>
+                <div className="row row--between tiny dim" style={{ marginTop: 8 }}>
+                  <span>{t('Volumen')}: {fmt(fatigue.recentVolume)} kg</span>
+                  {fatigue.recentRpe != null && <span>{t('RPE ø')} {fmt(fatigue.recentRpe, 1)}</span>}
+                </div>
+              </Section>
+            )}
+
             <ReviewCard review={review} label={RANGE_LABELS[range]} />
 
             <MuscleLoadCard
@@ -423,6 +522,43 @@ export function ProgressPage() {
         ))}
         </div>
       </Section>
+
+      {records.length > 0 && (
+        <Section title={t("Bestleistungen")} note={t('{count} Übungen', { count: records.length })}>
+          {/* Alle Bestwerte auf einer Liste, nicht je Übung verstreut. */}
+          <div className="card card--flush">
+            {(recordsOpen ? records : records.slice(0, 8)).map((record) => (
+              <button
+                key={record.exerciseId}
+                className="search-result"
+                onClick={() => {
+                  const exercise = getExercise(record.exerciseId);
+                  if (exercise) setDetail(exercise);
+                }}
+              >
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span className="search-result__name">{record.name}</span>
+                  <span className="search-result__meta" style={{ display: 'block' }}>
+                    {t('{count} Einheiten', { count: record.sessions })}
+                    {record.date && ` · ${formatDateShort(record.date)}`}
+                  </span>
+                </span>
+                <span className="bold mono nowrap">{record.best}</span>
+                <IconChevronRight style={{ width: 16, height: 16, color: 'var(--text-dim)', flexShrink: 0 }} />
+              </button>
+            ))}
+          </div>
+          {records.length > 8 && (
+            <button
+              className="btn btn--sm btn--ghost"
+              style={{ marginTop: 8 }}
+              onClick={() => setRecordsOpen(!recordsOpen)}
+            >
+              {recordsOpen ? t('Weniger zeigen') : t('Alle {count} zeigen', { count: records.length })}
+            </button>
+          )}
+        </Section>
+      )}
 
       <Section title={t("Auswertung mitnehmen")}>
         <div className="tiny dim" style={{ marginTop: -6 }}>
@@ -514,7 +650,13 @@ function ReviewCard({ review, label }: { review: ReturnType<typeof buildReview>;
           return (
             <div key={row.name} className="row row--between">
               <span className="small muted">{row.name}</span>
-              <span className="row" style={{ gap: 9 }}>
+              <span className="row" style={{ gap: 9, alignItems: 'baseline' }}>
+                {/* Der Vorzeitraum steht daneben, nicht nur als Prozentzahl versteckt. */}
+                {!noComparison && (
+                  <span className="tiny dim mono" title={t('Zeitraum davor')}>
+                    {fmt(row.before)}
+                  </span>
+                )}
                 <span className="bold mono">
                   {fmt(row.now)}{row.unit && <span className="dim"> {row.unit}</span>}
                 </span>
@@ -688,6 +830,14 @@ function MuscleLoadCard({
               {fmt(detail?.sets ?? 0, 1)} / {targetFor(targets, selected)} {t("Sätze")}
             </span>
           </div>
+
+          {/* Zwoelf Saetze Seitheben und zwoelf Saetze Kniebeugen sind nicht
+              dieselbe Arbeit - deshalb steht das bewegte Gewicht daneben. */}
+          {(detail?.volume ?? 0) > 0 && (
+            <div className="tiny dim">
+              {t('{kg} kg bewegt', { kg: fmt(detail?.volume ?? 0) })}
+            </div>
+          )}
 
           <div className="tiny dim">
             {lastSeen === null
