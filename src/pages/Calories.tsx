@@ -702,10 +702,10 @@ function FoodDialog({
             <button
               className="btn btn--primary btn--block"
               style={{ marginTop: 10 }}
-              disabled={!scaled || !grams}
+              disabled={!scaled || !grams || product.kcal100 == null}
               onClick={() => scaled && onAdd(scaled, product.name)}
             >
-              {t('Zum Tag dazurechnen')}
+              {product.kcal100 == null ? t('Keine Nährwerte hinterlegt') : t('Zum Tag dazurechnen')}
             </button>
             <button
               className="btn btn--ghost btn--block btn--sm"

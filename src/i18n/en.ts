@@ -1095,6 +1095,7 @@ export const EN: Record<string, string> = {
   '{kcal} kcal / 100 g': '{kcal} kcal / 100 g',
   '{kcal} kcal': '{kcal} kcal',
   'Zurück zur Suche': 'Back to search',
+  'Keine Nährwerte hinterlegt': 'No nutrition on record',
   'Im Defizit – passt zum Abnehmen': 'In a deficit – good for losing',
   'Über dem Ziel – das Defizit ist weg': 'Over target – the deficit is gone',
   'Im Überschuss – passt zum Aufbauen': 'In a surplus – good for gaining',
