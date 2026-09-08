@@ -1,5 +1,5 @@
 import { t } from './i18n';
-import React, { Suspense, lazy, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useStore } from './storage/store';
 import { TodayPage } from './pages/Today';
 
@@ -55,6 +55,8 @@ export function App() {
   // Wer über einen Einladungslink kommt, landet direkt bei den Freunden.
   const [tab, setTab] = useState<Tab>(() => (sync.pendingInvite ? 'friends' : 'today'));
   const [historyOpen, setHistoryOpen] = useState(false);
+  /* Der scrollende Bereich - beim Reiterwechsel geht er zurueck nach oben. */
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [updateReady, setUpdateReady] = useState(false);
 
   useEffect(() => onUpdateAvailable(setUpdateReady), []);
@@ -117,7 +119,7 @@ export function App() {
           <button
             key={item.id}
             className={`nav__item ${tab === item.id ? 'nav__item--active' : ''}`}
-            onClick={() => { setTab(item.id); setHistoryOpen(false); window.scrollTo({ top: 0 }); }}
+            onClick={() => { setTab(item.id); setHistoryOpen(false); scrollRef.current?.scrollTo({ top: 0 }); }}
             aria-current={tab === item.id ? 'page' : undefined}
           >
             <span className="nav__icon">
@@ -133,6 +135,11 @@ export function App() {
         ))}
       </nav>
 
+      {/*
+        * Der einzige Bereich, der scrollt. Kopfzeile und Reiter stehen
+        * ausserhalb und koennen deshalb nicht wegrutschen.
+        */}
+      <div className="app__scroll" ref={scrollRef}>
       <TrainingReminder onOpen={() => { setTab('today'); setHistoryOpen(false); }} />
 
       {updateReady && (
@@ -182,6 +189,7 @@ export function App() {
           </Suspense>
         </ErrorBoundary>
       </main>
+      </div>
     </div>
   );
 }

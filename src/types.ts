@@ -338,6 +338,14 @@ export interface Settings {
    * Trainingseintrag.
    */
   shareRank: boolean;
+  /**
+   * Zuletzt angezeigte Rangstufe.
+   *
+   * Nur dafuer da, einen Auf- oder Abstieg einmal zu melden. Der Rang selbst
+   * wird immer frisch aus dem Verlauf gerechnet und nie gespeichert - was hier
+   * steht, ist eine Erinnerung an das, was zuletzt auf dem Bildschirm stand.
+   */
+  lastSeenRank?: { tier: string; score: number; on: string };
   yazio: YazioSettings;
   /** Gespeicherte Mahlzeiten fuer den schnellen Eintrag. */
   mealPresets: MealPreset[];

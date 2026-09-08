@@ -2,7 +2,13 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!--
+      minimum-scale=1 verhindert das Herauszoomen unter die eigene Breite. Ohne das
+      laesst Chrome bis auf ein Viertel verkleinern - dann steht die App klein in der
+      Ecke, laesst sich seitlich verschieben und die Reiterleiste rutscht aus dem Bild.
+      Hineinzoomen bleibt ausdruecklich moeglich: Wer schlecht sieht, braucht das.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0c0d0f" />
     <meta name="description" content="Gym Tracker - Wochenplaene, Trainings-Logging, Fortschritt und Kalorienverbrauch." />
     <link rel="manifest" href="./manifest.webmanifest" />

@@ -219,6 +219,49 @@ export async function run() {
     if (/Am Rangvergleich teilnehmen/.test(text)) throw new Error('Teilnahme ohne Konto angeboten');
   });
 
+  await runner.step('Der nächste Schritt nennt eine Bewegung und Kilogramm', async () => {
+    const step = await solo.page.locator('.next-step').innerText();
+    if (!/kg/.test(step)) throw new Error(`Keine Kilozahl: ${step.replace(/\n/g, ' | ')}`);
+    if (!/Kniebeuge|Schulterdrücken|Bizepscurl|Rudern|Bankdrücken|Kreuzheben/.test(step)) {
+      throw new Error(`Keine Bewegung genannt: ${step.replace(/\n/g, ' | ')}`);
+    }
+  });
+
+  await runner.step('Die Stufenleiste überlappt nicht', async () => {
+    const boxes = await solo.page.locator('.tier-scale__step').evaluateAll(
+      (list) => list.map((el) => el.getBoundingClientRect()).map((b) => ({
+        left: b.left, right: b.right, top: b.top, bottom: b.bottom,
+      })));
+    if (boxes.length !== 5) throw new Error(`${boxes.length} Stufen`);
+    for (let a = 0; a < boxes.length; a += 1) {
+      for (let b = a + 1; b < boxes.length; b += 1) {
+        const overlap = boxes[a].right > boxes[b].left + 0.5
+          && boxes[b].right > boxes[a].left + 0.5
+          && boxes[a].bottom > boxes[b].top + 0.5
+          && boxes[b].bottom > boxes[a].top + 0.5;
+        if (overlap) throw new Error(`Stufe ${a + 1} und ${b + 1} liegen übereinander`);
+      }
+    }
+  });
+
+  await runner.step('Abzeichen zeigen Erreichtes und den Anteil bis dahin', async () => {
+    const text = await solo.page.locator('.section', { has: solo.page.locator('.rank-head') }).innerText();
+    if (!/Abzeichen/.test(text)) throw new Error('Kein Abschnitt für Abzeichen');
+    const count = await solo.page.locator('.badge').count();
+    if (count === 0) throw new Error('Keine Abzeichen');
+    const earned = await solo.page.locator('.badge--earned').count();
+    if (earned === 0) throw new Error('Mit drei Bewegungen im Verlauf sollte eines erreicht sein');
+    const open = await solo.page.locator('.badge:not(.badge--earned)').first().innerText();
+    if (!/%/.test(open)) throw new Error(`Kein Anteil am offenen Abzeichen: ${open.replace(/\n/g, ' ')}`);
+  });
+
+  await runner.step('Der Rangverlauf wird gezeichnet', async () => {
+    const trend = solo.page.locator('.rank-trend');
+    if (await trend.count() === 0) throw new Error('Keine Kurve');
+    const label = await trend.getAttribute('aria-label');
+    if (!/Punkte/.test(label ?? '')) throw new Error(`Beschriftung: ${label}`);
+  });
+
   await runner.step('Das Fragezeichen erklärt, was die Zahlen nicht sind', async () => {
     await solo.page.getByRole('button', { name: 'Wie wird gerechnet?' }).click();
     await solo.page.waitForTimeout(500);
