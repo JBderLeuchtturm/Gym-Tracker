@@ -45,7 +45,7 @@ import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { CATEGORY_LABELS } from '../data/catalog';
 import {
   IconBook, IconCalculator, IconCalendar, IconCheck, IconChart, IconChevronDown, IconChevronLeft,
-  IconChevronRight, IconClock, IconCopy, IconExpand, IconPlay, IconPlus, IconSwap, IconTrash,
+  IconChevronRight, IconClock, IconCopy, IconExpand, IconPlay, IconPlus, IconSkip, IconSwap, IconTrash,
   IconTrophy, IconX,
 } from '../components/icons';
 import { beep } from '../lib/beep';
@@ -433,6 +433,32 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
     });
   };
 
+  /**
+   * Eine Uebung fuer heute auslassen.
+   *
+   * Sie bleibt im Tag stehen, durchgestrichen - sonst weiss man abends nicht
+   * mehr, was eigentlich geplant war und ob man es vergessen oder entschieden
+   * hat. Gezaehlt wird sie nicht mehr, weder in den Saetzen noch im
+   * Tagesziel; ein zweiter Tipper holt sie zurueck.
+   */
+  const toggleSkipRow = (row: Row) => {
+    const before = snapshot();
+    const nowSkipped = !row.logged?.skipped;
+
+    updateRow(row, (logged) => ({
+      ...logged,
+      skipped: nowSkipped || undefined,
+      // Ausgelassen heisst ausgelassen - offene Haken werden zurueckgenommen.
+      sets: nowSkipped ? logged.sets.map((set) => ({ ...set, done: false })) : logged.sets,
+    }));
+
+    if (!nowSkipped) return;
+    toast.show(t('„{name}“ heute ausgelassen', { name: exerciseName(row.exercise) }), {
+      label: t('Rückgängig'),
+      run: () => replaceState(before),
+    });
+  };
+
   const removeRow = (row: Row) => {
     if (!row.logged) return;
     const before = snapshot();
@@ -462,9 +488,15 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
     };
   }, [workout, getExercise, state.profile.weightKg, state.settings.restTimerSec]);
 
-  const plannedSets = rows.reduce(
-    (sum, row) => sum + (row.planExercise?.targetSets ?? row.sets.length), 0,
-  );
+  /*
+   * Was ausgelassen wurde, steht nicht mehr im Soll: Sonst bliebe der Tag
+   * ewig bei "8 von 12" stehen, obwohl man mit ihm fertig ist.
+   */
+  const plannedSets = rows.reduce((sum, row) => {
+    if (row.logged?.skipped) return sum;
+    const open = row.sets.filter((set) => !set.skipped).length;
+    return sum + Math.min(row.planExercise?.targetSets ?? open, Math.max(open, 1));
+  }, 0);
   const progress = plannedSets > 0 ? Math.min(100, (stats.sets / plannedSets) * 100) : 0;
 
   return (
@@ -591,6 +623,7 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
             onUpdate={updateRow}
             onAddSet={() => addSet(row)}
             onRemove={() => removeRow(row)}
+            onToggleSkip={() => toggleSkipRow(row)}
             onOpenDetail={() => row.exercise && setDetail(row.exercise)}
             onSwap={() => setSwapFor(row)}
             onStartRest={startRest}
@@ -798,7 +831,7 @@ function WeekStrip({
 
 function ExerciseCard({
   row, index, total, date, sortMode, groupedWithAbove, groupRound, groupTotal, flashSet,
-  onToggleSet, onUpdate, onAddSet, onRemove, onOpenDetail, onSwap, onStartRest, onMove, onToggleSuperset,
+  onToggleSet, onUpdate, onAddSet, onRemove, onToggleSkip, onOpenDetail, onSwap, onStartRest, onMove, onToggleSuperset,
 }: {
   row: Row;
   index: number;
@@ -813,6 +846,7 @@ function ExerciseCard({
   onUpdate: (row: Row, mutate: (logged: LoggedExercise) => LoggedExercise) => void;
   onAddSet: () => void;
   onRemove: () => void;
+  onToggleSkip: () => void;
   onOpenDetail: () => void;
   onSwap: () => void;
   onStartRest: (seconds: number) => void;
@@ -978,12 +1012,14 @@ function ExerciseCard({
 
   // Der Rechner soll den Satz zeigen, an dem man gerade steht: den ersten
   // offenen Arbeitssatz, sonst den letzten abgehakten.
-  const currentSet = row.sets.find((set) => !set.done && !set.isWarmup)
+  const currentSet = row.sets.find((set) => !set.done && !set.isWarmup && !set.skipped)
     ?? [...row.sets].reverse().find((set) => set.done)
+    ?? row.sets.find((set) => !set.skipped)
     ?? row.sets[0];
 
+  const skipped = Boolean(row.logged?.skipped);
   const totalTarget = target?.targetSets ?? row.sets.length;
-  const allDone = doneSets >= totalTarget && totalTarget > 0;
+  const allDone = !skipped && doneSets >= totalTarget && totalTarget > 0;
   const accent = row.exercise ? categoryColor(row.exercise.category) : 'var(--border)';
 
   return (
@@ -991,6 +1027,7 @@ function ExerciseCard({
       className={[
         'exercise',
         allDone ? 'exercise--done' : '',
+        skipped ? 'exercise--skipped' : '',
         row.groupId ? 'exercise--grouped' : '',
         groupedWithAbove ? 'exercise--group-cont' : '',
       ].filter(Boolean).join(' ')}
@@ -1028,7 +1065,10 @@ function ExerciseCard({
 
       <div className="exercise__head" onClick={() => setOpen(!open)}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="exercise__name">{exerciseName(row.exercise)}</div>
+          <div className="exercise__name">
+            {exerciseName(row.exercise)}
+            {skipped && <span className="tag tag--skipped">{t('ausgelassen')}</span>}
+          </div>
           <div className="exercise__meta">
             {/*
               * Die Muskelgruppe bekommt einen Punkt in ihrer Farbe, der Name
@@ -1133,6 +1173,7 @@ function ExerciseCard({
                 // Kurzes Aufblitzen dort, wo die Bestleistung passiert ist -
                 // die Meldung am unteren Rand sieht man sonst gar nicht.
                 set.id === flashSet ? 'set-row--record' : '',
+                set.skipped ? 'set-row--skipped' : '',
               ].filter(Boolean).join(' ')}
             >
               <button
@@ -1194,7 +1235,12 @@ function ExerciseCard({
               <div className="row" style={{ gap: 2 }}>
                 <button
                   className={`check ${set.done ? 'check--on' : ''}`}
-                  onClick={() => onToggleSet(set.id)}
+                  onClick={() => {
+                    // Abhaken holt einen ausgelassenen Satz zurueck - sonst
+                    // muesste man erst die Zusatzzeile aufklappen.
+                    if (set.skipped) patchSet(set.id, { skipped: undefined });
+                    onToggleSet(set.id);
+                  }}
                   aria-label={set.done ? t('Satz zurücksetzen') : t('Satz abhaken')}
                 >
                   <IconCheck />
@@ -1247,6 +1293,21 @@ function ExerciseCard({
                   onClick={() => duplicateSet(set.id)}
                 >
                   {t('Satz duplizieren')}
+                </button>
+                {/*
+                  * Ein ausgelassener Satz ist etwas anderes als ein nicht
+                  * abgehakter: Der eine ist entschieden, der andere steht noch
+                  * aus. Deshalb bleibt er sichtbar, aber durchgestrichen.
+                  */}
+                <button
+                  className={`chip chip--button ${set.skipped ? 'chip--warn' : ''}`}
+                  aria-pressed={Boolean(set.skipped)}
+                  onClick={() => patchSet(set.id, {
+                    skipped: set.skipped ? undefined : true,
+                    done: false,
+                  })}
+                >
+                  {set.skipped ? t('Satz doch machen') : t('Satz auslassen')}
                 </button>
                 {row.sets.filter((item) => !item.done && !item.isWarmup).length > 1 && (
                   <button
@@ -1330,6 +1391,18 @@ function ExerciseCard({
                     <IconX /> {t('Satz entfernen')}
                   </button>
                 )}
+                {/*
+                  * Auslassen statt loeschen: Die Uebung bleibt durchgestrichen
+                  * stehen, damit man abends noch weiss, was geplant war - und
+                  * ob man es vergessen oder entschieden hat.
+                  */}
+                <button
+                  className={`btn btn--sm ${skipped ? 'btn--on' : 'btn--ghost'}`}
+                  onClick={onToggleSkip}
+                  aria-pressed={skipped}
+                >
+                  <IconSkip /> {skipped ? t('Doch machen') : t('Heute auslassen')}
+                </button>
                 {row.logged && !row.fromPlan && (
                   <button className="btn btn--sm btn--ghost" onClick={onRemove} aria-label={t("Übung entfernen")}>
                     <IconTrash /> {t('Übung')}

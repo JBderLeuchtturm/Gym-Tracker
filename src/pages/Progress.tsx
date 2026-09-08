@@ -21,6 +21,7 @@ import { ALL_REGIONS, REGION_LABELS, suggestForRegion, type MuscleRegion } from 
 import { daysSince, loadStatus, regionLoad, targetFor } from '../lib/muscleLoad';
 import { Block, EmptyState, Section, Stat, fmt, useToast } from '../components/ui';
 import { formatSet } from '../lib/setFormat';
+import { RankPanel } from '../components/Ranks';
 import { formatClock } from '../lib/date';
 import {
   IconChevronRight, IconDownload, IconPrinter, IconSearch, IconShare, IconTrophy,
@@ -435,6 +436,8 @@ export function ProgressPage() {
           </div>
 
           <div className="split__side">
+            <RankPanel />
+
             {fatigue && fatigue.level !== 'steady' && (
               <Section title={t("Belastung")} note={t("letzte 7 Tage")}>
                 <div className={`load-note load-note--${fatigue.level}`}>

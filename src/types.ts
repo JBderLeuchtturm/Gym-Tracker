@@ -185,6 +185,15 @@ export interface SetLog {
   note?: string;
   /** Satz des Trainingspartners - zaehlt nicht in die eigene Auswertung. */
   forPartner?: boolean;
+  /**
+   * Bewusst ausgelassen.
+   *
+   * Ein uebersprungener Satz ist etwas anderes als ein nicht abgehakter: Der
+   * eine ist entschieden, der andere steht noch aus. Beide zaehlen nicht in
+   * die Auswertung, aber nur der uebersprungene wird auch so angezeigt - und
+   * er zaehlt nicht mehr gegen das Tagesziel.
+   */
+  skipped?: boolean;
 }
 
 export interface LoggedExercise {
@@ -200,6 +209,14 @@ export interface LoggedExercise {
    * Schlaegt den Wert aus dem Plan und die globale Einstellung.
    */
   restSec?: number;
+  /**
+   * Heute ausgelassen - Geraet besetzt, Zeit knapp, Schulter zwickt.
+   *
+   * Die Uebung bleibt im Tag stehen und sichtbar, damit man spaeter noch
+   * weiss, was eigentlich geplant war. Sie zaehlt aber in nichts hinein und
+   * gilt nicht mehr als offen.
+   */
+  skipped?: boolean;
 }
 
 export interface Workout {
@@ -312,6 +329,15 @@ export interface Settings {
   weather: WeatherSettings;
   /** Taegliche Sicherung in den eigenen Supabase-Speicher. */
   autoBackup: boolean;
+  /**
+   * Am Rangvergleich teilnehmen.
+   *
+   * Aus heisst: Es verlaesst nichts das Geraet. An heisst: Punktestand, Stufe
+   * je Bewegung und der selbst gewaehlte Anzeigename sind fuer alle Konten
+   * dieses Projekts sichtbar - keine Gewichte, kein Koerpergewicht, kein
+   * Trainingseintrag.
+   */
+  shareRank: boolean;
   yazio: YazioSettings;
   /** Gespeicherte Mahlzeiten fuer den schnellen Eintrag. */
   mealPresets: MealPreset[];

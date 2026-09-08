@@ -4,24 +4,31 @@ import { formatSet } from './setFormat';
 
 /** Volumen eines Satzes (Gewicht x Wiederholungen). */
 /**
- * Zaehlt der Satz in die eigene Auswertung? Aufwaermsaetze und Saetze des
- * Trainingspartners tun das nicht - abgehakt sein muss er ohnehin.
+ * Zaehlt der Satz in die eigene Auswertung? Aufwaermsaetze, Saetze des
+ * Trainingspartners und bewusst ausgelassene tun das nicht - abgehakt sein
+ * muss er ohnehin.
  */
 export const countsAsWork = (set: SetLog): boolean =>
-  set.done && !set.isWarmup && !set.forPartner;
+  set.done && !set.isWarmup && !set.forPartner && !set.skipped;
+
+/**
+ * Eine ausgelassene Uebung bleibt im Tag stehen, damit man spaeter noch weiss,
+ * was geplant war - aber sie geht in keine Zahl ein.
+ */
+export const countsAsTrained = (logged: LoggedExercise): boolean => !logged.skipped;
 
 export const setVolume = (set: SetLog): number =>
   countsAsWork(set) ? (set.weightKg ?? 0) * (set.reps ?? 0) : 0;
 
 export const exerciseVolume = (logged: LoggedExercise): number =>
-  logged.sets.reduce((sum, set) => sum + setVolume(set), 0);
+  countsAsTrained(logged) ? logged.sets.reduce((sum, set) => sum + setVolume(set), 0) : 0;
 
 export const workoutVolume = (workout: Workout): number =>
   workout.exercises.reduce((sum, logged) => sum + exerciseVolume(logged), 0);
 
 export const workoutSetCount = (workout: Workout): number =>
   workout.exercises.reduce(
-    (sum, logged) => sum + logged.sets.filter(countsAsWork).length,
+    (sum, logged) => sum + (countsAsTrained(logged) ? logged.sets.filter(countsAsWork).length : 0),
     0,
   );
 
@@ -93,7 +100,8 @@ function historyOf(state: AppState, matches: (id: ID) => boolean): ExerciseSessi
   for (const workout of state.workouts) {
     for (const logged of workout.exercises) {
       if (!matches(logged.exerciseId)) continue;
-      const sets = logged.sets.filter((set) => set.done && !set.forPartner);
+      if (logged.skipped) continue;
+      const sets = logged.sets.filter((set) => set.done && !set.forPartner && !set.skipped);
       if (sets.length === 0) continue;
 
       const working = sets.filter((set) => !set.isWarmup);

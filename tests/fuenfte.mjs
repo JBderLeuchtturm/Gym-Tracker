@@ -135,6 +135,9 @@ export async function run() {
     await kcal.fill('2400');
     await kcal.blur();
     await page.waitForTimeout(500);
+    // Der Verlauf liegt seit der Aufraeumrunde hinter einem Knopf.
+    const reveal = page.getByRole('button', { name: 'Verlauf der letzten 30 Tage zeigen' });
+    if (await reveal.count() > 0) { await reveal.click(); await page.waitForTimeout(500); }
     const section = page.locator('.section', { hasText: 'Verlauf' }).first();
     if (await section.count() === 0) throw new Error('kein Abschnitt für den Verlauf');
     if (await section.locator('rect').count() === 0) throw new Error('keine Balken');

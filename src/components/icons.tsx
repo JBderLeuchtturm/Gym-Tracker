@@ -155,3 +155,6 @@ export const IconBook = (p: IconProps) => (
     <path d="M20 4.5h-6a2.5 2.5 0 0 0-2 2.5v12a2 2 0 0 1 2-1.5h6z" />
   </Base>
 );
+export const IconSkip = (p: IconProps) => (
+  <Base {...p}><path d="M6 6l7 6-7 6zM17 5v14" /></Base>
+);

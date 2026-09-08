@@ -24,6 +24,7 @@ const SUITES = [
   ['robust', () => import('./robust.mjs')],
   ['vierte', () => import('./vierte.mjs')],
   ['fuenfte', () => import('./fuenfte.mjs')],
+  ['raenge', () => import('./raenge.mjs')],
   ['language', () => import('./language.mjs')],
   ['friends', () => import('./friends.mjs')],
   ['social', () => import('./social.mjs')],

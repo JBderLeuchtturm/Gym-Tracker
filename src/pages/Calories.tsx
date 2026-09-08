@@ -34,6 +34,10 @@ export function CaloriesPage() {
   const [foodOpen, setFoodOpen] = useState(false);
   const [mealsOpen, setMealsOpen] = useState(false);
   const [mealNameOpen, setMealNameOpen] = useState(false);
+  /* Was nicht taeglich gebraucht wird, steht zugeklappt da - nicht gar nicht. */
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [burnOpen, setBurnOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const workout = state.workouts.find((item) => item.date === date);
   const energy = useMemo(
@@ -128,7 +132,6 @@ export function CaloriesPage() {
 
   const protein = entry?.proteinG ?? null;
   const proteinPct = protein == null ? 0 : Math.min(100, (protein / proteinGoal) * 100);
-  const proteinShort = proteinGoal - (protein ?? 0);
 
   const activityKcal = Math.max(0, energy.tdee - energy.bmr);
 
@@ -209,16 +212,14 @@ export function CaloriesPage() {
         )}
       </div>
 
-      {/* Eiweiss ist der Makro, der beim Training zaehlt - eigener Balken, mit Ziel. */}
-      <div className="macro-goal">
-        <div className="macro-goal__head">
-          <span className="macro-goal__label">{t('Eiweiß')}</span>
-          <span className="mono">
-            <span className={proteinPct >= 100 ? 'pos' : ''}>{fmt(protein ?? 0)}</span>
-            <span className="dim"> / {proteinGoal} g</span>
-          </span>
-        </div>
-        <div className="progress-bar">
+      {/*
+        * Eiweiss steht als Zeile unter dem Budget, nicht mehr als eigene Karte.
+        * Es ist der eine Naehrwert, der beim Training zaehlt - aber es ist eine
+        * Zahl, kein Kapitel.
+        */}
+      <div className="macro-line">
+        <span className="macro-line__label">{t('Eiweiß')}</span>
+        <div className="progress-bar" style={{ flex: 1 }}>
           <div
             className="progress-bar__fill"
             style={{
@@ -227,11 +228,10 @@ export function CaloriesPage() {
             }}
           />
         </div>
-        {protein != null && proteinShort > 3 && (
-          <div className="tiny dim" style={{ marginTop: 5 }}>
-            {t('noch {g} g bis zum Ziel', { g: fmt(proteinShort) })}
-          </div>
-        )}
+        <span className="mono nowrap">
+          <span className={proteinPct >= 100 ? 'pos' : ''}>{fmt(protein ?? 0)}</span>
+          <span className="dim"> / {proteinGoal} g</span>
+        </span>
       </div>
 
       {/* -------------------------------------------------------- Eintragen */}
@@ -255,6 +255,11 @@ export function CaloriesPage() {
           </div>
         )}
 
+        {/*
+          * Zwei Felder, nicht vier. Kohlenhydrate und Fett trägt fast niemand
+          * von Hand ein - aus der Lebensmittelsuche kommen sie ohnehin mit,
+          * und wer sie doch tippen will, klappt sie auf.
+          */}
         <div className="grid-2">
           <div className="field">
             <label className="field__label">{t("Kalorien (kcal)")}</label>
@@ -264,35 +269,52 @@ export function CaloriesPage() {
             <label className="field__label">{t("Protein (g)")}</label>
             <NumberInput value={entry?.proteinG ?? null} min={0} onChange={(value) => patchEntry({ proteinG: value })} />
           </div>
-          <div className="field">
-            <label className="field__label">{t("Kohlenhydrate (g)")}</label>
-            <NumberInput value={entry?.carbsG ?? null} min={0} onChange={(value) => patchEntry({ carbsG: value })} />
-          </div>
-          <div className="field">
-            <label className="field__label">{t("Fett (g)")}</label>
-            <NumberInput value={entry?.fatG ?? null} min={0} onChange={(value) => patchEntry({ fatG: value })} />
-          </div>
         </div>
-
-        <MacroBar
-          proteinG={entry?.proteinG ?? null}
-          carbsG={entry?.carbsG ?? null}
-          fatG={entry?.fatG ?? null}
-        />
 
         <div className="row row--wrap" style={{ gap: 7, marginTop: 12 }}>
           <button className="btn btn--sm" onClick={() => setFoodOpen(true)}>
             <IconCamera /> {t('Suchen / Barcode')}
           </button>
-          <button className="btn btn--sm" onClick={() => setYazioOpen(true)}>
-            <IconRefresh /> {t('Yazio')}
+          <button
+            className="btn btn--sm btn--ghost"
+            onClick={() => setMoreOpen(!moreOpen)}
+            aria-expanded={moreOpen}
+          >
+            {moreOpen ? t('Weniger') : t('Mehr')}
           </button>
-          {(entry?.kcalIn != null || entry?.proteinG != null) && (
-            <button className="btn btn--sm btn--ghost" onClick={() => setMealNameOpen(true)}>
-              {t('Als Mahlzeit speichern')}
-            </button>
-          )}
         </div>
+
+        {moreOpen && (
+          <div className="list" style={{ marginTop: 12 }}>
+            <div className="grid-2">
+              <div className="field">
+                <label className="field__label">{t("Kohlenhydrate (g)")}</label>
+                <NumberInput value={entry?.carbsG ?? null} min={0} onChange={(value) => patchEntry({ carbsG: value })} />
+              </div>
+              <div className="field">
+                <label className="field__label">{t("Fett (g)")}</label>
+                <NumberInput value={entry?.fatG ?? null} min={0} onChange={(value) => patchEntry({ fatG: value })} />
+              </div>
+            </div>
+
+            <MacroBar
+              proteinG={entry?.proteinG ?? null}
+              carbsG={entry?.carbsG ?? null}
+              fatG={entry?.fatG ?? null}
+            />
+
+            <div className="row row--wrap" style={{ gap: 7 }}>
+              <button className="btn btn--sm" onClick={() => setYazioOpen(true)}>
+                <IconRefresh /> {t('Yazio')}
+              </button>
+              {(entry?.kcalIn != null || entry?.proteinG != null) && (
+                <button className="btn btn--sm btn--ghost" onClick={() => setMealNameOpen(true)}>
+                  {t('Als Mahlzeit speichern')}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {entry?.source === 'yazio' && (
           <div className="tiny dim" style={{ marginTop: 8 }}>{t("Werte stammen aus Yazio.")}</div>
@@ -306,9 +328,41 @@ export function CaloriesPage() {
           kcal: fmt(energy.total), goal: t(GOAL_LABELS[state.profile.goal]),
         })}
       >
-        {/* Drei Posten, die sich zum Verbrauch addieren - keine vier Kacheln,
-            von denen zwei einander enthalten. */}
-        <div className="burn-rows">
+        {/*
+          * Der geschaetzte Verbrauch je Uebung steht offen da, nicht mehr
+          * hinter einem Aufklapper: Das ist die Zahl, wegen der man an einem
+          * Trainingstag ueberhaupt hierher kommt.
+          */}
+        {energy.perExercise.length > 0 ? (
+          <div className="burn-rows">
+            {energy.perExercise.map((row) => (
+              <div key={row.exerciseId} className="burn-rows__row">
+                <span className="muted">{row.name}</span>
+                <span className="dim tiny">{fmt(row.minutes)} min</span>
+                <span className="mono">{fmt(row.kcal)}</span>
+              </div>
+            ))}
+            <div className="burn-rows__row burn-rows__row--total">
+              <span className="bold">{t('Training gesamt')}</span>
+              <span />
+              <span className="bold mono">{fmt(energy.workoutKcal)} kcal</span>
+            </div>
+          </div>
+        ) : (
+          <div className="tiny dim">{t('An diesem Tag kein Training – gerechnet wird nur der Alltag.')}</div>
+        )}
+
+        <button
+          className="btn btn--sm btn--ghost"
+          style={{ marginTop: 10, alignSelf: 'flex-start' }}
+          onClick={() => setBurnOpen(!burnOpen)}
+          aria-expanded={burnOpen}
+        >
+          {burnOpen ? t('Weniger') : t('Woraus sich das zusammensetzt')}
+        </button>
+
+        {burnOpen && (
+        <div className="burn-rows" style={{ marginTop: 10 }}>
           <div className="burn-rows__row">
             <span className="muted">{t('Grundumsatz')}</span>
             <span className="dim tiny">{t('im Ruhezustand')}</span>
@@ -334,31 +388,28 @@ export function CaloriesPage() {
             <span className="bold mono">{fmt(energy.total)} kcal</span>
           </div>
         </div>
-
-        {energy.perExercise.length > 0 && (
-          <details className="burn-details">
-            <summary>{t('Verbrauch je Übung')}</summary>
-            <table className="data" style={{ marginTop: 8 }}>
-              <thead>
-                <tr><th>{t("Übung")}</th><th className="right">{t("Aktiv")}</th><th className="right">{t("kcal")}</th></tr>
-              </thead>
-              <tbody>
-                {energy.perExercise.map((row) => (
-                  <tr key={row.exerciseId}>
-                    <td>{row.name}</td>
-                    <td className="right mono nowrap">{fmt(row.minutes)} min</td>
-                    <td className="right mono">{fmt(row.kcal)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </details>
         )}
       </Section>
 
-      {/* ----------------------------------------------------------- Verlauf */}
-      {history.intake.length > 0 && (
-        <Section title={t("Verlauf")} note={t("30 Tage")}>
+      {/*
+        * Der Verlauf ist nichts, was man taeglich braucht - er bleibt erhalten,
+        * steht aber nicht mehr im Weg.
+        */}
+      {history.intake.length > 0 && !historyOpen && (
+        <button className="btn btn--sm btn--block" onClick={() => setHistoryOpen(true)}>
+          {t('Verlauf der letzten 30 Tage zeigen')}
+        </button>
+      )}
+
+      {history.intake.length > 0 && historyOpen && (
+        <Section
+          title={t("Verlauf")}
+          note={(
+            <button className="btn btn--sm btn--ghost" onClick={() => setHistoryOpen(false)}>
+              {t('Ausblenden')}
+            </button>
+          )}
+        >
           {history.week && (
             <div className="grid-3" style={{ marginBottom: 12 }}>
               <div className="cal-avg">

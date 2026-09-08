@@ -2,6 +2,60 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Ränge, Ausgelassenes und eine schlanke Kalorienseite
+
+*Branch `claude/raenge-und-skip`*
+
+**Die Kalorienseite zeigt beim Öffnen nur noch das Nötigste.** Eingetragen
+werden zuerst Kalorien und Eiweiß; Kohlenhydrate, Fett, Yazio, „Als Mahlzeit
+speichern" und der Verlauf der letzten 30 Tage liegen hinter *Mehr*. Dafür steht
+der **geschätzte Verbrauch je Übung** jetzt offen auf der Seite statt in einem
+Aufklapper – mit einer Zeile *Training gesamt* darunter. Das ist die Zahl,
+wegen der man an einem Trainingstag überhaupt hierher kommt.
+
+**Übungen und einzelne Sätze lassen sich auslassen, nicht nur löschen.**
+
+- *Mehr → Heute auslassen* an der Übung, *⋯ → Satz auslassen* am einzelnen Satz.
+- Ausgelassenes bleibt durchgestrichen stehen: Abends sieht man noch, was
+  geplant war – und ob man es vergessen oder entschieden hat.
+- Es zählt nirgends mit: nicht ins Volumen, nicht in die Satzzahl, nicht in
+  Bestleistungen, nicht in den Kalorienverbrauch, nicht in den Verlauf einer
+  Übung. Beim Auslassen einer Übung werden offene Haken zurückgenommen; ein
+  Haken auf einem ausgelassenen Satz holt ihn ohne Umweg zurück.
+- Die Übung auszulassen bietet ein *Rückgängig* an, solange die Meldung steht.
+
+**Ränge je Bewegung und ein Gesamtrang.** Sechs Bewegungen werden gewertet –
+Bankdrücken, Kniebeuge, Kreuzheben, Schulterdrücken, Rudern, Bizepscurl. Das
+beste geschätzte 1RM geteilt durch das Körpergewicht fällt in eine von fünf
+Stufen (*Einsteiger* bis *Elite*), daraus werden 0 bis 100 Punkte. Der
+Gesamtrang ist der Schnitt über alle sechs; was nie trainiert wurde, zählt als
+null, und ein halbes Jahr alter Bestwert nur noch zu 60 Prozent. Deshalb kann
+der Rang steigen und fallen. In der Übungsansicht steht der Rang der jeweiligen
+Bewegung mit dabei.
+
+Was diese Zahlen nicht sind, steht hinter dem Fragezeichen im Rangfeld und in
+der README: keine Messung, sondern gerundete Richtwerte aus öffentlich
+verbreiteten Kraftstandard-Tabellen.
+
+**Rangliste gegen alle Konten des Projekts – freiwillig und standardmäßig aus.**
+Wer teilnimmt, veröffentlicht seinen Punktestand, die Stufe je Bewegung, seinen
+Anzeigenamen und sein Emoji. Keine Gewichte, kein Körpergewicht, keinen
+Trainingseintrag – die neue Tabelle `rank_board` hat für ein Gewicht gar keine
+Spalte. Sie ist die einzige Tabelle des Projekts, die jedes angemeldete Konto
+lesen darf; schreiben darf jeder nur seine eigene Zeile. Den Haken wieder
+herauszunehmen löscht sie. Freunde sind in der Liste markiert.
+
+> **Nötig nach dem Merge:** [`supabase/schema.sql`](supabase/schema.sql) einmal
+> neu im SQL-Editor ausführen, damit `rank_board` entsteht. Ohne das läuft alles
+> weiter, nur die Rangliste bleibt leer – der eigene Rang wird ohnehin auf dem
+> Gerät gerechnet.
+
+**Tests.** Ein neuer Browser-Lauf (`tests/raenge.mjs`, 18 Prüfungen) für die
+schlanke Kalorienseite, das Auslassen und die Rangliste mit zwei Konten
+nebeneinander – inklusive einer Prüfung, die die veröffentlichte Zeile Feld für
+Feld gegen eine Erlaubnisliste hält. Dazu dreizehn neue Prüfungen ohne Browser
+für die Rangrechnung und für alles, was Ausgelassenes übergehen muss.
+
 ## Kalorienseite neu gestaltet · Lebensmittelsuche
 
 *Branch `claude/kalorien-redesign`*
