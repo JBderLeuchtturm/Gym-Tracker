@@ -353,8 +353,7 @@ export function CaloriesPage() {
         )}
 
         <button
-          className="btn btn--sm btn--ghost"
-          style={{ marginTop: 10, alignSelf: 'flex-start' }}
+          className="btn btn--sm btn--ghost btn--flush"
           onClick={() => setBurnOpen(!burnOpen)}
           aria-expanded={burnOpen}
         >

@@ -70,6 +70,26 @@ Kniebeuge, Kreuzheben, Schulterdrücken, Rudern, Bizepscurl – eine Stufe von
 100. Wie das gerechnet wird, steht unten unter
 [Wie der Rang gerechnet wird](#wie-der-rang-gerechnet-wird).
 
+Angezeigt wird bewusst nicht die nackte Zahl. „35 von 100" ist wahr und
+entmutigend zugleich, weil 100 unerreichbar weit weg wirkt. Näher dran ist:
+
+* **Wie weit durch die aktuelle Stufe** – ein Balken, der bei jeder Stufe wieder
+  bei null anfängt, und darunter „noch 10,3 Punkte bis *Fortgeschritten*".
+* **Der nächste Schritt**, der wirklich in Reichweite ist. Von sechs Zeilen mit
+  „noch 114 kg" lernt man nichts; herausgesucht wird die eine mit dem kleinsten
+  Abstand – und Bewegungen ganz ohne Eintrag stehen davor, weil dort der erste
+  Satz den größten Sprung bringt.
+* **Abzeichen**: erster Rang, alle sechs Bewegungen gewertet, Bankdrücken auf
+  Körpergewicht, Kniebeuge 1,5×, Kreuzheben 2×, der Club der 1000, überall
+  „Stark", zehn Wochen am Stück. Bei allem, was noch offen ist, steht der Anteil
+  dabei. Wie bei den Zielen wird nichts davon gespeichert, sondern aus dem
+  Verlauf abgeleitet – ein abgelegtes „geschafft" kann zwischen zwei Geräten
+  auseinanderlaufen, ein abgeleitetes nie.
+* **Auf- und Abstieg** werden einmal gemeldet, wenn sich die Stufe seit dem
+  letzten Besuch geändert hat.
+* **Der Rang über die Zeit** als Kurve, jeweils mit dem Verlauf gerechnet, der
+  damals vorlag.
+
 Wer will, kann sich **mit allen anderen Konten dieses Projekts messen**:
 Teilnahme ist ausdrücklich freiwillig und standardmäßig aus. Wer sie einschaltet,
 veröffentlicht seinen Punktestand, die Stufe je Bewegung und seinen
@@ -222,6 +242,19 @@ Brustübung wie ein Fehler aussah.
 Nachschlagende. Sonst bleibt der Text auf Lesebreite: Eine Zeile ist bei etwa
 65 Zeichen am besten zu lesen, und eine Eingabemaske über den halben Monitor
 zwingt die Augen bei jeder Zeile einmal quer.
+
+**Die App ist eine Hülle in Bildschirmgröße, kein langes Dokument.**
+Kopfzeile und Reiterleiste sind eigene Zeilen eines Rasters; gescrollt wird nur
+der Bereich dazwischen. Vorher lag die Reiterleiste als fest positioniertes Band
+über der Seite – und verschwand aus dem Bild, sobald der Browser den Ausschnitt
+verschob. Waagerecht scrollt gar nichts mehr: Was breiter ist als das Gerät,
+ist ein Fehler und wird als solcher geprüft. Die einzige Ausnahme ist der
+Trainingskalender, der ein halbes Jahr zeigt und dafür in sich scrollen darf.
+
+Herauszoomen unter die eigene Breite ist gesperrt (`minimum-scale=1`) – sonst
+lässt sich die App auf ein Viertel verkleinern, steht klein in der Ecke und
+lässt sich seitlich verschieben. Hineinzoomen bleibt ausdrücklich möglich: Wer
+schlecht sieht, braucht das.
 
 ## Zugänglichkeit
 

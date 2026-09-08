@@ -17,7 +17,7 @@
 import type { AppState, Exercise, ID, Sex } from '../types';
 import { exerciseHistory } from './stats';
 import { familyOf } from './variants';
-import { daysBetween, todayISO } from './date';
+import { addDays, daysBetween, todayISO } from './date';
 
 /* ------------------------------------------------------------------ Stufen */
 
@@ -265,4 +265,245 @@ export function overallRank(ranks: ExerciseRank[]): OverallRank {
     total,
     parts: ranks,
   };
+}
+
+/* ------------------------------------------------------- Fortschritt und Ziel */
+
+/**
+ * Wo steht man innerhalb der eigenen Stufe?
+ *
+ * Der nackte Punktestand sagt "35 von 100" - das ist wahr und trotzdem
+ * entmutigend, weil 100 weit weg ist. Naeher dran und ehrlicher ist: "drei
+ * Viertel durch Geuebt". Genau das rechnet das hier aus.
+ */
+export interface TierProgress {
+  tier: RankTier;
+  nextTier: RankTier | null;
+  /** 0 bis 1 innerhalb der aktuellen Stufe. */
+  share: number;
+  /** Punkte bis zur naechsten Stufe; null bei Elite. */
+  toNext: number | null;
+}
+
+export function tierProgress(score: number): TierProgress {
+  const tier = tierForScore(score);
+  const index = TIERS.indexOf(tier);
+  const nextTier = index < TIERS.length - 1 ? TIERS[index + 1] : null;
+  const floor = TIER_FLOOR[tier];
+  const ceiling = nextTier ? TIER_FLOOR[nextTier] : 100;
+  const span = ceiling - floor;
+  return {
+    tier,
+    nextTier,
+    share: span > 0 ? Math.min(1, Math.max(0, (score - floor) / span)) : 1,
+    toNext: nextTier ? Math.round((ceiling - score) * 10) / 10 : null,
+  };
+}
+
+/**
+ * Der naechste Schritt, der wirklich in Reichweite ist.
+ *
+ * Sechs Zeilen mit "noch 114 kg bis Geuebt" sind keine Anleitung, sondern eine
+ * Wand. Deshalb wird eine davon herausgesucht: die mit dem kleinsten Abstand
+ * zur naechsten Stufe. Ein Kilo, das man sich vorstellen kann, zieht mehr als
+ * hundert, die man sich nicht vorstellen kann.
+ *
+ * Bewegungen ganz ohne Eintrag stehen vor allen anderen: Dort ist der erste
+ * Satz der groesste Sprung, den es im ganzen System gibt.
+ */
+export interface NextStep {
+  family: string;
+  label: string;
+  /** true, wenn die Bewegung ueberhaupt noch keinen Eintrag hat. */
+  untouched: boolean;
+  tier: RankTier | null;
+  nextTier: RankTier | null;
+  /** Fehlende Kilogramm bis zur naechsten Stufe. */
+  missingKg: number;
+  /** Was der Gesamtrang dadurch gewinnt. */
+  gainPoints: number;
+}
+
+export function nextStep(ranks: ExerciseRank[], bodyWeightKg: number, sex: Sex): NextStep | null {
+  if (!(bodyWeightKg > 0)) return null;
+  const done = new Map(ranks.map((rank) => [rank.family, rank]));
+
+  const options: NextStep[] = [];
+  for (const family of RANKED_FAMILIES) {
+    const thresholds = thresholdsFor(family, sex);
+    if (!thresholds) continue;
+    const rank = done.get(family);
+
+    if (!rank) {
+      // Ohne Eintrag zaehlt die Bewegung als null - der erste Satz bringt am meisten.
+      options.push({
+        family,
+        label: STANDARDS[family].label,
+        untouched: true,
+        tier: null,
+        nextTier: TIERS[0],
+        missingKg: Math.round(thresholds[0] * bodyWeightKg * 10) / 10,
+        gainPoints: Math.round((20 / RANKED_FAMILIES.length) * 10) / 10,
+      });
+      continue;
+    }
+    if (!rank.nextTier || rank.nextKg == null) continue;
+    options.push({
+      family,
+      label: rank.label,
+      untouched: false,
+      tier: rank.tier,
+      nextTier: rank.nextTier,
+      missingKg: Math.round(Math.max(0, rank.nextKg - rank.bestKg) * 10) / 10,
+      gainPoints: Math.round(((TIER_FLOOR[rank.nextTier] - rank.score) / RANKED_FAMILIES.length) * 10) / 10,
+    });
+  }
+
+  if (options.length === 0) return null;
+
+  /*
+   * Unberuehrte Bewegungen zuerst, danach der kleinste Abstand. Bei gleichem
+   * Abstand gewinnt, was mehr Punkte bringt.
+   */
+  options.sort((a, b) => {
+    if (a.untouched !== b.untouched) return a.untouched ? -1 : 1;
+    if (Math.abs(a.missingKg - b.missingKg) > 0.05) return a.missingKg - b.missingKg;
+    return b.gainPoints - a.gainPoints;
+  });
+  return options[0];
+}
+
+/* ------------------------------------------------------------- Abzeichen */
+
+/**
+ * Meilensteine, die aus dem Verlauf abgeleitet werden - nichts davon wird
+ * gespeichert. Ein abgelegtes "geschafft" kann zwischen zwei Geraeten
+ * auseinanderlaufen; ein abgeleitetes nie. Dieselbe Regel wie bei den Zielen.
+ */
+export interface Badge {
+  id: string;
+  label: string;
+  hint: string;
+  earned: boolean;
+  /** 0 bis 1 - wie weit ist es bis dahin? */
+  share: number;
+}
+
+export function badges(
+  ranks: ExerciseRank[],
+  overall: OverallRank,
+  weekStreak: number,
+): Badge[] {
+  const byFamily = new Map(ranks.map((rank) => [rank.family, rank]));
+  const ratioOf = (family: string) => byFamily.get(family)?.ratio ?? 0;
+
+  const list: Badge[] = [
+    {
+      id: 'erster-rang',
+      label: 'Erster Rang',
+      hint: 'Eine gewertete Bewegung im Verlauf',
+      earned: ranks.length >= 1,
+      share: Math.min(1, ranks.length),
+    },
+    {
+      id: 'vollstaendig',
+      label: 'Vollständig',
+      hint: 'Alle sechs Bewegungen mindestens einmal',
+      earned: overall.covered >= overall.total,
+      share: overall.covered / overall.total,
+    },
+    {
+      id: 'bank-koerpergewicht',
+      label: 'Bank = Körpergewicht',
+      hint: 'Einmal das eigene Gewicht bankdrücken',
+      earned: ratioOf('bench') >= 1,
+      share: Math.min(1, ratioOf('bench')),
+    },
+    {
+      id: 'kniebeuge-anderthalb',
+      label: 'Kniebeuge 1,5×',
+      hint: 'Anderthalbfaches Körpergewicht in der Kniebeuge',
+      earned: ratioOf('squat') >= 1.5,
+      share: Math.min(1, ratioOf('squat') / 1.5),
+    },
+    {
+      id: 'kreuzheben-doppelt',
+      label: 'Kreuzheben 2×',
+      hint: 'Doppeltes Körpergewicht im Kreuzheben',
+      earned: ratioOf('deadlift') >= 2,
+      share: Math.min(1, ratioOf('deadlift') / 2),
+    },
+    {
+      id: 'tausend-kilo',
+      label: 'Club der 1000',
+      hint: 'Bank, Kniebeuge und Kreuzheben zusammen über 1000 kg',
+      earned: bigThree(byFamily) >= 1000,
+      share: Math.min(1, bigThree(byFamily) / 1000),
+    },
+    {
+      id: 'stark-in-allem',
+      label: 'Überall stark',
+      hint: 'Jede gewertete Bewegung mindestens „Stark“',
+      earned: overall.covered === overall.total && ranks.every((rank) => rank.score >= 60),
+      share: overall.total > 0
+        ? ranks.filter((rank) => rank.score >= 60).length / overall.total
+        : 0,
+    },
+    {
+      id: 'zehn-wochen',
+      label: 'Zehn Wochen am Stück',
+      hint: 'Zehn Wochen in Folge trainiert',
+      earned: weekStreak >= 10,
+      share: Math.min(1, weekStreak / 10),
+    },
+  ];
+
+  // Erreichtes zuerst, dann das, was am naechsten dran ist.
+  return list.sort((a, b) => {
+    if (a.earned !== b.earned) return a.earned ? -1 : 1;
+    return b.share - a.share;
+  });
+}
+
+/** Bank + Kniebeuge + Kreuzheben, die uebliche Dreiersumme. */
+function bigThree(byFamily: Map<string, ExerciseRank>): number {
+  return ['bench', 'squat', 'deadlift']
+    .reduce((sum, family) => sum + (byFamily.get(family)?.bestKg ?? 0), 0);
+}
+
+/* -------------------------------------------------------------- Verlauf */
+
+/**
+ * Der Gesamtrang zu frueheren Zeitpunkten.
+ *
+ * Gerechnet wird jeweils mit dem Verlauf bis zu diesem Tag - so, wie der Rang
+ * damals ausgesehen haette. Das Koerpergewicht von heute wird dabei durchweg
+ * benutzt: Das rueckwirkend zu variieren wuerde eine Genauigkeit vortaeuschen,
+ * die die Daten nicht hergeben.
+ */
+export function rankTimeline(
+  state: AppState,
+  allExercises: Exercise[],
+  lookup: (id: ID) => Exercise | undefined,
+  points = 8,
+): Array<{ date: string; score: number }> {
+  if (state.workouts.length === 0) return [];
+  const dates = [...new Set(state.workouts.map((workout) => workout.date))].sort();
+  const first = dates[0];
+  const today = todayISO();
+  const span = daysBetween(first, today);
+  if (span <= 0) return [];
+
+  const steps = Math.max(2, Math.min(points, dates.length));
+  const out: Array<{ date: string; score: number }> = [];
+
+  for (let index = 0; index < steps; index += 1) {
+    const day = addDays(first, Math.round((span * index) / (steps - 1)));
+    const upTo: AppState = {
+      ...state,
+      workouts: state.workouts.filter((workout) => workout.date <= day),
+    };
+    out.push({ date: day, score: overallRank(exerciseRanks(upTo, allExercises, lookup)).score });
+  }
+  return out;
 }

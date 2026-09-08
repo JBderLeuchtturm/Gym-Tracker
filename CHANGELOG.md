@@ -2,6 +2,65 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Feste Leisten, aufgeräumte Abstände, ein Rang zum Weitermachen
+
+*Branch `claude/layout-fixes`*
+
+**Die untere Leiste bleibt stehen.** Die App ist jetzt eine Hülle in
+Bildschirmgröße statt eines langen Dokuments: Kopfzeile und Reiterleiste sind
+eigene Zeilen eines Rasters, gescrollt wird nur der Bereich dazwischen. Vorher
+lag die Reiterleiste als fest positioniertes Band über der Seite – und
+verschwand aus dem Bild, sobald der Browser den Ausschnitt verschob.
+
+**Nichts ragt mehr heraus.** Zwei echte Überläufe gefunden und behoben:
+
+- Die Knopfreihe an der Übungskarte („Satz · Pause · Rechner · Mehr") passte auf
+  schmalen Geräten nie in eine Zeile – „Mehr" stand halb außerhalb der Karte.
+  Sie bricht jetzt um.
+- Die fünf Stufennamen unter dem Rangbalken lagen in einem starren
+  Fünfer-Raster; „Fortgeschritten" passte dort nicht und lief in „Stark" hinein.
+  Jetzt sind es umbrechende Marken.
+
+Herauszoomen unter die eigene Breite ist gesperrt (`minimum-scale=1`). Ohne das
+lässt Chrome auf ein Viertel verkleinern – dann steht die App klein in der Ecke,
+lässt sich seitlich verschieben, und die Leisten rutschen aus dem Bild.
+Hineinzoomen bleibt möglich; wer schlecht sieht, braucht das.
+
+**Abstände.** Der Fund dahinter: `.split__main` bekam seinen Abstand nur in der
+Breitbild-Regel. Unterhalb von 900 Pixeln – also auf jedem Handy – standen die
+Abschnitte auf „Fortschritt" und „Heute" ohne einen einzigen Pixel Luft
+aufeinander. Der Abstand liegt jetzt in einer Zahl (`--gap-section`) und gilt
+überall. Dazu ein Stil für Aufklapper, die bündig unter ihrer Überschrift stehen
+sollen, statt um ihre eigene Polsterung eingerückt.
+
+**Der Rang zieht jetzt.** Die nackte Zahl blieb: „35 von 100" ist wahr und
+entmutigend zugleich. Dazugekommen ist alles, was daraus einen nächsten Schritt
+macht:
+
+- **Fortschritt durch die aktuelle Stufe** statt zur fernen Hundert – ein
+  Balken, der bei jeder Stufe wieder bei null anfängt.
+- **Der nächste Schritt** als eigener Kasten: die Bewegung mit dem kleinsten
+  Abstand zur nächsten Stufe, in Kilogramm, mit dem, was sie im Gesamtrang
+  bringt. Bewegungen ohne jeden Eintrag stehen davor – dort ist der erste Satz
+  der größte Sprung, den es im System gibt.
+- **Acht Abzeichen**: erster Rang, alle sechs gewertet, Bank auf Körpergewicht,
+  Kniebeuge 1,5×, Kreuzheben 2×, Club der 1000, überall „Stark", zehn Wochen am
+  Stück. Bei allem Offenen steht der Anteil dabei. Abgeleitet, nicht
+  gespeichert – dieselbe Regel wie bei den Zielen.
+- **Auf- und Abstieg** werden einmal gemeldet, wenn sich die Stufe seit dem
+  letzten Besuch geändert hat.
+- **Der Rang über die Zeit** als Kurve, jeweils mit dem Verlauf gerechnet, der
+  damals vorlag.
+
+**Tests.** Die alte Überlaufprüfung maß `scrollWidth` am Dokument – die konnte
+seit der neuen Hülle gar nicht mehr anschlagen. Sie fragt jetzt jedes sichtbare
+Element, ob es über den Rand steht, und lässt nur ausdrückliche Querscroller
+durch. Dazu je Seite eine Prüfung, dass die Leisten beim Scrollen stehen
+bleiben, eine auf das Viewport-Meta, vier neue Prüfungen im Rangfeld (nächster
+Schritt, überlappungsfreie Stufenleiste, Abzeichen, Verlaufskurve) und acht
+neue ohne Browser für Stufenfortschritt, nächsten Schritt, Abzeichen und
+Rangverlauf.
+
 ## Ränge, Ausgelassenes und eine schlanke Kalorienseite
 
 *Branch `claude/raenge-und-skip`*

@@ -1202,4 +1202,49 @@ export const EN: Record<string, string> = {
   'Gewertet werden': 'Ranked movements',
   'Diese Bewegung wird gewertet – sobald ein Satz mit Gewicht drinsteht, steht hier dein Rang.':
     'This movement is ranked – as soon as one set with a weight is logged, your rank appears here.',
+
+  /* -------------------------------------------------- Ränge zum Weitermachen */
+  'Aufstieg': 'Promotion',
+  'Abstieg': 'Demotion',
+  'vorher „{tier}“ – weiter so.': 'previously “{tier}” – keep it up.',
+  'vorher „{tier}“. Alte Bestwerte zählen mit der Zeit weniger.':
+    'previously “{tier}”. Old bests count for less over time.',
+  'noch {points} Punkte bis „{tier}“': '{points} points to go until “{tier}”',
+  '{done} von {total} Bewegungen': '{done} of {total} movements',
+  'Nächster Schritt': 'Next step',
+  '„{name}“ steht noch ohne Eintrag. Schon {kg} kg bringen die erste Stufe.':
+    '“{name}” has no entry yet. Even {kg} kg earns the first tier.',
+  '„{name}“: noch {kg} kg bis „{tier}“.': '“{name}”: {kg} kg to go until “{tier}”.',
+  'bringt etwa {points} Punkte im Gesamtrang': 'worth about {points} points on the overall rank',
+  'Abzeichen': 'Badges',
+  '{done} von {total}': '{done} of {total}',
+  'Stufen': 'Tiers',
+  '{percent} % geschafft': '{percent} % of the way',
+  'Rang über die Zeit': 'Rank over time',
+  'seit {date}': 'since {date}',
+  'Gesamtrang von {from} bis {to}: {before} auf {after} Punkte':
+    'Overall rank from {from} to {to}: {before} to {after} points',
+  'noch {kg} kg': '{kg} kg to go',
+  'höchste Stufe': 'top tier',
+  'Abzeichen werden genauso abgeleitet und nirgends vermerkt. Ein gespeichertes „geschafft“ kann zwischen zwei Geräten auseinanderlaufen, ein abgeleitetes nie.':
+    'Badges are derived the same way and stored nowhere. A saved “done” can drift apart between two devices; a derived one never can.',
+
+  /* Abzeichen und ihre Erklärungen */
+  'Erster Rang': 'First rank',
+  'Eine gewertete Bewegung im Verlauf': 'One ranked movement in your history',
+  'Vollständig': 'Complete',
+  'Alle sechs Bewegungen mindestens einmal': 'All six movements at least once',
+  'Bank = Körpergewicht': 'Bench = bodyweight',
+  'Einmal das eigene Gewicht bankdrücken': 'Bench press your own bodyweight once',
+  'Kniebeuge 1,5×': 'Squat 1.5×',
+  'Anderthalbfaches Körpergewicht in der Kniebeuge': 'One and a half times bodyweight in the squat',
+  'Kreuzheben 2×': 'Deadlift 2×',
+  'Doppeltes Körpergewicht im Kreuzheben': 'Twice bodyweight in the deadlift',
+  'Club der 1000': 'The 1000 club',
+  'Bank, Kniebeuge und Kreuzheben zusammen über 1000 kg':
+    'Bench, squat and deadlift adding up to over 1000 kg',
+  'Überall stark': 'Strong everywhere',
+  'Jede gewertete Bewegung mindestens „Stark“': 'Every ranked movement at least “Advanced”',
+  'Zehn Wochen am Stück': 'Ten weeks running',
+  'Zehn Wochen in Folge trainiert': 'Trained ten weeks in a row',
 };

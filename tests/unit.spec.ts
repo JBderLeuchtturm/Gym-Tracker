@@ -9,7 +9,8 @@ import { fatigueSignal } from '../src/lib/fatigue';
 import { plannedWeeklyLoad } from '../src/lib/planVolume';
 import { roundToPlate, warmupSets } from '../src/lib/coaching';
 import {
-  exerciseRanks, freshness, overallRank, ratioToScore, thresholdsFor, tierForScore, STANDARDS,
+  badges, exerciseRanks, freshness, nextStep, overallRank, rankTimeline, ratioToScore,
+  thresholdsFor, tierForScore, tierProgress, STANDARDS,
 } from '../src/lib/ranks';
 import { mergeStates } from '../src/sync/merge';
 import { createInitialState } from '../src/storage/defaults';
@@ -301,6 +302,17 @@ check('freshness: frisch zaehlt voll, alt nie unter 60 Prozent', () => {
   eq(freshness(3650), 0.6, 'auch nach zehn Jahren');
 });
 
+/** Eine Bank und ein Stand, in dem sie mit dem gegebenen Gewicht steht. */
+const benchExercise: Exercise = {
+  id: 'cat_barbell-bench-press', name: 'Bankdrücken', category: 'chest', kind: 'strength',
+  primaryMuscles: [], secondaryMuscles: [], equipment: [], met: 6, source: 'catalog',
+};
+function rankState(weightKg: number): AppState {
+  const state = stateWith([workoutOn(todayISO(), weightKg, 1)]);
+  state.profile = { ...state.profile, weightKg: 80, sex: 'male' };
+  return state;
+}
+
 check('exerciseRanks: 100 kg Bankdruecken bei 80 kg sind "Stark"', () => {
   const state = stateWith([workoutOn(todayISO(), 100, 1)]);
   state.profile = { ...state.profile, weightKg: 80, sex: 'male' };
@@ -342,6 +354,97 @@ check('overallRank: ein alter Bestwert zaehlt weniger', () => {
     toNext: 20, nextTier: 'elite' as const, nextKg: 160, lastDate: '2020-01-01', days: 400,
   };
   near(overallRank([part]).score, 6, 0.05);  // 60 * 0,6 / 6
+});
+
+/* -------------------------------------------------- Raenge zum Weitermachen */
+
+check('tierProgress misst den Weg durch die eigene Stufe', () => {
+  const start = tierProgress(20);   // genau auf der Schwelle zu "Geuebt"
+  eq(start.tier, 'geuebt');
+  eq(start.nextTier, 'fortgeschritten');
+  near(start.share, 0, 0.001);
+  near(start.toNext!, 20, 0.001);
+
+  const half = tierProgress(30);    // Mitte zwischen 20 und 40
+  near(half.share, 0.5, 0.001);
+  near(half.toNext!, 10, 0.001);
+
+  const top = tierProgress(95);
+  eq(top.tier, 'elite');
+  eq(top.nextTier, null);
+  eq(top.toNext, null);
+});
+
+check('nextStep nimmt Unberuehrtes vor allem anderen', () => {
+  const ranks = exerciseRanks(rankState(100), [benchExercise], () => benchExercise);
+  const step = nextStep(ranks, 80, 'male')!;
+  truthy(step, 'ein Schritt');
+  eq(step.untouched, true, 'eine Bewegung ohne Eintrag');
+  truthy(step.family !== 'bench', `war ${step.family}`);
+  truthy(step.gainPoints > 0, 'bringt Punkte');
+});
+
+check('nextStep waehlt sonst den kleinsten Abstand', () => {
+  // Nur Bank ist unberuehrt-frei: alle sechs bekommen einen Eintrag.
+  const ranks = [
+    { family: 'bench', label: 'Bankdrücken', bestKg: 100, ratio: 1.25, score: 60,
+      tier: 'stark' as const, toNext: 20, nextTier: 'elite' as const, nextKg: 160,
+      lastDate: todayISO(), days: 0 },
+    { family: 'row', label: 'Rudern', bestKg: 118, ratio: 1.48, score: 79,
+      tier: 'stark' as const, toNext: 1, nextTier: 'elite' as const, nextKg: 120,
+      lastDate: todayISO(), days: 0 },
+  ];
+  const all = ['squat', 'deadlift', 'ohp', 'curl'].map((family) => ({
+    family, label: family, bestKg: 500, ratio: 6, score: 100, tier: 'elite' as const,
+    toNext: null, nextTier: null, nextKg: null, lastDate: todayISO(), days: 0,
+  }));
+  const step = nextStep([...ranks, ...all], 80, 'male')!;
+  eq(step.family, 'row', 'zwei Kilo sind naeher als sechzig');
+  near(step.missingKg, 2, 0.01);
+});
+
+check('nextStep ohne Koerpergewicht gibt nichts', () => {
+  eq(nextStep([], 0, 'male'), null);
+});
+
+check('Abzeichen werden abgeleitet, nicht gespeichert', () => {
+  const state = rankState(100);
+  const ranks = exerciseRanks(state, [benchExercise], () => benchExercise);
+  const list = badges(ranks, overallRank(ranks), 0);
+  eq(list.length, 8, 'acht Meilensteine');
+
+  const first = list.find((badge) => badge.id === 'erster-rang')!;
+  eq(first.earned, true, 'ein Rang existiert');
+  const bench = list.find((badge) => badge.id === 'bank-koerpergewicht')!;
+  eq(bench.earned, true, '100 kg bei 80 kg Koerpergewicht');
+  const full = list.find((badge) => badge.id === 'vollstaendig')!;
+  eq(full.earned, false, 'nur eine von sechs');
+  near(full.share, 1 / 6, 0.01);
+
+  // Erreichtes steht vorn.
+  truthy(list[0].earned, 'erreicht zuerst');
+});
+
+check('Abzeichen: die Wochen-Serie zaehlt mit', () => {
+  const list = badges([], overallRank([]), 12);
+  eq(list.find((badge) => badge.id === 'zehn-wochen')!.earned, true);
+  eq(badges([], overallRank([]), 4).find((badge) => badge.id === 'zehn-wochen')!.share, 0.4);
+});
+
+check('rankTimeline rechnet den Rang von damals mit den Daten von damals', () => {
+  const state = stateWith([
+    { ...workoutOn('2026-06-01', 60, 5), bodyWeightKg: 80 },
+    { ...workoutOn('2026-09-01', 120, 5), bodyWeightKg: 80 },
+  ]);
+  state.profile = { ...state.profile, weightKg: 80, sex: 'male' };
+  const line = rankTimeline(state, [benchExercise], () => benchExercise, 4);
+  truthy(line.length >= 2, `${line.length} Punkte`);
+  truthy(line[0].score < line[line.length - 1].score, 'es geht aufwärts');
+  eq(line[0].date, '2026-06-01', 'beginnt am ersten Training');
+});
+
+check('rankTimeline ohne Training bleibt leer', () => {
+  eq(rankTimeline(stateWith([]), [], () => undefined).length, 0);
 });
 
 /* --------------------------------------------------------- Zusammenfuehren */
