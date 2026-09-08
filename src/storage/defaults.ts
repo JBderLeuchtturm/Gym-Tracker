@@ -33,6 +33,7 @@ export const DEFAULT_SETTINGS: Settings = {
   reminder: { enabled: false, time: '17:00', lastShownOn: null },
   weather: { enabled: false, lat: null, lon: null, placeName: '' },
   autoBackup: false,
+  shareRank: false,
   yazio: { bridgeUrl: '', token: '', enabled: false, lastSyncAt: null },
   mealPresets: [],
 };

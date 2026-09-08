@@ -374,6 +374,48 @@ create trigger state_backups_trim
   after insert on public.state_backups
   for each row execute function public.trim_state_backups();
 
+-- ------------------------------------------------------------- Rangliste
+
+-- Der einzige Ort in diesem Schema, den jedes angemeldete Konto lesen darf.
+--
+-- Deshalb steht hier ausdruecklich NICHT drin, was jemand hebt: kein Gewicht,
+-- kein Koerpergewicht, kein einziger Trainingseintrag. Nur der Punktestand,
+-- die Stufe je Bewegung und der selbst gewaehlte Anzeigename - also genau das,
+-- was eine Rangliste braucht, und nichts darueber hinaus.
+--
+-- Eine Zeile entsteht nur, wenn jemand in der App ausdruecklich zustimmt. Wer
+-- die Zustimmung zurueckzieht, loescht seine Zeile.
+create table if not exists public.rank_board (
+  user_id      uuid primary key references auth.users on delete cascade,
+  display_name text not null default '',
+  emoji        text not null default '💪',
+  score        numeric not null default 0 check (score >= 0 and score <= 200),
+  tier         text not null default 'einsteiger',
+  -- Wie viele der gewerteten Bewegungen ueberhaupt Daten haben.
+  covered      int not null default 0 check (covered >= 0 and covered <= 20),
+  -- Je Bewegung nur die Stufe: {"bench":"stark"} - nie ein Gewicht.
+  parts        jsonb not null default '{}'::jsonb,
+  updated_at   timestamptz not null default now()
+);
+
+alter table public.rank_board enable row level security;
+
+-- Lesen darf jedes angemeldete Konto - das ist der Sinn einer Rangliste.
+drop policy if exists rank_board_read on public.rank_board;
+create policy rank_board_read on public.rank_board
+  for select to authenticated
+  using (true);
+
+-- Schreiben nur die eigene Zeile.
+drop policy if exists rank_board_write on public.rank_board;
+create policy rank_board_write on public.rank_board
+  for all to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+create index if not exists rank_board_score_idx on public.rank_board (score desc);
+
+
 -- ------------------------------------------------------------ Ausfuehrrechte
 
 -- Die Hilfsfunktionen laufen mit erhoehten Rechten - deshalb bekommt sie nur,

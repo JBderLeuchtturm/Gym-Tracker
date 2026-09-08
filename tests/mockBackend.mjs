@@ -17,6 +17,7 @@ export function createMockBackend({ log = () => {} } = {}) {
     challenge_members: [],
     activity_reactions: [],
     activity_comments: [],
+    rank_board: new Map(),   // user_id -> row
   };
   const unknown = [];
 
@@ -79,6 +80,10 @@ export function createMockBackend({ log = () => {} } = {}) {
     }
     if (table === 'user_state') {
       return [...db.user_state.values()].filter((row) => row.user_id === me);
+    }
+    // Die Rangliste darf jedes angemeldete Konto lesen - das ist ihr Sinn.
+    if (table === 'rank_board') {
+      return [...db.rank_board.values()];
     }
     if (table === 'friendships') {
       return db.friendships.filter((row) => row.requester_id === me || row.addressee_id === me);
@@ -245,6 +250,10 @@ export function createMockBackend({ log = () => {} } = {}) {
             if (item.user_id !== me) return json({ message: 'row-level security' }, 403);
             db.user_state.set(item.user_id, { ...item });
             written.push({ ...item });
+          } else if (table === 'rank_board') {
+            if (item.user_id !== me) return json({ message: 'row-level security' }, 403);
+            db.rank_board.set(item.user_id, { ...item });
+            written.push({ ...item });
           } else if (table === 'share_payloads') {
             if (item.owner_id !== me) return json({ message: 'row-level security' }, 403);
             const index = db.share_payloads.findIndex((r) => r.owner_id === item.owner_id && r.scope === item.scope);
@@ -382,6 +391,9 @@ export function createMockBackend({ log = () => {} } = {}) {
           }
         } else if (table === 'share_grants') {
           db.share_grants = db.share_grants.filter((row) => !(row.owner_id === me && matches(row, filters)));
+        } else if (table === 'rank_board') {
+          // Teilnahme zurueckziehen loescht die eigene Zeile.
+          db.rank_board.delete(me);
         } else if (table === 'group_members') {
           const doomed = db.group_members.filter((row) => matches(row, filters) && row.user_id === me);
           for (const row of doomed) {

@@ -6,6 +6,7 @@ import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { formatClock, formatDateShort, formatDateTiny } from '../lib/date';
 import { exerciseHistory, familyHistory, personalRecords } from '../lib/stats';
 import { formatSet } from '../lib/setFormat';
+import { STANDARDS, TIER_LABELS, exerciseRanks } from '../lib/ranks';
 import { familyMembers, familyOf } from '../lib/variants';
 import { GOAL_LABELS, GOAL_UNITS, PACE_LABELS, goalPace, goalStatus } from '../lib/goals';
 import { addDays, todayISO } from '../lib/date';
@@ -108,6 +109,8 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
         <MuscleCard exercise={exercise} />
 
         {exercise.description && <p className="small muted">{exercise.description}</p>}
+
+        <ExerciseRankLine exercise={exercise} />
 
         <GuideCard exercise={exercise} />
 
@@ -516,6 +519,50 @@ function GoalCard({
       </Modal>
     );
   }
+}
+
+/**
+ * Der Rang dieser Bewegung, wenn sie gewertet wird.
+ *
+ * Beantwortet die Frage, die eine Kilozahl offen laesst: Ist das viel? Steht
+ * bewusst weit oben - direkt unter den Muskeln, vor Verlauf und Bestleistungen.
+ */
+function ExerciseRankLine({ exercise }: { exercise: Exercise }) {
+  const { state, allExercises, getExercise } = useStore();
+  const family = familyOf(exercise, getExercise);
+
+  const rank = useMemo(() => {
+    if (!family || !STANDARDS[family.id]) return null;
+    return exerciseRanks(state, allExercises, getExercise)
+      .find((item) => item.family === family.id) ?? null;
+  }, [state, allExercises, getExercise, family]);
+
+  if (!family || !STANDARDS[family.id]) return null;
+
+  if (!rank) {
+    return (
+      <div className="tiny dim">
+        {t('Diese Bewegung wird gewertet – sobald ein Satz mit Gewicht drinsteht, steht hier dein Rang.')}
+      </div>
+    );
+  }
+
+  return (
+    <div className="row row--between" style={{ alignItems: 'baseline', gap: 10 }}>
+      <span className="small">
+        {t('Rang')}: <span className="bold">{t(TIER_LABELS[rank.tier])}</span>
+        <span className="dim">{` · ${fmt(rank.ratio, 2)}× ${t('Körpergewicht')}`}</span>
+      </span>
+      {rank.nextKg != null && rank.nextTier && (
+        <span className="tiny dim nowrap">
+          {t('{kg} kg bis „{tier}“', {
+            kg: fmt(Math.max(0, rank.nextKg - rank.bestKg), 1),
+            tier: t(TIER_LABELS[rank.nextTier]),
+          })}
+        </span>
+      )}
+    </div>
+  );
 }
 
 /**

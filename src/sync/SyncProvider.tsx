@@ -29,6 +29,18 @@ const PUSH_DELAY_MS = 3500;
 const POLL_INTERVAL_MS = 90_000;
 
 /** Ein Eintrag der taeglichen Sicherung - ohne Inhalt, nur die Eckdaten. */
+/** Eine Zeile der Rangliste - bewusst ohne jedes Gewicht. */
+export interface RankRow {
+  user_id: string;
+  display_name: string;
+  emoji: string;
+  score: number;
+  tier: string;
+  covered: number;
+  parts: Record<string, string>;
+  updated_at: string;
+}
+
 export interface StateBackup {
   id: string;
   created_on: string;
@@ -82,6 +94,12 @@ interface SyncValue {
   syncNow: () => Promise<void>;
 
   /** Taegliche Sicherungen am Konto - zusaetzlich zum laufenden Abgleich. */
+  /** Rangliste aller teilnehmenden Konten, absteigend nach Punkten. */
+  rankBoard: RankRow[];
+  loadRankBoard: () => Promise<RankRow[]>;
+  publishRank: (entry: Omit<RankRow, 'user_id' | 'updated_at'>) => Promise<boolean>;
+  withdrawRank: () => Promise<void>;
+
   backups: StateBackup[];
   listBackups: () => Promise<StateBackup[]>;
   backupNow: () => Promise<boolean>;
@@ -135,6 +153,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const [lastMergeNote, setLastMergeNote] = useState<string | null>(null);
   const [backups, setBackups] = useState<StateBackup[]>([]);
+  const [rankBoard, setRankBoard] = useState<RankRow[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [reactions, setReactions] = useState<ActivityReaction[]>([]);
@@ -732,6 +751,48 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     setProfile(updated.data as RemoteProfile);
   }, [client, user]);
 
+  /* -------------------------------------------------------------- Rangliste */
+
+  /*
+   * Die Rangliste ist der einzige Ort, den jedes Konto dieses Projekts lesen
+   * darf. Deshalb wandert dorthin ausdruecklich nur der Punktestand, die Stufe
+   * je Bewegung und der selbst gewaehlte Anzeigename - kein Gewicht, kein
+   * Koerpergewicht, kein Trainingseintrag. Und nur, wenn jemand ausdruecklich
+   * zugestimmt hat.
+   */
+  const loadRankBoard = useCallback(async (): Promise<RankRow[]> => {
+    if (!client) return [];
+    const { data, error: readError } = await client
+      .from('rank_board')
+      .select('user_id, display_name, emoji, score, tier, covered, parts, updated_at')
+      .order('score', { ascending: false })
+      .limit(200);
+    if (readError) { setError(readError.message); return []; }
+    const rows = (data ?? []) as RankRow[];
+    setRankBoard(rows);
+    return rows;
+  }, [client]);
+
+  const publishRank = useCallback(async (
+    entry: Omit<RankRow, 'user_id' | 'updated_at'>,
+  ): Promise<boolean> => {
+    if (!client || !user) return false;
+    const { error: writeError } = await client.from('rank_board').upsert({
+      ...entry,
+      user_id: user.id,
+      updated_at: new Date().toISOString(),
+    });
+    if (writeError) { setError(writeError.message); return false; }
+    await loadRankBoard();
+    return true;
+  }, [client, user, loadRankBoard]);
+
+  const withdrawRank = useCallback(async (): Promise<void> => {
+    if (!client || !user) return;
+    await client.from('rank_board').delete().eq('user_id', user.id);
+    await loadRankBoard();
+  }, [client, user, loadRankBoard]);
+
   /* ------------------------------------------------- Automatische Sicherung */
 
   /*
@@ -872,6 +933,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     requestPasswordReset, setNewPassword, recoveryMode, endRecoveryMode,
     friends, refreshFriends, addFriend, acceptFriend, removeFriend,
     grants, setGrant, loadFriendData, friendData, syncNow,
+    rankBoard, loadRankBoard, publishRank, withdrawRank,
     backups, listBackups, backupNow, restoreBackup,
     pushStatus, enablePush, disablePush, nudgeFriends,
     groups, challenges, reactions, comments, refreshSocial,
@@ -885,6 +947,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     requestPasswordReset, setNewPassword, recoveryMode, endRecoveryMode,
     friends, refreshFriends, addFriend, acceptFriend, removeFriend,
     grants, setGrant, loadFriendData, friendData, syncNow,
+    rankBoard, loadRankBoard, publishRank, withdrawRank,
     backups, listBackups, backupNow, restoreBackup,
     pushStatus, enablePush, disablePush, nudgeFriends,
     groups, challenges, reactions, comments, refreshSocial,

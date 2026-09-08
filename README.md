@@ -26,6 +26,14 @@ mit einer Zahl, die man von der Bank aus liest. Ein Satz lässt sich duplizieren
 und „Training vom … wiederholen" übernimmt den letzten gleichen Trainingstag
 samt Gewichten. Spontane Zusatzübungen gehen jederzeit, auch an Ruhetagen.
 
+Was heute nicht stattfindet, wird **ausgelassen statt gelöscht**: Eine Übung
+(*Mehr → Heute auslassen*) oder ein einzelner geplanter Satz (*⋯ → Satz
+auslassen*) bleibt durchgestrichen stehen, damit man abends noch sieht, was
+geplant war – und ob man es vergessen oder entschieden hat. Ausgelassenes zählt
+nirgends mit: nicht ins Volumen, nicht in die Satzzahl, nicht in den
+Kalorienverbrauch, nicht in Bestleistungen. Ein Haken auf einem ausgelassenen
+Satz holt ihn ohne Umweg zurück.
+
 **Rechner für zwischen den Sätzen**
 Der *Rechner* an jeder Übung beantwortet die zwei Fragen, die man sonst im Kopf
 löst. Erstens: Was muss auf die Stange? „82,5 kg" heißt je Seite 25 + 5 + 1,25.
@@ -52,6 +60,26 @@ Volumen und Sätze je Woche, Verteilung auf die Muskelgruppen, Körpergewichtsve
 und für jede einzelne Übung ein Verlaufsdiagramm – wahlweise nach geschätztem 1RM,
 bestem Gewicht, Volumen, Wiederholungen oder Zeit. Dazu persönliche Bestleistungen
 und eine Tabelle der letzten Einheiten.
+
+**Ränge und Rangliste**
+Eine Kilozahl allein beantwortet die Frage nicht, die man eigentlich hat: Ist das
+viel? 100 kg Bankdrücken heißen bei 70 kg Körpergewicht etwas anderes als bei
+110. Deshalb bekommt jede der sechs gewerteten Bewegungen – Bankdrücken,
+Kniebeuge, Kreuzheben, Schulterdrücken, Rudern, Bizepscurl – eine Stufe von
+*Einsteiger* bis *Elite*, und alle zusammen ergeben einen Gesamtrang von 0 bis
+100. Wie das gerechnet wird, steht unten unter
+[Wie der Rang gerechnet wird](#wie-der-rang-gerechnet-wird).
+
+Wer will, kann sich **mit allen anderen Konten dieses Projekts messen**:
+Teilnahme ist ausdrücklich freiwillig und standardmäßig aus. Wer sie einschaltet,
+veröffentlicht seinen Punktestand, die Stufe je Bewegung und seinen
+Anzeigenamen – **keine Gewichte, kein Körpergewicht, keinen einzigen
+Trainingseintrag**. Freunde sind in der Liste markiert. Den Haken wieder
+herauszunehmen löscht die eigene Zeile.
+
+> Für die Rangliste muss [`supabase/schema.sql`](supabase/schema.sql) einmal
+> neu im SQL-Editor laufen – dabei entsteht die Tabelle `rank_board`. Der eigene
+> Rang wird auch ohne Konto und ohne Datenbank gerechnet.
 
 **Muskelkarte und Wochenziele**
 Eine Körperkarte von vorne und hinten zeigt bei jeder Übung, welche Muskeln
@@ -141,8 +169,11 @@ das Training kommt über MET-Werte je Übung obendrauf. Eine gemessene
 Trainingsdauer skaliert die Schätzung – sie muss aber mindestens so lang sein
 wie die reine Hebezeit, sonst ist sie nachweislich falsch und wird verworfen.
 Die Seite öffnet mit der einen Frage: Wie viel darfst du heute noch essen, und
-passt das zum Ziel – eine große Zahl, ein Balken, ein Satz. Der Rest steht
-darunter. Die Zufuhr kann von Hand, über die Lebensmittelsuche (Name oder
+passt das zum Ziel – eine große Zahl, ein Balken, ein Satz. Eingetragen werden
+zuerst nur Kalorien und Eiweiß; Kohlenhydrate, Fett, Yazio und der Verlauf der
+letzten 30 Tage liegen hinter *Mehr*. Offen steht dafür der **geschätzte
+Verbrauch je Übung** – die Zahl, wegen der man an einem Trainingstag überhaupt
+hierher kommt. Die Zufuhr kann von Hand, über die Lebensmittelsuche (Name oder
 Barcode, Daten von [Open Food Facts](https://openfoodfacts.org)), per
 Yazio-CSV-Export oder über eine eigene Bridge dazukommen (siehe unten).
 
@@ -235,11 +266,12 @@ Belastung und das Zusammenführen zweier Geräte-Stände – in Sekunden statt
 Minuten, und die Fehlermeldung zeigt genau auf die Zeile. Die `.ts`-Dateien
 werden dafür einmal mit dem esbuild gebündelt, das ohnehin in Vite steckt.
 
-Dreizehn Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
+Vierzehn Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
 Übungssuche ohne Netz, Layout auf schmalen Geräten, Muskelkarte, Wochenziele
 und Zyklen, Rückgängig und Querformat, Rechner und Studio-Handgriffe,
-Gestaltung und Zugänglichkeit, Mehrsprachigkeit, Freunde und Freigaben,
-Gruppen und Challenges sowie Einladungslinks ab. Alle teilen sich einen
+Gestaltung und Zugänglichkeit, Kalorienseite, Auslassen und Ränge,
+Mehrsprachigkeit, Freunde und Freigaben, Gruppen und Challenges sowie
+Einladungslinks ab. Alle teilen sich einen
 Browser statt jeweils einen eigenen zu starten. Kontraste und Farbabstände
 werden im laufenden Browser nachgerechnet, nicht nach Augenmaß beurteilt.
 
@@ -485,6 +517,39 @@ wger nur, während man tippt, und Anleitungen nur auf ausdrückliches Antippen.
 Das Wetter ist standardmäßig aus; ist es an, geht der Ort auf zwei
 Nachkommastellen gerundet an Open-Meteo – rund anderthalb Kilometer, ohne Konto
 und ohne Kennung. Trainingsdaten verlassen das Gerät in keinem dieser Fälle.
+
+**Was in der Rangliste steht.** Nur, wenn du sie eingeschaltet hast, und dann
+genau vier Dinge: dein Punktestand, deine Stufe je Bewegung, dein Anzeigename
+und dein Emoji. Die Tabelle `rank_board` hat gar keine Spalte für ein Gewicht.
+Sie ist die einzige Tabelle des Projekts, die jedes angemeldete Konto lesen darf
+– schreiben darf jeder nur seine eigene Zeile, und den Haken wieder
+herauszunehmen löscht sie.
+
+## Wie der Rang gerechnet wird
+
+1. **Je Bewegung** wird aus dem gesamten Verlauf das beste geschätzte
+   Ein-Wiederholungs-Maximum genommen – der beste Satz, nicht der letzte: Eine
+   Bestmarke verliert man nicht dadurch, dass man danach leichter trainiert hat.
+   Übungsvarianten zählen zusammen (Bankdrücken eng, mit Pause, an der
+   Smith-Maschine sind dieselbe Bewegung).
+2. **Geteilt durch das Körpergewicht** ergibt das ein Vielfaches, und das fällt
+   in eine von fünf Stufen. Zwischen zwei Schwellen wird linear geteilt, sodass
+   0 bis 100 Punkte herauskommen; über *Elite* hinaus geht es gedämpft weiter
+   und wird bei 120 gedeckelt, damit ein einzelner sehr starker Wert nicht das
+   ganze Bild bestimmt.
+3. **Der Gesamtrang** ist der Schnitt über alle sechs Bewegungen. Was nie
+   trainiert wurde, zählt als null – deshalb kann er steigen und fallen, je
+   nachdem was du trainierst.
+4. **Alter zählt weniger.** Ein Bestwert von vor einem halben Jahr geht nur noch
+   zu 60 Prozent ein, weil er als Beleg für den heutigen Stand schwächer ist.
+   Tiefer fällt er nie – wer einmal 140 kg gehoben hat, fängt nicht bei null an.
+5. **Für „divers"** gibt es keine veröffentlichten Standards. Gerechnet wird mit
+   dem Mittel aus beiden Tabellen, und in der App steht, dass es so gemacht wird.
+
+Das sind keine Messwerte. Die Schwellen sind gerundete Richtwerte aus öffentlich
+verbreiteten Kraftstandard-Tabellen; sie schwanken je nach Quelle und sagen
+nichts über Technik, Hebelverhältnisse oder Alter. Sie taugen für „wo stehe ich
+ungefähr" und für den Vergleich mit Leuten, die dieselbe Tabelle benutzen.
 
 ## Wie der Kalorienverbrauch berechnet wird
 

@@ -1138,4 +1138,68 @@ export const EN: Record<string, string> = {
   'Belastung etwa wie in der Woche davor.': 'Load is about the same as the week before.',
   'Ruhigere Woche als die davor – gut für die Erholung.':
     'A quieter week than the one before – good for recovery.',
+
+  /* ------------------------------------------------- Ausgelassen und Ränge */
+  'Mehr': 'More',
+  'Weniger': 'Less',
+  'Ausblenden': 'Hide',
+  'Kohlenhydrate': 'Carbs',
+  'Satz entfernen': 'Remove set',
+  'Heute auslassen': 'Skip today',
+  'Doch machen': 'Do it after all',
+  'Satz auslassen': 'Skip set',
+  'Satz doch machen': 'Do the set after all',
+  'ausgelassen': 'skipped',
+  '„{name}“ heute ausgelassen': '“{name}” skipped today',
+  'Training gesamt': 'Workout total',
+  'An diesem Tag kein Training – gerechnet wird nur der Alltag.':
+    'No workout on this day – only everyday activity is counted.',
+  'Woraus sich das zusammensetzt': 'What that is made of',
+  'Verlauf der letzten 30 Tage zeigen': 'Show the last 30 days',
+
+  'Rang': 'Rank',
+  'Einsteiger': 'Beginner',
+  'Geübt': 'Novice',
+  'Fortgeschritten': 'Intermediate',
+  'Stark': 'Advanced',
+  'Elite': 'Elite',
+  'Bankdrücken': 'Bench press',
+  'Kniebeuge': 'Squat',
+  'Kreuzheben': 'Deadlift',
+  'Schulterdrücken': 'Overhead press',
+  'Rudern': 'Row',
+  'Bizepscurl': 'Biceps curl',
+  'Jemand': 'Someone',
+  'Freund': 'Friend',
+  '{done} von {total} gewerteten Bewegungen': '{done} of {total} ranked movements',
+  'Noch keine der gewerteten Bewegungen trainiert': 'None of the ranked movements trained yet',
+  'Ohne Eintrag: {list}': 'No entry: {list}',
+  'sie zählen als null in den Gesamtrang.': 'they count as zero towards the overall rank.',
+  '{score} von 100 Punkten': '{score} out of 100 points',
+  '{kg} kg fehlen bis „{tier}“': '{kg} kg short of “{tier}”',
+  '{kg} kg bis „{tier}“': '{kg} kg to “{tier}”',
+  'höchste Stufe erreicht': 'top tier reached',
+  'zuletzt {date}': 'last on {date}',
+  'Für den Vergleich mit anderen brauchst du ein Konto unter „Freunde“. Der eigene Rang wird auch ohne gerechnet.':
+    'Comparing yourself with others needs an account under “Friends”. Your own rank is calculated without one.',
+  'Am Rangvergleich teilnehmen': 'Take part in the ranking',
+  'Sichtbar für alle Konten dieses Projekts: dein Punktestand, die Stufe je Bewegung und dein Anzeigename. Keine Gewichte, kein Körpergewicht, kein Trainingseintrag.':
+    'Visible to every account of this project: your score, the tier per movement and your display name. No weights, no bodyweight, no training entry.',
+  'Rangliste zeigen': 'Show ranking',
+  'Rangliste ausblenden': 'Hide ranking',
+  'Noch nimmt niemand teil.': 'Nobody is taking part yet.',
+  'Du stehst auf Platz {place} von {total}.': 'You are in place {place} of {total}.',
+  'Wie der Rang gerechnet wird': 'How the rank is calculated',
+  'Für jede der sechs gewerteten Bewegungen wird das beste geschätzte Ein-Wiederholungs-Maximum durch dein Körpergewicht geteilt. Das Verhältnis fällt in eine von fünf Stufen. So heißen 100 kg Bankdrücken bei 70 kg Körpergewicht etwas anderes als bei 110 kg – und genau das ist der Punkt.':
+    'For each of the six ranked movements your best estimated one-rep max is divided by your bodyweight. The ratio falls into one of five tiers. That way 100 kg on the bench means something different at 70 kg bodyweight than at 110 kg – which is exactly the point.',
+  'Der Gesamtrang ist der Schnitt über alle sechs. Bewegungen ohne Eintrag zählen als null – deshalb kann er steigen und fallen, je nachdem was du trainierst. Ein Bestwert von vor einem halben Jahr zählt außerdem weniger, weil er als Beleg für den heutigen Stand schwächer ist; unter 60 Prozent fällt er nie.':
+    'The overall rank is the average across all six. Movements without an entry count as zero – which is why it can rise and fall depending on what you train. A best from six months ago also counts for less, because it is weaker evidence for where you stand today; it never drops below 60 per cent.',
+  'Was diese Zahlen nicht sind': 'What these numbers are not',
+  'Eine Messung. Die Schwellen sind gerundete Richtwerte aus öffentlich verbreiteten Kraftstandard-Tabellen; sie schwanken je nach Quelle und sagen nichts über Technik, Hebelverhältnisse oder Alter. Sie taugen für „wo stehe ich ungefähr“ und für den Vergleich mit Leuten, die dieselbe Tabelle benutzen.':
+    'A measurement. The thresholds are rounded guide values from publicly circulated strength-standard tables; they vary by source and say nothing about technique, leverages or age. They are good for “roughly where do I stand” and for comparing yourself with people using the same table.',
+  'Für „divers“ gibt es keine veröffentlichten Standards. Gerechnet wird mit dem Mittel aus beiden Tabellen.':
+    'There are no published standards for “diverse”. The average of both tables is used.',
+  'Gewertet werden': 'Ranked movements',
+  'Diese Bewegung wird gewertet – sobald ein Satz mit Gewicht drinsteht, steht hier dein Rang.':
+    'This movement is ranked – as soon as one set with a weight is logged, your rank appears here.',
 };

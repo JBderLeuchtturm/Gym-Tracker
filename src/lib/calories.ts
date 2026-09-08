@@ -111,6 +111,8 @@ export function calcWorkoutBurn(
   }> = [];
 
   for (const logged of workout.exercises) {
+    // Ausgelassene Uebungen stehen im Tag, wurden aber nicht gemacht.
+    if (logged.skipped) continue;
     const exercise = getExercise(logged.exerciseId);
     const met = exercise?.met ?? 5;
     const name = exercise?.name ?? 'Unbekannte Übung';
@@ -118,7 +120,7 @@ export function calcWorkoutBurn(
     let work = 0;
     for (const set of logged.sets) {
       // Saetze des Partners sind fremde Arbeit und zaehlen nicht in den eigenen Verbrauch.
-      if (!set.done || set.forPartner) continue;
+      if (!set.done || set.forPartner || set.skipped) continue;
       minutes += setMinutes(set.reps, set.durationSec, defaultRestSec);
       work += workMinutes(set.reps, set.durationSec);
     }
