@@ -108,6 +108,36 @@ Vollständige Neuentwicklung, auch die Algorithmen müssen portiert werden.
 Wie Capacitor, aber mit Rust-Kern. Die Mobil-Story ist jünger und weniger
 erprobt als Capacitor, das Plugin-Ökosystem kleiner. Kein Vorteil hier.
 
+### E) Die Codebasis in Python
+
+Kurz: **technisch möglich, praktisch ein schlechter Tausch.**
+
+- Es gibt keinen Weg, den bestehenden React/TypeScript-Code nach Python zu
+  „portieren" – die Oberfläche hängt an ihrer Rendertechnik. Python auf dem
+  Handy heißt komplett neu schreiben in einem der folgenden Werkzeuge:
+  - **Flet** (Python, rendert Flutter-Widgets) – die derzeit brauchbarste
+    Option, aber junges Projekt, eigenes Komponentenmodell, kein HTML/React.
+  - **BeeWare/Toga** (echte native Widgets) – kleiner Widget-Satz, unreif.
+  - **Kivy/KivyMD** (eigenes OpenGL-Rendering) – sieht nach nichts von Android
+    aus, Nische.
+  - **Chaquopy** – bettet Python in eine Kotlin-App ein; die Oberfläche bleibt
+    Kotlin. Macht die Codebasis also nicht zu Python.
+- **Aufwand:** die reine Rechenlogik in `src/lib/` (Kalorien, Statistik,
+  Scheiben, 1RM, Coaching, Ermüdung, Datum – ~5–6k Zeilen) ließe sich in
+  1–2 Wochen mechanisch nach Python übertragen. Die Oberfläche (~13k Zeilen)
+  ist eine Neuentwicklung von Wochen bis Monaten – mit einem schwächeren
+  Ergebnis als die heutige Web-Oberfläche.
+- **Was verloren geht:** die Web-Fassung. Python läuft nicht im Browser
+  (Pyodide/PyScript lädt mehrere MB WASM und ist für eine ganze App nicht
+  produktionsreif).
+- **Was man gewinnt:** für diese Art App nichts Konkretes. Python lohnt sich,
+  wo es einen datenlastigen Server, ML oder wissenschaftliches Rechnen gibt –
+  hier gibt es fast keinen Server (eine kleine Supabase-Function in
+  TypeScript/Deno).
+- **Sinnvoller Python-Einsatz hier:** *neben* der App, nicht statt ihr. Die App
+  exportiert CSV und JSON-Backups – daraus lässt sich mit Python ein eigenes
+  Analyse-Notebook oder Dashboard bauen, ohne die App anzufassen.
+
 ---
 
 ## 3. Empfehlung: Capacitor
@@ -203,12 +233,45 @@ die App-Oberfläche komplett neu entsteht.
 
 ### Phase 5 – Bauen und testen (Betreiber, ~1–2 h)
 
-- `npm run cap:build`
-- `npx cap open android` → Android Studio →
-  *Build → Generate Signed Bundle / APK*.
-- Am Gerät prüfen: Flugmodus-Start, Barcode + Kameraerlaubnis, Erinnerung bei
-  geschlossener App, Zurück-Taste, alle Exporte, Hell/Dunkel, Bildschirm wach
-  im Training.
+**Womit wird gebaut?** Zwei Werkzeuge nacheinander, beide lokal auf dem eigenen
+Rechner:
+
+1. **npm/Vite** baut den Web-Teil → `dist/` (kompilierte React-App).
+2. **Capacitor** kopiert `dist/` in den Android-Projektordner.
+3. **Gradle** (Androids Bausystem, in Android Studio) baut daraus die
+   **APK/AAB**. npm baut *nicht* die APK – das macht Gradle.
+
+**Was lokal gebraucht wird:**
+- Node + npm (vorhanden)
+- **JDK 17** (Java)
+- **Android SDK** – kommt mit [Android Studio](https://developer.android.com/studio)
+  (~1 GB), oder als reine Kommandozeilen-Tools
+- Beim ersten Bau lädt Gradle sich selbst und seine Abhängigkeiten (~einige
+  hundert MB, einmalig). Danach braucht der **Bau** kein Internet mehr, die
+  **App** ohnehin nicht.
+
+**Auf dem Handy testen (Debug, kein Schlüssel nötig):**
+```bash
+npm install                 # einmalig
+npm run cap:build           # = npm run build && npx cap sync android
+npx cap open android        # öffnet Android Studio → Run-Knopf, oder:
+cd android && ./gradlew installDebug   # Handy per USB, installiert direkt
+```
+
+**Signiertes Paket für den Store:**
+```bash
+npm run cap:build
+cd android && ./gradlew bundleRelease   # → android/app/build/outputs/bundle/release/*.aab
+```
+(braucht eine einmalig eingerichtete Signatur-Konfiguration – Keystore.)
+
+Ohne Android Studio geht es auch über **GitHub Actions** (die Android-Images
+haben das SDK schon); für den ersten Anlauf ist lokal + Android Studio aber
+einfacher, weil es Schlüssel, Emulator und Geräte-Installation mit abnimmt.
+
+**Am Gerät prüfen:** Flugmodus-Start, Barcode + Kameraerlaubnis, Erinnerung bei
+geschlossener App, Zurück-Taste, alle Exporte, Hell/Dunkel, Bildschirm wach im
+Training.
 
 ### Phase 6 – Dokumentation (Claude, ~1 h)
 
