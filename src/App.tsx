@@ -65,8 +65,20 @@ export function App() {
   /* Der scrollende Bereich - beim Reiterwechsel geht er zurueck nach oben. */
   const scrollRef = useRef<HTMLDivElement>(null);
   const [updateReady, setUpdateReady] = useState(false);
+  /*
+   * Traegt "app--boot" fuer die ersten paar hundert Millisekunden - nur
+   * dann duerfen Listen gestaffelt einblenden (siehe ".app--boot .list > *"
+   * in styles.css). Reiterwechsel danach unmounten und montieren zwar auch
+   * React-Baeume neu, sehen davon aber nichts mehr: sofort da statt jedes
+   * Mal erneut hochsteigend.
+   */
+  const [booting, setBooting] = useState(true);
 
   useEffect(() => onUpdateAvailable(setUpdateReady), []);
+  useEffect(() => {
+    const id = setTimeout(() => setBooting(false), 650);
+    return () => clearTimeout(id);
+  }, []);
 
   // Farbschema anwenden (dunkel, hell oder Systemvorgabe).
   useEffect(() => {
@@ -99,7 +111,7 @@ export function App() {
             : null;
 
   return (
-    <div className="app">
+    <div className={`app ${booting ? 'app--boot' : ''}`}>
       {/* Erste Tabulatorstelle: an der Navigation vorbei direkt in den Inhalt. */}
       <a className="skip-link" href="#inhalt">{t('Zum Inhalt springen')}</a>
 
