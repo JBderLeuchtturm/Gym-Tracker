@@ -23,6 +23,7 @@ import { formatDateLong, todayISO, weekdayOf } from './lib/date';
 import { PageSkeleton } from './components/ui';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RankUpWatcher } from './components/RankUp';
+import { Onboarding } from './components/Onboarding';
 import { IconCalendar, IconChart, IconDumbbell, IconTrophy, IconUser } from './components/icons';
 import { IconUsers } from './components/icons';
 
@@ -55,7 +56,7 @@ const TITLE_KEYS: Record<Tab, string> = {
 const title = (tab: Tab): string => t(TITLE_KEYS[tab]);
 
 export function App() {
-  const { state } = useStore();
+  const { state, updateSettings } = useStore();
   const sync = useSync();
 
   const pendingRequests = sync.friends.filter((friend) => friend.state === 'incoming').length;
@@ -79,6 +80,23 @@ export function App() {
     const id = setTimeout(() => setBooting(false), 650);
     return () => clearTimeout(id);
   }, []);
+
+  /*
+   * Zeitzone einmalig festhalten - eine serverseitige Erinnerung (siehe
+   * supabase/functions/daily-nudge) braucht sie, um "17:00" in der richtigen
+   * Ortszeit statt in UTC auszuwerten. Der Vergleich verhindert, dass jeder
+   * Start unnoetig schreibt; nur beim ersten Mal oder nach einem Ortswechsel
+   * aendert sich etwas.
+   */
+  useEffect(() => {
+    try {
+      const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (zone && zone !== state.settings.timezone) updateSettings({ timezone: zone });
+    } catch {
+      /* Ohne Intl.DateTimeFormat bleibt die Erinnerung lokal, wie bisher. */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.settings.timezone]);
 
   // Farbschema anwenden (dunkel, hell oder Systemvorgabe).
   useEffect(() => {
@@ -164,6 +182,8 @@ export function App() {
         * gerade steht. Wer beim Eintragen eine Stufe knackt, sieht es sofort.
         */}
       <RankUpWatcher />
+
+      <Onboarding />
 
       <TrainingReminder onOpen={() => { setTab('today'); setHistoryOpen(false); }} />
 

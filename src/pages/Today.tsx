@@ -3,16 +3,19 @@ import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useS
 import type { Exercise, ID, LoggedExercise, PlanExercise, SetLog, Workout } from '../types';
 import {
   WEEKDAY_SHORT, addDays, formatClock, formatDateShort, parseISODate, relativeDayLabel,
-  startOfWeek, todayISO, weekdayOf,
+  startOfWeek, todayISO, weekKey, weekdayOf,
 } from '../lib/date';
 import { calcWorkoutBurn } from '../lib/calories';
-import { exerciseRanks, type ExerciseRankEntry } from '../lib/ranks';
+import {
+  exerciseRanks, familyRanks, nextStep, overallRank, type ExerciseRankEntry,
+} from '../lib/ranks';
 import { RankBadge } from '../components/RankBadge';
+import { formatValue } from '../components/Ranks';
 import { formatSet } from '../lib/setFormat';
 import { detectRecord, suggestWeight, warmupSets, type NewRecord } from '../lib/coaching';
 import { cycleLabel, cycleWeight, isDeload } from '../lib/cycle';
 import {
-  countsAsWork, exerciseVolume, lastPerformance, workoutSetCount, workoutVolume,
+  countsAsWork, exerciseVolume, lastPerformance, streakInfo, workoutSetCount, workoutVolume,
 } from '../lib/stats';
 import { useStore } from '../storage/store';
 import { useSync } from '../sync/SyncProvider';
@@ -80,7 +83,7 @@ const newSet = (partial: Partial<SetLog> = {}): SetLog => ({
 
 /* ------------------------------------------------------------------ Seite */
 
-export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void }) {
+export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank') => void }) {
   const {
     state, getExercise, allExercises, upsertWorkout, deleteWorkout, snapshot, replaceState,
     updateSettings,
@@ -98,6 +101,10 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
   const [sortMode, setSortMode] = useState(false);
   const [record, setRecord] = useState<{ name: string; record: NewRecord } | null>(null);
   const [flashSet, setFlashSet] = useState<string | null>(null);
+  const [decayDismissed, setDecayDismissed] = useState(false);
+  const [recap, setRecap] = useState<SessionRecap | null>(null);
+  /* Wie viele Bestleistungen seit dem Start dieser Einheit - fuer den Abschluss. */
+  const recordsThisSessionRef = useRef(0);
 
   /*
    * Der Rang je Uebung - einmal fuer die ganze Seite. Jede Karte einzeln
@@ -111,6 +118,40 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
     }
     return map;
   }, [state, allExercises, getExercise]);
+
+  /*
+   * Serie, Wochenvolumen und naechster Rang-Schritt - fuer den Kopf der
+   * Seite. Die Familien-/Gesamtrechnung baut bewusst auf "ranks" auf statt
+   * "rankSnapshot" ein zweites Mal ueber den ganzen Verlauf laufen zu
+   * lassen - das waere derselbe teure Durchlauf zweimal.
+   */
+  const streak = useMemo(() => streakInfo(state), [state]);
+  const families = useMemo(() => familyRanks([...ranks.values()]), [ranks]);
+  const overall = useMemo(() => overallRank(families), [families]);
+  const step = useMemo(
+    () => nextStep({ exercises: [...ranks.values()], families, overall }, state.profile.weightKg, state.profile.sex),
+    [ranks, families, overall, state.profile.weightKg, state.profile.sex],
+  );
+  const weekVolume = useMemo(() => {
+    const key = weekKey(todayISO());
+    return state.workouts
+      .filter((item) => weekKey(item.date) === key && workoutSetCount(item) > 0)
+      .reduce((sum, item) => sum + workoutVolume(item), 0);
+  }, [state.workouts]);
+  /*
+   * Was schon spuerbar an Wertung verliert - nicht nur eben erst aus der
+   * Karenzzeit gefallen. "dropsInDays" waere fuer eine Dringlichkeits-Zahl
+   * verlockend, ist aber der naechste ganzzahlige Rundungsschritt der
+   * Anzeige und schwankt dadurch sprunghaft (mal 1, mal 9 Tage, ohne dass
+   * sich am eigentlichen Verfall viel aendert) - keine gute Grundlage fuer
+   * eine Warnung. "decayLoss" waechst dagegen stetig mit der Zeit.
+   */
+  const fadingSoon = useMemo(
+    () => [...ranks.values()]
+      .filter((entry) => entry.decayLoss >= 3)
+      .sort((a, b) => b.decayLoss - a.decayLoss),
+    [ranks],
+  );
 
   const plan = state.plans.find((item) => item.id === state.activePlanId) ?? null;
   const planDay = plan?.days[weekdayOf(date)] ?? null;
@@ -245,6 +286,7 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
       setFlashSet(setId);
       window.setTimeout(() => setFlashSet((current) => (current === setId ? null : current)), 1400);
       navigator.vibrate?.([25, 40, 25]);
+      recordsThisSessionRef.current += 1;
     }
 
     // Beim Supersatz erst nach der letzten Uebung der Gruppe pausieren.
@@ -402,6 +444,7 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
   };
 
   const startSession = () => {
+    recordsThisSessionRef.current = 0;
     upsertWorkout(date, (current) => ({
       ...current,
       planId: plan?.id,
@@ -420,6 +463,20 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
       return { ...current, endedAt: new Date().toISOString(), durationMin: minutes };
     });
     toast.show(t("Training beendet"));
+    /*
+     * Ein kurzer, zufriedenstellender Abschluss statt nur "Training
+     * beendet" - der Moment verpuffte sonst komplett. Zahlen, die schon da
+     * sind (stats, streak), keine neue Rechnung dafuer.
+     */
+    if (stats.sets > 0) {
+      setRecap({
+        volume: stats.volume,
+        kcal: stats.kcal,
+        minutes: stats.minutes,
+        records: recordsThisSessionRef.current,
+        streakWeeks: streak.current,
+      });
+    }
     // Freunde anstupsen - still, und nur wenn Push eingerichtet ist.
     void sync.nudgeFriends();
   };
@@ -550,6 +607,68 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
           </button>
         )}
       </div>
+
+      {/*
+        * Verliert gerade jemand spuerbar an Wertung? Ein Blick lohnt sich,
+        * bevor daraus eine ganze Stufe wird. Einmal am Tag reicht als Hinweis.
+        */}
+      {fadingSoon.length > 0 && !decayDismissed && state.settings.decayWarnShownOn !== todayISO() && (
+        <div className="update-banner" role="status">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="bold small">
+              {fadingSoon.length === 1
+                ? t('{name} verliert gerade an Wertung', { name: fadingSoon[0].exerciseName })
+                : t('{count} Bewegungen verlieren gerade an Wertung', { count: fadingSoon.length })}
+            </div>
+            <div className="tiny" style={{ opacity: 0.85 }}>
+              {t('Seit {days} Tagen nicht gemacht – ein Satz hält den Stand.', { days: fadingSoon[0].days })}
+            </div>
+          </div>
+          {onNavigate && (
+            <button className="btn btn--sm" onClick={() => onNavigate('rank')}>{t('Ansehen')}</button>
+          )}
+          <button
+            className="btn btn--sm btn--ghost"
+            onClick={() => { setDecayDismissed(true); updateSettings({ decayWarnShownOn: todayISO() }); }}
+          >
+            {t('Verstanden')}
+          </button>
+        </div>
+      )}
+
+      {/*
+        * Serie und Wochenvolumen standen bisher nur klein auf der Profilkarte
+        * - dabei sind sie der staerkste Grund, wiederzukommen. Hier auf der
+        * Seite, die man taeglich sieht, gehoeren sie sichtbar hin. Vor der
+        * ersten jemals geloggten Einheit bleibt die Zeile weg, damit niemand
+        * mit "0 Wochen Serie" begruesst wird - das uebernimmt der Einstieg.
+        */}
+      {streak.total > 0 && (
+        <div className="home-strip">
+          <div className="home-strip__item">
+            <span className="home-strip__value mono">{streak.current}</span>
+            <span className="home-strip__label">
+              {streak.current === 1 ? t('Woche Serie') : t('Wochen Serie')}
+            </span>
+          </div>
+          <div className="home-strip__item">
+            <span className="home-strip__value mono">
+              {fmt(weekVolume)}<span className="home-strip__unit">{t('kg')}</span>
+            </span>
+            <span className="home-strip__label">{t('diese Woche')}</span>
+          </div>
+          {step && (
+            <button
+              type="button"
+              className="home-strip__item home-strip__item--action"
+              onClick={() => onNavigate?.('rank')}
+            >
+              <span className="home-strip__value mono">{formatValue(step.missing, step.basis)}</span>
+              <span className="home-strip__label">{t('bis {label}', { label: t(step.label) })}</span>
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="split">
       <div className="split__main">
@@ -771,6 +890,8 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
           onClose={() => setRecord(null)}
         />
       )}
+
+      {recap && <SessionRecapModal recap={recap} onClose={() => setRecap(null)} />}
 
       {restEndsAt && (
         <RestTimer
@@ -1688,6 +1809,65 @@ function SessionBar({
 }
 
 /* ------------------------------------------------------- Bestleistungs-Meldung */
+
+/*
+ * Der Abschluss einer Einheit stand bisher nirgends - "Training beendet" als
+ * kurzer Zettel, und dann ist der Moment vorbei. Nur Zahlen, die ohnehin
+ * schon berechnet sind (stats, streak), keine neue Rechnung extra dafuer.
+ * Erscheint nur bei tatsaechlich geloggten Saetzen - ein leeres Beenden
+ * braucht keine Feier.
+ */
+interface SessionRecap {
+  volume: number;
+  kcal: number;
+  minutes: number;
+  records: number;
+  streakWeeks: number;
+}
+
+function SessionRecapModal({ recap, onClose }: { recap: SessionRecap; onClose: () => void }) {
+  return (
+    <Modal title={t('Training beendet')} onClose={onClose}>
+      <div className="tally__row">
+        <div className="tally__item">
+          <span className="tally__label">{t('Volumen')}</span>
+          <span className="tally__value">{fmt(recap.volume)}<span className="tally__unit">{t('kg')}</span></span>
+        </div>
+        <div className="tally__item">
+          <span className="tally__label">{t('Verbrauch')}</span>
+          <span className="tally__value">{fmt(recap.kcal)}<span className="tally__unit">{t('kcal')}</span></span>
+        </div>
+        <div className="tally__item">
+          <span className="tally__label">{t('Dauer')}</span>
+          <span className="tally__value">{fmt(recap.minutes)}<span className="tally__unit">{t('min')}</span></span>
+        </div>
+      </div>
+
+      {recap.records > 0 && (
+        <p className="small" style={{ color: 'var(--success)', marginTop: 14 }}>
+          {recap.records === 1
+            ? t('Eine Bestleistung dabei.')
+            : t('{count} Bestleistungen dabei.', { count: recap.records })}
+        </p>
+      )}
+      <p className="small dim" style={{ marginTop: recap.records > 0 ? 4 : 14 }}>
+        {recap.streakWeeks > 1
+          ? t('Serie: {count} Wochen am Stück.', { count: recap.streakWeeks })
+          : t('Erste Woche einer neuen Serie.')}
+      </p>
+
+      {/*
+        * Bewusst "Fertig" statt "Weiter": Ein Rangaufstieg kann genau in
+        * diesem Moment ebenfalls ein Fenster oeffnen, und zwei Knoepfe mit
+        * demselben Namen uebereinander waeren nicht nur fuer Tests
+        * mehrdeutig, sondern auch fuer den Daumen.
+        */}
+      <button className="btn btn--primary btn--block" style={{ marginTop: 6 }} onClick={onClose}>
+        {t('Fertig')}
+      </button>
+    </Modal>
+  );
+}
 
 /** Kurze Rueckmeldung, wenn ein Satz einen bisherigen Bestwert schlaegt. */
 function RecordBanner({

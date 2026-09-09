@@ -47,28 +47,46 @@ export async function closeSharedBrowser() {
  * niemals das echte Supabase-Projekt anfassen. Wird ein Mock uebergeben,
  * bekommt der Kontext Zugangsdaten und alle Aufrufe gehen an den Mock.
  */
+/**
+ * Legt einen Zustand in den Speicher, bevor die App zum ersten Mal laedt.
+ *
+ * Muss vor "page.goto" laufen: nachtraeglich geschrieben wuerde er vom
+ * Speicher-Rueckschreiber beim Verlassen der Seite wieder ueberschrieben.
+ * "settings" wird eine Ebene tief zusammengefuehrt statt ersetzt, damit ein
+ * Aufruf mit nur "{ settings: { onboarded: true } }" keinen anderen, schon
+ * gesetzten Seed verschluckt.
+ */
+export async function seedState(ctx, patch) {
+  await ctx.addInitScript((value) => {
+    const key = 'gym-tracker:state:v1';
+    const existing = (() => {
+      try { return JSON.parse(localStorage.getItem(key)) ?? {}; } catch { return {}; }
+    })();
+    localStorage.setItem(key, JSON.stringify({
+      ...existing, ...value,
+      settings: { ...(existing.settings ?? {}), ...(value.settings ?? {}) },
+      updatedAt: new Date().toISOString(),
+    }));
+  }, patch);
+}
+
+/** Ueberspringt den Willkommens-Dialog (siehe Onboarding.tsx) fuer diesen Kontext. */
+export const skipOnboardingIn = (ctx) => seedState(ctx, { settings: { onboarded: true } });
+
 export async function newAppContext(
   browser,
-  { backend = null, url = BASE_URL, label = '', seed = null } = {},
+  { backend = null, url = BASE_URL, label = '', seed = null, skipOnboarding = true } = {},
 ) {
   const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, locale: 'de-DE' });
 
   /*
-   * Vorbelegter Stand fuer Pruefungen, die Verlauf brauchen. Muss vor dem
-   * Start der App im Speicher liegen: Nachtraeglich geschrieben wuerde ihn
-   * der Speicher-Rueckschreiber beim Verlassen der Seite ueberschreiben.
+   * "skipOnboarding" laeuft immer mit, auch ohne eigenen Seed: Sonst wuerde
+   * der Willkommens-Dialog in praktisch jedem der ueber hundert Pruefungen
+   * als Erstes im Weg stehen. Nur die eine Pruefung, die den Dialog selbst
+   * testet, schaltet ihn mit "skipOnboarding: false" ab.
    */
-  if (seed) {
-    await ctx.addInitScript((patch) => {
-      const key = 'gym-tracker:state:v1';
-      const existing = (() => {
-        try { return JSON.parse(localStorage.getItem(key)) ?? {}; } catch { return {}; }
-      })();
-      localStorage.setItem(key, JSON.stringify({
-        ...existing, ...patch, updatedAt: new Date().toISOString(),
-      }));
-    }, seed);
-  }
+  if (seed) await seedState(ctx, seed);
+  if (skipOnboarding) await skipOnboardingIn(ctx);
 
   await ctx.route('**/sync-config.json', (route) => route.fulfill({
     status: 200,

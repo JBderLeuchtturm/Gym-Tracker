@@ -94,7 +94,11 @@ export function ActivityFeed({ friends }: { friends: Friend[] }) {
                   <button
                     key={emoji}
                     className={`chip chip--button ${byMe ? 'chip--accent' : ''}`}
-                    onClick={() => void sync.react(item.friend.userId, item.date, emoji)}
+                    onClick={() => {
+                      void sync.react(item.friend.userId, item.date, emoji);
+                      // Reaktionen kamen bisher nur an, wenn die Freunde-Seite zufaellig offen war.
+                      void sync.nudgeFriends();
+                    }}
                   >
                     {emoji}{count > 0 && ` ${count}`}
                   </button>
@@ -142,6 +146,7 @@ export function ActivityFeed({ friends }: { friends: Friend[] }) {
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' && draft.trim()) {
                       void sync.comment(item.friend.userId, item.date, draft);
+                      void sync.nudgeFriends();
                       setDraft(''); setOpenComment(null); toast.show(t("Kommentar gesendet"));
                     }
                   }}
@@ -151,6 +156,7 @@ export function ActivityFeed({ friends }: { friends: Friend[] }) {
                   disabled={!draft.trim()}
                   onClick={() => {
                     void sync.comment(item.friend.userId, item.date, draft);
+                    void sync.nudgeFriends();
                     setDraft(''); setOpenComment(null); toast.show(t("Kommentar gesendet"));
                   }}
                 >

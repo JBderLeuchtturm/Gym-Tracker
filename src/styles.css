@@ -2161,6 +2161,26 @@ table.data tr:last-child td { border-bottom: 0; }
 .section__title { flex: 1; min-width: 0; }
 .section__note { font-size: 0.72rem; color: var(--text-dim); white-space: nowrap; }
 
+/* Eine Zeile, die stehen bleibt, und ein (i) fuer den Rest - siehe Hint in ui.tsx. */
+.hint { margin: 0; }
+.hint__row { display: flex; align-items: center; gap: 6px; }
+.hint__toggle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.hint__toggle:hover { background: var(--surface-2); color: var(--text); }
+.hint__toggle svg { width: 13px; height: 13px; }
+.hint__detail { display: block; margin-top: 6px; white-space: pre-line; animation: fade 0.15s var(--ease); }
+
 
 
 /* ===================================================================
@@ -2336,6 +2356,57 @@ textarea:focus-visible,
 
 /* Ein Knopf in einer Abschnittsueberschrift sitzt mittig, nicht auf der Grundlinie. */
 .section__head .btn { align-self: center; }
+
+/*
+ * Serie, Wochenvolumen und naechster Rang-Schritt - der Grund, warum man
+ * wiederkommt, direkt oben auf der Seite, die man taeglich sieht. Bisher
+ * stand nur die Serie klein auf der Profilkarte.
+ */
+.home-strip {
+  display: flex;
+  overflow-x: auto;
+  padding-bottom: 14px;
+}
+.home-strip__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 16px;
+  border-left: 1px solid var(--border-soft);
+  min-width: 0;
+  flex: none;
+}
+.home-strip__item:first-child { padding-left: 0; border-left: none; }
+button.home-strip__item {
+  appearance: none;
+  background: none;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.home-strip__item:active { opacity: 0.6; }
+.home-strip__value {
+  font-size: 1.25rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.home-strip__unit { font-size: 0.68rem; color: var(--text-dim); margin-left: 3px; }
+.home-strip__label {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+}
 
 /* ===================================================================
    Beanspruchte Muskeln als Streifen
