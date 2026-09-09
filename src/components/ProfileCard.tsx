@@ -315,7 +315,7 @@ export function ProfileCardEditor({ onClose }: { onClose: () => void }) {
                 <button
                   key={accent}
                   className={`accent-pick ${card.accent === accent ? 'is-on' : ''}`}
-                  style={{ background: gradient(accent) }}
+                  style={{ background: ACCENTS[accent].from }}
                   onClick={() => patch({ accent })}
                   aria-pressed={card.accent === accent}
                   aria-label={t(ACCENTS[accent].label)}
