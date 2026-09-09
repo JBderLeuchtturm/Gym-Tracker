@@ -364,6 +364,13 @@ export interface Settings {
    */
   useRir: boolean;
   reminder: ReminderSettings;
+  /**
+   * IANA-Zeitzone dieses Geraets (z. B. "Europe/Berlin"), automatisch
+   * gesetzt. Nur dafuer da, dass eine serverseitige Erinnerung die
+   * Trainingszeit in der richtigen Ortszeit auswertet - ohne sie muesste der
+   * Server UTC annehmen und die Erinnerung liefe zur falschen Stunde.
+   */
+  timezone?: string;
   weather: WeatherSettings;
   /** Taegliche Sicherung in den eigenen Supabase-Speicher. */
   autoBackup: boolean;
@@ -393,6 +400,10 @@ export interface Settings {
    * selbst wird immer frisch aus dem Verlauf gerechnet und nie gespeichert.
    */
   seenRanks?: Record<string, string>;
+  /** An diesem Tag wurde die Rang-Verfall-Warnung zuletzt weggetippt. */
+  decayWarnShownOn?: string;
+  /** Der kurze Einstieg wurde gesehen - egal ob durchlaufen oder uebersprungen. */
+  onboarded?: boolean;
   yazio: YazioSettings;
   /** Gespeicherte Mahlzeiten fuer den schnellen Eintrag. */
   mealPresets: MealPreset[];

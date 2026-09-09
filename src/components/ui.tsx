@@ -1,7 +1,7 @@
 import { t } from '../i18n';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { IconX } from './icons';
+import { IconInfo, IconX } from './icons';
 import { formatDateLong } from '../lib/date';
 
 /* ---------------------------------------------------------------- Modal */
@@ -288,6 +288,37 @@ export function Stat({
 }
 
 /* ------------------------------------------------------------- Aufklappen */
+
+/*
+ * Ein kurzer Satz, der stehen bleibt, und ein (i) fuer den Rest.
+ *
+ * Manche Erklaerungen (die Rangformel, warum ein Bestwert verfaellt, warum
+ * die Kalendererinnerung so umstaendlich klingt) sind richtig und wichtig,
+ * aber niemand braucht sie beim taeglichen Hinsehen - nur einmal, wenn es
+ * ihn interessiert. Bisher stand beides gleichwertig als ein langer Absatz
+ * da. Jetzt bleibt nur die kurze Zeile sichtbar, der Rest ist einen Tipp
+ * entfernt statt erzwungen.
+ */
+export function Hint({ summary, detail }: { summary: string; detail: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <p className="hint">
+      <span className="hint__row">
+        <span className="tiny dim">{summary}</span>
+        <button
+          type="button"
+          className="hint__toggle"
+          aria-expanded={open}
+          aria-label={open ? t('Weniger anzeigen') : t('Mehr erfahren')}
+          onClick={() => setOpen((value) => !value)}
+        >
+          <IconInfo />
+        </button>
+      </span>
+      {open && <span className="tiny dim hint__detail">{detail}</span>}
+    </p>
+  );
+}
 
 export function Collapsible({
   open, children,

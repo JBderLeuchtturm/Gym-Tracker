@@ -10,7 +10,7 @@ import {
 import { achievements, byGroup, earnedCount, LEVEL_LABELS, type Achievement } from '../lib/achievements';
 import { CATEGORY_LABELS } from '../data/catalog';
 import { formatDateShort } from '../lib/date';
-import { EmptyState, Section, fmt } from '../components/ui';
+import { EmptyState, Hint, Section, fmt } from '../components/ui';
 import { Board, DivisionBar, TIER_COLOR, formatValue, useRankSideEffects } from '../components/Ranks';
 import { RankBadge, RankLadder } from '../components/RankBadge';
 import { IconChevronDown, IconTrophy } from '../components/icons';
@@ -165,11 +165,12 @@ function Overview({ snapshot }: { snapshot: ReturnType<typeof rankSnapshot> }) {
           title={t('Verliert gerade an Wertung')}
           note={t('{count} Übungen', { count: fading.length })}
         >
-          <div className="tiny dim">
-            {t('Ein Bestwert zählt {grace} Tage voll. Danach fällt er, bis nach gut einem Jahr noch {floor} % übrig sind. Ein einziger Satz holt ihn zurück.', {
+          <Hint
+            summary={t('Alte Bestwerte verlieren mit der Zeit an Wertung.')}
+            detail={t('Ein Bestwert zählt {grace} Tage voll. Danach fällt er, bis nach gut einem Jahr noch {floor} % übrig sind. Ein einziger Satz holt ihn zurück.', {
               grace: GRACE_DAYS, floor: Math.round(DECAY_FLOOR * 100),
             })}
-          </div>
+          />
           <div className="list" style={{ gap: 6 }}>
             {fading.map((entry) => (
               <div key={entry.exerciseId} className="fade-row">
@@ -234,9 +235,10 @@ function Overview({ snapshot }: { snapshot: ReturnType<typeof rankSnapshot> }) {
             <div className="tiny dim">{t('Punkte')}</div>
           </div>
         </div>
-        <p className="tiny dim" style={{ margin: 0 }}>
-          {t('Die Tiefe ist der gewichtete Schnitt über die Bewegungen, die du trainierst – die drei Grundübungen zählen voll, die weiteren Grundmuster drei Viertel, Beiwerk weniger. Die Breite sagt, wie viel davon überhaupt abgedeckt ist: Wer nur die drei Großen macht, kommt auf rund drei Viertel des Werts, wer alles abdeckt, auf den vollen.')}
-        </p>
+        <Hint
+          summary={t('Tiefe: wie stark. Breite: wie viel davon abgedeckt.')}
+          detail={t('Die Tiefe ist der gewichtete Schnitt über die Bewegungen, die du trainierst – die drei Grundübungen zählen voll, die weiteren Grundmuster drei Viertel, Beiwerk weniger. Die Breite sagt, wie viel davon überhaupt abgedeckt ist: Wer nur die drei Großen macht, kommt auf rund drei Viertel des Werts, wer alles abdeckt, auf den vollen.')}
+        />
         <div className="tiny dim">
           {t('Abgedeckt: {percent} % des möglichen Gewichts.', {
             percent: fmt(overall.breadth * 100, 0),
@@ -286,17 +288,16 @@ function Overview({ snapshot }: { snapshot: ReturnType<typeof rankSnapshot> }) {
       )}
 
       <Section title={t('Was diese Zahlen nicht sind')}>
-        <p className="small" style={{ margin: 0 }}>
-          {t('Eine Messung. Die Schwellen sind gerundete Richtwerte aus öffentlich verbreiteten Kraftstandard-Tabellen; sie schwanken je nach Quelle und sagen nichts über Technik, Hebelverhältnisse oder Alter. Sie taugen für „wo stehe ich ungefähr“ und für den Vergleich mit Leuten, die dieselbe Tabelle benutzen.')}
-        </p>
-        <p className="tiny dim" style={{ margin: 0 }}>
-          {t('Für jede Bewegung wird das beste geschätzte Ein-Wiederholungs-Maximum durch dein Körpergewicht geteilt. Bei Klimmzügen und Dips zählt die Gesamtlast einschließlich des eigenen Körpers, bei Liegestützen die Wiederholungen, beim Unterarmstütz die Zeit.')}
-        </p>
-        {state.profile.sex === 'diverse' && (
-          <p className="tiny dim" style={{ margin: 0 }}>
-            {t('Für „divers“ gibt es keine veröffentlichten Standards. Gerechnet wird mit dem Mittel aus beiden Tabellen.')}
-          </p>
-        )}
+        <Hint
+          summary={t('Eine Messung, kein Urteil.')}
+          detail={[
+            t('Die Schwellen sind gerundete Richtwerte aus öffentlich verbreiteten Kraftstandard-Tabellen; sie schwanken je nach Quelle und sagen nichts über Technik, Hebelverhältnisse oder Alter. Sie taugen für „wo stehe ich ungefähr“ und für den Vergleich mit Leuten, die dieselbe Tabelle benutzen.'),
+            t('Für jede Bewegung wird das beste geschätzte Ein-Wiederholungs-Maximum durch dein Körpergewicht geteilt. Bei Klimmzügen und Dips zählt die Gesamtlast einschließlich des eigenen Körpers, bei Liegestützen die Wiederholungen, beim Unterarmstütz die Zeit.'),
+            ...(state.profile.sex === 'diverse'
+              ? [t('Für „divers“ gibt es keine veröffentlichten Standards. Gerechnet wird mit dem Mittel aus beiden Tabellen.')]
+              : []),
+          ].join('\n\n')}
+        />
       </Section>
     </>
   );

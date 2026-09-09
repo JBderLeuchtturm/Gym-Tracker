@@ -341,6 +341,24 @@ create policy push_subscriptions_own on public.push_subscriptions
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
+-- Merkt sich, welche Erinnerung/welcher Wochenrueckblick schon raus ist, damit
+-- "daily-nudge" bei stuendlichem Aufruf niemanden zweimal am selben Tag oder
+-- in derselben Woche anstupst. Nur die Funktion selbst (Service-Role) kommt
+-- heran - niemand sonst braucht das zu lesen oder zu schreiben.
+create table if not exists public.push_log (
+  user_id  uuid not null references auth.users on delete cascade,
+  kind     text not null check (kind in ('reminder', 'digest')),
+  -- Tag (YYYY-MM-DD) fuer die Erinnerung, ISO-Kalenderwoche (YYYY-KWnn) fuer
+  -- den Wochenrueckblick - je nachdem, wie oft "kind" sinnvoll wiederholt.
+  sent_on  text not null,
+  sent_at  timestamptz not null default now(),
+  primary key (user_id, kind, sent_on)
+);
+
+alter table public.push_log enable row level security;
+-- Bewusst keine Policy: RLS ohne Policy heisst "niemand ausser der
+-- Service-Role kommt heran" - fuer eine reine Betriebs-Tabelle richtig so.
+
 -- ------------------------------------------------------- Automatische Sicherung
 
 -- Der laufende Abgleich haelt immer nur den aktuellen Stand vor: Wer aus
@@ -773,3 +791,47 @@ revoke execute on function public.find_group_by_code(text) from public, anon;
 grant execute on function public.share_group(uuid, uuid) to authenticated;
 grant execute on function public.are_connected(uuid, uuid) to authenticated;
 grant execute on function public.find_group_by_code(text) to authenticated;
+
+-- ------------------------------------------------ Erinnerung und Wochenrückblick
+
+-- "daily-nudge" (siehe supabase/functions/daily-nudge) entscheidet pro
+-- Konto, ob eine Trainingserinnerung oder ein Wochenrückblick fällig ist,
+-- und verschickt dann selbst den Push - unabhängig davon, ob die App gerade
+-- offen ist. Ohne einen Anstoß von außen würde sie nie laufen: eine Web-App
+-- kann sich nicht selbst wecken (siehe auch der Kalender-Baustein im
+-- Profil, der aus demselben Grund existiert).
+--
+-- Die folgenden drei Schritte sind nicht Teil des wiederholbaren Skripts
+-- oben - sie brauchen echte Werte (Projekt-Referenz, Service-Role-
+-- Schlüssel), die hier im Klartext stehen würden. Von Hand im SQL-Editor:
+--
+-- 1) Erweiterungen freischalten, falls noch nicht geschehen (auf den
+--    meisten Supabase-Projekten inklusive Free-Tier bereits vorhanden):
+--
+--   create extension if not exists pg_cron with schema extensions;
+--   create extension if not exists pg_net with schema extensions;
+--
+-- 2) Den stündlichen Aufruf einrichten - <PROJECT_REF> ist die Projekt-ID
+--    aus der URL der Supabase-Konsole, <SERVICE_ROLE_KEY> steht unter
+--    Project Settings -> API. Genau dieser Schlüssel muss beim Deploy auch
+--    als Prüfsumme in der Funktion selbst ankommen (sie vergleicht ihn mit
+--    "Authorization: Bearer ..." - kein Konto ruft hier an, nur der Cron):
+--
+--   select cron.schedule(
+--     'daily-nudge-stuendlich',
+--     '0 * * * *',
+--     $$
+--       select net.http_post(
+--         url := 'https://<PROJECT_REF>.supabase.co/functions/v1/daily-nudge',
+--         headers := jsonb_build_object(
+--           'Authorization', 'Bearer <SERVICE_ROLE_KEY>',
+--           'Content-Type', 'application/json'
+--         ),
+--         body := '{}'::jsonb
+--       );
+--     $$
+--   );
+--
+-- 3) Zum Entfernen oder Neu-Einrichten mit anderem Schlüssel:
+--
+--   select cron.unschedule('daily-nudge-stuendlich');

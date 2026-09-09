@@ -1,4 +1,4 @@
-import { createRunner, launchBrowser } from './helpers.mjs';
+import { createRunner, launchBrowser, skipOnboardingIn } from './helpers.mjs';
 import { chromium } from 'playwright';
 
 /** Prueft, dass die Oberflaeche auch auf schmalen Geraeten passt. */
@@ -6,6 +6,7 @@ export async function run() {
   const runner = createRunner('Layout auf schmalem Gerät');
   const browser = await launchBrowser();
   const ctx = await browser.newContext({ viewport: { width: 360, height: 780 }, locale: 'de-DE' });
+  await skipOnboardingIn(ctx);
   await ctx.route('**/sync-config.json', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: '{"url":"","anonKey":""}' }));
   const page = await ctx.newPage();

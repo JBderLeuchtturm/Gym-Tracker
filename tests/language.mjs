@@ -1,4 +1,4 @@
-import { createRunner, launchBrowser } from './helpers.mjs';
+import { createRunner, launchBrowser, skipOnboardingIn } from './helpers.mjs';
 import { chromium } from 'playwright';
 
 /** Sprachwahl: Erkennung, Umschalten, englische Uebungsnamen. */
@@ -10,6 +10,7 @@ export async function run() {
 
   const open = async (locale) => {
     const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, locale });
+    await skipOnboardingIn(ctx);
     await ctx.route('**/sync-config.json', (r) =>
       r.fulfill({ status: 200, contentType: 'application/json', body: '{"url":"","anonKey":""}' }));
     const page = await ctx.newPage();

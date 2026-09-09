@@ -1,10 +1,11 @@
-import { createRunner, launchBrowser, newAppContext } from './helpers.mjs';
+import { createRunner, launchBrowser, skipOnboardingIn } from './helpers.mjs';
 
 /** Faellt die Uebungssuche sauber auf den eingebauten Katalog zurueck? */
 export async function run() {
   const runner = createRunner('Übungssuche ohne Online-Datenbank');
   const browser = await launchBrowser();
   const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, locale: 'de-DE' });
+  await skipOnboardingIn(ctx);
   await ctx.route('**/sync-config.json', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: '{"url":"","anonKey":""}' }));
   // wger komplett abwuergen
@@ -35,4 +36,3 @@ export async function run() {
   await browser.close();
   return failed;
 }
-void newAppContext;
