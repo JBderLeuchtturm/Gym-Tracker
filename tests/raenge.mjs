@@ -206,23 +206,16 @@ export async function run() {
     const panel = solo.page.locator('.rank-head');
     if (await panel.count() === 0) throw new Error('Kein Rangfeld');
     const text = await solo.page.locator('.section', { has: solo.page.locator('.rank-head') }).innerText();
-    if (!/3 von 6/.test(text)) throw new Error(`Falsche Abdeckung: ${text.replace(/\n/g, ' | ')}`);
-    for (const label of ['Kreuzheben', 'Rudern', 'Bankdrücken']) {
-      if (!text.includes(label)) throw new Error(`${label} fehlt`);
+    if (!/3 von 21 Bewegungen/.test(text)) {
+      throw new Error(`Falsche Abdeckung: ${text.replace(/\n/g, ' | ')}`);
     }
-    if (!/Ohne Eintrag/.test(text)) throw new Error('Untrainierte Bewegungen werden verschwiegen');
+    if (!/Übungen mit eigenem Rang/.test(text)) throw new Error('Kein Weg in die Vollansicht');
   });
 
-  await runner.step('Ohne Konto steht da, dass der Vergleich ein Konto braucht', async () => {
-    const text = await solo.page.locator('.section', { has: solo.page.locator('.rank-head') }).innerText();
-    if (!/Konto/.test(text)) throw new Error('Kein Hinweis auf das Konto');
-    if (/Am Rangvergleich teilnehmen/.test(text)) throw new Error('Teilnahme ohne Konto angeboten');
-  });
-
-  await runner.step('Der nächste Schritt nennt eine Bewegung und Kilogramm', async () => {
+  await runner.step('Der nächste Schritt nennt eine Bewegung und einen Wert', async () => {
     const step = await solo.page.locator('.next-step').innerText();
-    if (!/kg/.test(step)) throw new Error(`Keine Kilozahl: ${step.replace(/\n/g, ' | ')}`);
-    if (!/Kniebeuge|Schulterdrücken|Bizepscurl|Rudern|Bankdrücken|Kreuzheben/.test(step)) {
+    if (!/kg|Wdh|min|\bs\b/.test(step)) throw new Error(`Kein Wert: ${step.replace(/\n/g, ' | ')}`);
+    if (!/Kniebeuge|Schulterdrücken|Bizepscurl|Rudern|Bankdrücken|Kreuzheben|Dips|Liegestütze|Klimmzug|Latzug/.test(step)) {
       throw new Error(`Keine Bewegung genannt: ${step.replace(/\n/g, ' | ')}`);
     }
   });
@@ -244,32 +237,63 @@ export async function run() {
     }
   });
 
-  await runner.step('Abzeichen zeigen Erreichtes und den Anteil bis dahin', async () => {
-    const text = await solo.page.locator('.section', { has: solo.page.locator('.rank-head') }).innerText();
-    if (!/Abzeichen/.test(text)) throw new Error('Kein Abschnitt für Abzeichen');
-    const count = await solo.page.locator('.badge').count();
-    if (count === 0) throw new Error('Keine Abzeichen');
-    const earned = await solo.page.locator('.badge--earned').count();
-    if (earned === 0) throw new Error('Mit drei Bewegungen im Verlauf sollte eines erreicht sein');
-    const open = await solo.page.locator('.badge:not(.badge--earned)').first().innerText();
-    if (!/%/.test(open)) throw new Error(`Kein Anteil am offenen Abzeichen: ${open.replace(/\n/g, ' ')}`);
+  /* ------------------------------------------------------- Die Vollansicht */
+
+  await runner.step('Die Vollansicht zeigt, woraus sich der Rang ergibt', async () => {
+    await solo.page.locator('.rank-open').click();
+    await solo.page.waitForTimeout(900);
+    const hero = await solo.page.locator('.rank-hero').innerText();
+    if (!/\/100/.test(hero)) throw new Error(`Kein Punktestand: ${hero.replace(/\n/g, ' | ')}`);
+
+    const formula = await solo.page.locator('.formula').innerText();
+    for (const word of ['Tiefe', 'Breite', 'Punkte']) {
+      if (!formula.includes(word)) throw new Error(`„${word}“ fehlt in der Rechnung`);
+    }
   });
 
-  await runner.step('Der Rangverlauf wird gezeichnet', async () => {
-    const trend = solo.page.locator('.rank-trend');
-    if (await trend.count() === 0) throw new Error('Keine Kurve');
-    const label = await trend.getAttribute('aria-label');
-    if (!/Punkte/.test(label ?? '')) throw new Error(`Beschriftung: ${label}`);
-  });
+  await runner.step('Jede Bewegung zeigt ihre fünf Schwellen in Kilogramm', async () => {
+    await solo.page.locator('.seg__item', { hasText: 'Bewegungen' }).click();
+    await solo.page.waitForTimeout(600);
+    const rows = await solo.page.locator('.move-row').count();
+    if (rows !== 21) throw new Error(`${rows} Bewegungen statt 21`);
 
-  await runner.step('Das Fragezeichen erklärt, was die Zahlen nicht sind', async () => {
-    await solo.page.getByRole('button', { name: 'Wie wird gerechnet?' }).click();
-    await solo.page.waitForTimeout(500);
-    const text = await solo.page.locator('.modal').innerText();
-    if (!/Messung/.test(text)) throw new Error('Kein Wort zur Belastbarkeit der Zahlen');
-    await solo.page.locator('.modal').getByRole('button', { name: 'Schließen' }).first().click()
-      .catch(() => solo.page.keyboard.press('Escape'));
+    await solo.page.locator('.move-row__head').first().click();
     await solo.page.waitForTimeout(400);
+    const cells = await solo.page.locator('.threshold').count();
+    if (cells !== 5) throw new Error(`${cells} Schwellen`);
+    const body = await solo.page.locator('.move-row__body').first().innerText();
+    if (!/Einsteiger/.test(body) || !/Elite/.test(body)) throw new Error(body.replace(/\n/g, ' | '));
+  });
+
+  await runner.step('Jede einzelne Übung hat einen eigenen Rang', async () => {
+    await solo.page.locator('.seg__item', { hasText: 'Übungen' }).click();
+    await solo.page.waitForTimeout(600);
+    const rows = await solo.page.locator('.ex-rank').count();
+    if (rows < 3) throw new Error(`${rows} Übungen`);
+    const text = await solo.page.locator('.ex-rank').first().innerText();
+    if (!/Einsteiger|Geübt|Fortgeschritten|Stark|Elite/.test(text)) {
+      throw new Error(`Keine Stufe: ${text.replace(/\n/g, ' | ')}`);
+    }
+  });
+
+  await runner.step('Erfolge zeigen Erreichtes und den Stand bei den offenen', async () => {
+    await solo.page.locator('.seg__item', { hasText: 'Erfolge' }).click();
+    await solo.page.waitForTimeout(700);
+    const count = await solo.page.locator('.badge').count();
+    if (count < 30) throw new Error(`Nur ${count} Erfolge`);
+    const open = await solo.page.locator('.badge:not(.badge--earned)').first().innerText();
+    if (!/von/.test(open)) throw new Error(`Kein Stand am offenen Erfolg: ${open.replace(/\n/g, ' ')}`);
+    if (await solo.page.locator('.badge--earned').count() === 0) {
+      throw new Error('Mit drei Bewegungen sollte etwas erreicht sein');
+    }
+  });
+
+  await runner.step('Ohne Konto steht da, dass der Vergleich ein Konto braucht', async () => {
+    await solo.page.locator('.seg__item', { hasText: 'Vergleich' }).click();
+    await solo.page.waitForTimeout(600);
+    const text = await solo.page.locator('.page').innerText();
+    if (!/Konto/.test(text)) throw new Error('Kein Hinweis auf das Konto');
+    if (/Am Rangvergleich teilnehmen/.test(text)) throw new Error('Teilnahme ohne Konto angeboten');
   });
 
   await solo.ctx.close();
@@ -285,15 +309,21 @@ export async function run() {
     await page.getByRole('button', { name: 'Konto anlegen' }).click();
     await page.waitForTimeout(1800);
   };
-  const joinBoard = async (page) => {
+  /* Die Zustimmung liegt seit der Vollansicht im Reiter "Vergleich". */
+  const openComparison = async (page) => {
     await openTab(page, 'Fortschritt');
+    const back = page.locator('.rank-open');
+    if (await back.count() > 0) { await back.click(); await page.waitForTimeout(800); }
+    await page.locator('.seg__item', { hasText: 'Vergleich' }).click();
+    await page.waitForTimeout(700);
+  };
+  const joinBoard = async (page) => {
+    await openComparison(page);
     await page.getByText('Am Rangvergleich teilnehmen').click();
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(2600);
   };
   const showBoard = async (page) => {
-    const button = page.getByRole('button', { name: 'Rangliste zeigen' });
-    if (await button.count() > 0) await button.click();
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(900);
   };
 
   const a = await newAppContext(browser, { backend, label: 'A', seed: seedRanks() });
@@ -306,7 +336,7 @@ export async function run() {
 
   await runner.step('Ohne Zustimmung steht nichts in der Rangliste', async () => {
     await signUp(a.page, 'anna@example.com');
-    await openTab(a.page, 'Fortschritt');
+    await openComparison(a.page);
     await a.page.waitForTimeout(1500);
     if (backend.db.rank_board.size !== 0) {
       throw new Error(`${backend.db.rank_board.size} Zeilen ohne Zustimmung`);
@@ -377,7 +407,7 @@ export async function run() {
     await openTab(b.page, 'Freunde');
     await b.page.getByRole('button', { name: 'Abgleichen' }).click();
     await b.page.waitForTimeout(2000);
-    await openTab(b.page, 'Fortschritt');
+    await openComparison(b.page);
     await showBoard(b.page);
     const all = await b.page.locator('.board-row').allInnerTexts();
     // Die Kennzeichnung steht in Grossbuchstaben - das macht die Schriftart.
@@ -387,7 +417,7 @@ export async function run() {
   });
 
   await runner.step('Wer die Zustimmung zurücknimmt, verschwindet aus der Liste', async () => {
-    await openTab(b.page, 'Fortschritt');
+    await openComparison(b.page);
     await b.page.getByText('Am Rangvergleich teilnehmen').click();
     await b.page.waitForTimeout(1800);
     if (backend.db.rank_board.size !== 1) {

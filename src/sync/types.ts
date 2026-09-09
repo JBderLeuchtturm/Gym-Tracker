@@ -5,6 +5,13 @@ export interface RemoteProfile {
   handle: string;
   display_name: string;
   emoji: string;
+  /* --- Die Profilkarte. Nichts davon ist ein Trainingswert. --- */
+  bio?: string;
+  accent?: string;
+  /** IDs angehefteter Erfolge. */
+  pins?: string[];
+  /** Namen der Lieblingsuebungen - Namen, keine Gewichte. */
+  favorites?: string[];
 }
 
 export type FriendState = 'accepted' | 'incoming' | 'outgoing';
@@ -18,6 +25,11 @@ export interface Friend {
   emoji: string;
   state: FriendState;
   since: string;
+  /** Die Profilkarte des Freundes - Text und Farbe, keine Trainingswerte. */
+  bio?: string;
+  accent?: string;
+  pins?: string[];
+  favorites?: string[];
 }
 
 export interface FriendData {

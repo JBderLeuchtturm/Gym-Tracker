@@ -250,6 +250,38 @@ export interface NutritionEntry {
   source: 'manual' | 'yazio';
 }
 
+/* ------------------------------------------------------------ Profilkarte */
+
+/** Die Farbstimmungen, aus denen die Profilkarte waehlen kann. */
+export type ProfileAccent =
+  | 'messing' | 'glut' | 'moos' | 'gezeiten' | 'pflaume' | 'schiefer' | 'rost' | 'tinte';
+
+/**
+ * Was man am eigenen Profil einstellen kann.
+ *
+ * Eine Trainingsapp zeigt Zahlen; ein Profil zeigt einen Menschen. Deshalb
+ * gibt es hier ein Emoji, eine Farbe, zwei Zeilen Text und vier Dinge, auf die
+ * man stolz ist - und nichts davon rechnet irgendwo mit.
+ *
+ * Die angehefteten Erfolge sind nur IDs: Ob sie erreicht sind, wird wie alles
+ * andere aus dem Verlauf abgeleitet. Wer eine Einheit loescht, verliert das
+ * Abzeichen wieder, auch wenn es angeheftet war.
+ */
+export interface ProfileCard {
+  emoji: string;
+  accent: ProfileAccent;
+  /** Zwei Zeilen ueber sich selbst. */
+  bio: string;
+  /** Bis zu vier angeheftete Erfolge (IDs aus achievements.ts). */
+  pinnedAchievements: string[];
+  /** Bis zu vier Lieblingsuebungen. */
+  favoriteExerciseIds: ID[];
+  /** Rang auf der Karte zeigen. */
+  showRank: boolean;
+  /** Zahlen (Einheiten, Volumen, Serie) auf der Karte zeigen. */
+  showStats: boolean;
+}
+
 export interface YazioSettings {
   /** Basis-URL einer eigenen Bridge/eines Proxys (Yazio hat keine offene API). */
   bridgeUrl: string;
@@ -338,6 +370,8 @@ export interface Settings {
    * Trainingseintrag.
    */
   shareRank: boolean;
+  /** Wie die eigene Profilkarte aussieht - siehe ProfileCard. */
+  profileCard: ProfileCard;
   /**
    * Zuletzt angezeigte Rangstufe.
    *

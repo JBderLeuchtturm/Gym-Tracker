@@ -23,6 +23,9 @@ import { downloadBlob } from '../lib/zip';
 import { ALL_REGIONS, REGION_LABELS, type MuscleRegion } from '../lib/muscles';
 import { DEFAULT_WEEKLY_TARGET, targetFor } from '../lib/muscleLoad';
 import { ALL_EQUIPMENT } from '../data/catalog';
+import {
+  EditCardButton, ProfileCardEditor, ProfileCardView, useOwnCard, useProfileCardSync,
+} from '../components/ProfileCard';
 
 export function ProfilePage() {
   const {
@@ -41,6 +44,7 @@ export function ProfilePage() {
   const [equipmentOpen, setEquipmentOpen] = useState(false);
   const [newExerciseOpen, setNewExerciseOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [cardOpen, setCardOpen] = useState(false);
 
   const { profile, settings } = state;
   const age = ageFromBirthDate(profile.birthDate);
@@ -65,6 +69,13 @@ export function ProfilePage() {
 
   return (
     <>
+      {/*
+        * Die Profilkarte steht ganz oben: Sie ist das, was Freunde von einem
+        * sehen, und sie zeigt, was die Zahlen darunter bedeuten.
+        */}
+      <OwnProfileCard onEdit={() => setCardOpen(true)} />
+      {cardOpen && <ProfileCardEditor onClose={() => setCardOpen(false)} />}
+
       <div className="card">
         <div className="card__title" style={{ marginBottom: 12 }}><IconUser /> {t("Persönliche Daten")}</div>
 
@@ -996,5 +1007,19 @@ function EquipmentDialog({
         </div>
       </div>
     </Modal>
+  );
+}
+
+/** Die eigene Karte samt Knopf zum Gestalten. */
+function OwnProfileCard({ onEdit }: { onEdit: () => void }) {
+  const sync = useSync();
+  const data = useOwnCard(sync.profile?.handle);
+  // Was hier eingestellt wird, sollen Freunde auch sehen.
+  useProfileCardSync();
+  return (
+    <div className="list">
+      <ProfileCardView data={data} />
+      <EditCardButton onClick={onEdit} />
+    </div>
   );
 }

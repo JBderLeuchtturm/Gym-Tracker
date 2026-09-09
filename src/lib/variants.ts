@@ -30,10 +30,34 @@ export interface Family {
  */
 export const FAMILIES: Family[] = [
   { id: 'bench', label: 'Bankdrücken', pattern: /bankdrücken|bankdruecken|bench press|brustpresse/i, exclude: /bankdips/i },
-  { id: 'squat', label: 'Kniebeuge', pattern: /kniebeuge|\bsquat\b|hackenschmidt/i },
+  /*
+   * Ausfallschritte stehen vor der Kniebeuge: "Bulgarian Split Squat" traegt
+   * das Wort Squat, ist aber einbeinig und laeuft mit einem Bruchteil der
+   * Last. In einer Linie mit der Kniebeuge sah das jahrelang nach Rueckschritt
+   * aus.
+   */
+  { id: 'lunge', label: 'Ausfallschritt', pattern: /ausfallschritt|\blunge/i },
+  { id: 'squat', label: 'Kniebeuge', pattern: /kniebeuge|\bsquat\b|hackenschmidt/i, exclude: /sissy|pistol/i },
   { id: 'deadlift', label: 'Kreuzheben', pattern: /kreuzheben|deadlift/i },
   { id: 'ohp', label: 'Schulterdrücken', pattern: /schulterdrücken|schulterdruecken|overhead press|military press|nackendrücken/i },
-  { id: 'pulldown', label: 'Zug von oben', pattern: /klimmzug|klimmzüge|latzug|latziehen|pull-?up|chin-?up|pulldown/i },
+  /*
+   * Zug von oben ist zweierlei, und das laesst sich nicht in eine Zahl
+   * fassen: Am Klimmzug haengt der ganze Mensch, am Latzug haengt, was man
+   * einstellt. Beides in einer Gruppe hiess, dass 60 kg am Latzug als
+   * 140 kg Gesamtlast durchgingen. Deshalb zwei Gruppen mit zwei Massstaeben.
+   */
+  {
+    id: 'latpulldown',
+    label: 'Latzug',
+    pattern: /latzug|latziehen|lat pull|pulldown|überzüge|ueberzuege|pullover/i,
+  },
+  {
+    id: 'pulldown',
+    label: 'Klimmzug',
+    pattern: /klimmzug|klimmzüge|pull-?up|chin-?up|muscle-?up/i,
+    // Australian Pull-up zieht waagerecht, Scapula Pull-ups sind eine Vorübung.
+    exclude: /australian|scapula|inverted/i,
+  },
   { id: 'raise', label: 'Seitheben', pattern: /seitheben|frontheben|lateral raise|reverse fly|reverse flys|reverse butterfly/i },
   { id: 'fly', label: 'Fliegende', pattern: /fliegende|butterfly|pec deck|crossover|\bfly\b/i },
   { id: 'dips', label: 'Dips', pattern: /\bdips?\b|bankdips/i },
@@ -42,7 +66,11 @@ export const FAMILIES: Family[] = [
   { id: 'calf', label: 'Wadenheben', pattern: /wadenheben|calf raise|\bwaden\b/i },
   { id: 'legcurl', label: 'Beinbeuger', pattern: /beinbeuger|leg curl|beincurl/i },
   { id: 'legext', label: 'Beinstrecker', pattern: /beinstrecker|leg extension/i },
-  { id: 'legpress', label: 'Beinpresse', pattern: /beinpresse|leg press|ausfallschritt|lunge|bulgarische/i },
+  { id: 'legpress', label: 'Beinpresse', pattern: /beinpresse|leg press/i },
+  { id: 'pushup', label: 'Liegestütze', pattern: /liegestütze|liegestuetze|push-?up/i },
+  { id: 'plank', label: 'Unterarmstütz', pattern: /\bplank|planke|unterarmstütz|unterarmstuetz/i },
+  { id: 'hipthrust', label: 'Hüftstoß', pattern: /hip thrust|hüftstoß|glute bridge|beckenlift|frog pump/i },
+  { id: 'shrug', label: 'Schulterheben', pattern: /shrug|nackenheben|schulterheben/i },
   {
     id: 'row',
     label: 'Rudern',

@@ -61,45 +61,66 @@ und für jede einzelne Übung ein Verlaufsdiagramm – wahlweise nach geschätzt
 bestem Gewicht, Volumen, Wiederholungen oder Zeit. Dazu persönliche Bestleistungen
 und eine Tabelle der letzten Einheiten.
 
-**Ränge und Rangliste**
+**Ränge – für jede Übung, jede Bewegung und alles zusammen**
 Eine Kilozahl allein beantwortet die Frage nicht, die man eigentlich hat: Ist das
 viel? 100 kg Bankdrücken heißen bei 70 kg Körpergewicht etwas anderes als bei
-110. Deshalb bekommt jede der sechs gewerteten Bewegungen – Bankdrücken,
-Kniebeuge, Kreuzheben, Schulterdrücken, Rudern, Bizepscurl – eine Stufe von
-*Einsteiger* bis *Elite*, und alle zusammen ergeben einen Gesamtrang von 0 bis
-100. Wie das gerechnet wird, steht unten unter
+110. Deshalb gibt es drei Ebenen:
+
+* **Jede einzelne Übung** bekommt einen eigenen Rang – auch Schrägbankdrücken,
+  auch Klimmzüge, auch die selbst angelegte. Spielarten werden dabei
+  gegeneinander verrechnet: Schrägbank läuft mit rund 85 Prozent des flachen,
+  und wer beides mit derselben Tabelle misst, sieht bei jeder Schrägbank einen
+  Rückschritt, den es nicht gibt.
+* **Jede Bewegungsgruppe** bekommt den Rang ihrer stärksten Übung – nicht den
+  Durchschnitt. Im Bankdrücken ist man so stark wie sein bester Satz.
+* **Der Gesamtrang** ergibt sich aus beidem: *Tiefe × Breite*. Die Tiefe ist der
+  gewichtete Schnitt über das, was du trainierst (die drei Grundübungen zählen
+  voll, die weiteren Grundmuster drei Viertel, Beiwerk weniger). Die Breite
+  sagt, wie viel davon überhaupt abgedeckt ist. Wer nur die drei Großen macht,
+  kommt auf rund drei Viertel des Werts; wer alles abdeckt, auf den vollen.
+
+Gewertet werden einundzwanzig Bewegungen, und nicht alle in Kilogramm: Bei Klimmzügen
+und Dips zählt die Gesamtlast einschließlich des eigenen Körpers, bei
+Liegestützen die Wiederholungen, beim Unterarmstütz die Zeit. Wo es keine
+veröffentlichte Tabelle gibt – Bauchübungen, Mobilität, Selbstangelegtes –, wird
+der Rang aus dem **eigenen Verlauf** abgeleitet: wie viel mehr du heute schaffst
+als beim ersten Mal, und wie oft du dran warst. Solche Ränge sind gestrichelt
+gerahmt, damit man sie nicht verwechselt.
+
+**Die Rang-Ansicht** (*Fortschritt → Rang → Alles ansehen*) zeigt in fünf
+Reitern alles dazu: die Rechnung hinter dem Gesamtrang, die drei nächsten
+Schritte mit dem, was sie bringen, die Verteilung über die Stufen, den Verlauf
+über die Zeit, jede Bewegung mit ihren **fünf Schwellen in Kilogramm** bei
+deinem Körpergewicht, jede einzelne Übung mit ihrem Rang, alle Erfolge und den
+Vergleich. Wie das gerechnet wird, steht unten unter
 [Wie der Rang gerechnet wird](#wie-der-rang-gerechnet-wird).
 
-Angezeigt wird bewusst nicht die nackte Zahl. „35 von 100" ist wahr und
-entmutigend zugleich, weil 100 unerreichbar weit weg wirkt. Näher dran ist:
+**Vierzig Erfolge** in sechs Gruppen – Kraft, Stufen, Dranbleiben, bewegtes
+Gewicht, Vielfalt, Beständigkeit – in Bronze, Silber und Gold. Bei allem, was
+noch offen ist, steht der Stand dabei („88 von 100 t"). Wie bei den Zielen wird
+nichts davon gespeichert, sondern aus dem Verlauf abgeleitet: Ein abgelegtes
+„geschafft" kann zwischen zwei Geräten auseinanderlaufen, ein abgeleitetes nie.
 
-* **Wie weit durch die aktuelle Stufe** – ein Balken, der bei jeder Stufe wieder
-  bei null anfängt, und darunter „noch 10,3 Punkte bis *Fortgeschritten*".
-* **Der nächste Schritt**, der wirklich in Reichweite ist. Von sechs Zeilen mit
-  „noch 114 kg" lernt man nichts; herausgesucht wird die eine mit dem kleinsten
-  Abstand – und Bewegungen ganz ohne Eintrag stehen davor, weil dort der erste
-  Satz den größten Sprung bringt.
-* **Abzeichen**: erster Rang, alle sechs Bewegungen gewertet, Bankdrücken auf
-  Körpergewicht, Kniebeuge 1,5×, Kreuzheben 2×, der Club der 1000, überall
-  „Stark", zehn Wochen am Stück. Bei allem, was noch offen ist, steht der Anteil
-  dabei. Wie bei den Zielen wird nichts davon gespeichert, sondern aus dem
-  Verlauf abgeleitet – ein abgelegtes „geschafft" kann zwischen zwei Geräten
-  auseinanderlaufen, ein abgeleitetes nie.
-* **Auf- und Abstieg** werden einmal gemeldet, wenn sich die Stufe seit dem
-  letzten Besuch geändert hat.
-* **Der Rang über die Zeit** als Kurve, jeweils mit dem Verlauf gerechnet, der
-  damals vorlag.
+**Auf- und Abstieg** werden einmal gemeldet, wenn sich die Stufe seit dem
+letzten Besuch geändert hat.
 
-Wer will, kann sich **mit allen anderen Konten dieses Projekts messen**:
-Teilnahme ist ausdrücklich freiwillig und standardmäßig aus. Wer sie einschaltet,
-veröffentlicht seinen Punktestand, die Stufe je Bewegung und seinen
-Anzeigenamen – **keine Gewichte, kein Körpergewicht, keinen einzigen
-Trainingseintrag**. Freunde sind in der Liste markiert. Den Haken wieder
-herauszunehmen löscht die eigene Zeile.
+**Die Rangliste** vergleicht dich mit allen Konten des Projekts. Teilnahme ist
+freiwillig und standardmäßig aus; wer sie einschaltet, veröffentlicht
+Punktestand, Stufe je Bewegung und Anzeigenamen – **keine Gewichte, kein
+Körpergewicht, keinen einzigen Trainingseintrag**. Freunde sind markiert, den
+Haken wieder herauszunehmen löscht die eigene Zeile.
 
-> Für die Rangliste muss [`supabase/schema.sql`](supabase/schema.sql) einmal
-> neu im SQL-Editor laufen – dabei entsteht die Tabelle `rank_board`. Der eigene
-> Rang wird auch ohne Konto und ohne Datenbank gerechnet.
+> Für die Rangliste und die Profilkarte muss
+> [`supabase/schema.sql`](supabase/schema.sql) einmal neu im SQL-Editor laufen.
+> Der eigene Rang wird auch ohne Konto und ohne Datenbank gerechnet.
+
+**Profil gestalten**
+Das Profil ist nicht nur eine Sammlung von Zahlen, sondern eine Karte: ein Band
+in einer von acht Farben, ein selbst gewähltes Zeichen, dein Name, zwei Zeilen
+über dich, dein Rang – und vier Erfolge und vier Lieblingsübungen, die du selbst
+anheftest. Freunde sehen genau diese Karte. Übertragen werden dafür nur Text,
+Farbe, Zeichen und die *Namen* der angehefteten Dinge; ein Trainingswert steckt
+in nichts davon.
 
 **Muskelkarte und Wochenziele**
 Eine Körperkarte von vorne und hinten zeigt bei jeder Übung, welche Muskeln
@@ -295,14 +316,14 @@ node tests/unit.mjs              # nur die Rechnerei, ohne Browser
 ```
 
 Zuerst laufen die Prüfungen ohne Browser: Scheiben, 1RM, Kalorien, Statistik,
-Belastung und das Zusammenführen zweier Geräte-Stände – in Sekunden statt
+Ränge, Erfolge, Belastung und das Zusammenführen zweier Geräte-Stände – in Sekunden statt
 Minuten, und die Fehlermeldung zeigt genau auf die Zeile. Die `.ts`-Dateien
 werden dafür einmal mit dem esbuild gebündelt, das ohnehin in Vite steckt.
 
 Vierzehn Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
 Übungssuche ohne Netz, Layout auf schmalen Geräten, Muskelkarte, Wochenziele
 und Zyklen, Rückgängig und Querformat, Rechner und Studio-Handgriffe,
-Gestaltung und Zugänglichkeit, Kalorienseite, Auslassen und Ränge,
+Gestaltung und Zugänglichkeit, Kalorienseite, Auslassen, Ränge und Erfolge,
 Mehrsprachigkeit, Freunde und Freigaben, Gruppen und Challenges sowie
 Einladungslinks ab. Alle teilen sich einen
 Browser statt jeweils einen eigenen zu starten. Kontraste und Farbabstände
@@ -551,6 +572,12 @@ Das Wetter ist standardmäßig aus; ist es an, geht der Ort auf zwei
 Nachkommastellen gerundet an Open-Meteo – rund anderthalb Kilometer, ohne Konto
 und ohne Kennung. Trainingsdaten verlassen das Gerät in keinem dieser Fälle.
 
+**Was in der Profilkarte steht.** Name, Zeichen, Farbe, zwei Zeilen Text und die
+*Namen* der angehefteten Erfolge und Lieblingsübungen – mehr nicht. Kein
+Gewicht, kein Körpergewicht, kein Trainingseintrag; die Spalten dafür gibt es
+in der Tabelle nicht. Wer die Karte sieht, weiß deshalb nicht mehr über dein
+Training als vorher.
+
 **Was in der Rangliste steht.** Nur, wenn du sie eingeschaltet hast, und dann
 genau vier Dinge: dein Punktestand, deine Stufe je Bewegung, dein Anzeigename
 und dein Emoji. Die Tabelle `rank_board` hat gar keine Spalte für ein Gewicht.
@@ -560,23 +587,46 @@ herauszunehmen löscht sie.
 
 ## Wie der Rang gerechnet wird
 
-1. **Je Bewegung** wird aus dem gesamten Verlauf das beste geschätzte
-   Ein-Wiederholungs-Maximum genommen – der beste Satz, nicht der letzte: Eine
-   Bestmarke verliert man nicht dadurch, dass man danach leichter trainiert hat.
-   Übungsvarianten zählen zusammen (Bankdrücken eng, mit Pause, an der
-   Smith-Maschine sind dieselbe Bewegung).
+1. **Je Übung** wird aus dem gesamten Verlauf der beste Wert genommen – der
+   beste Satz, nicht der letzte: Eine Bestmarke verliert man nicht dadurch, dass
+   man danach leichter trainiert hat. Was „bester Wert" heißt, hängt von der
+   Bewegung ab:
+   * *Gewicht auf der Stange* bei den meisten – das geschätzte
+     Ein-Wiederholungs-Maximum.
+   * *Gesamtlast einschließlich des eigenen Körpers* bei Klimmzügen und Dips.
+     Ein Klimmzug ohne Zusatzgewicht ist genau 1,0× Körpergewicht; früher stand
+     dort rechnerisch null und Klimmzüge kamen im Rang gar nicht vor.
+   * *Wiederholungen* bei Liegestützen, *Zeit* beim Unterarmstütz.
 2. **Geteilt durch das Körpergewicht** ergibt das ein Vielfaches, und das fällt
    in eine von fünf Stufen. Zwischen zwei Schwellen wird linear geteilt, sodass
    0 bis 100 Punkte herauskommen; über *Elite* hinaus geht es gedämpft weiter
    und wird bei 120 gedeckelt, damit ein einzelner sehr starker Wert nicht das
    ganze Bild bestimmt.
-3. **Der Gesamtrang** ist der Schnitt über alle sechs Bewegungen. Was nie
-   trainiert wurde, zählt als null – deshalb kann er steigen und fallen, je
-   nachdem was du trainierst.
-4. **Alter zählt weniger.** Ein Bestwert von vor einem halben Jahr geht nur noch
+3. **Die Spielart verschiebt die Schwellen.** Schrägbankdrücken läuft mit rund
+   85 Prozent des flachen, Frontkniebeuge mit 80 Prozent der normalen,
+   Handstand-Liegestütze mit 35 Prozent gewöhnlicher. Rund fünfundzwanzig solcher
+   Faktoren sind hinterlegt; wo keiner steht, gilt eins.
+4. **Die Bewegungsgruppe** bekommt den Rang ihrer stärksten Übung, nicht den
+   Durchschnitt.
+5. **Der Gesamtrang ist Tiefe mal Breite.**
+   *Tiefe* = der gewichtete Schnitt über die Bewegungen, die du trainierst. Die
+   drei Grundübungen zählen mit 1,0, die weiteren Grundmuster (Schulterdrücken,
+   Zug von oben, Rudern) mit 0,75, Beiwerk zwischen 0,2 und 0,4.
+   *Breite* = `0,35 + 0,65 × √Abdeckung`. Wer nur die drei Großen macht, kommt
+   auf rund drei Viertel des Werts; wer alles abdeckt, auf den vollen.
+   Deshalb kann der Rang steigen und fallen, je nachdem was du trainierst – aber
+   ein sehr starker Mensch bleibt nicht bei „Geübt" hängen, nur weil er kein
+   Seitheben protokolliert.
+6. **Alter zählt weniger.** Ein Bestwert von vor einem halben Jahr geht nur noch
    zu 60 Prozent ein, weil er als Beleg für den heutigen Stand schwächer ist.
    Tiefer fällt er nie – wer einmal 140 kg gehoben hat, fängt nicht bei null an.
-5. **Für „divers"** gibt es keine veröffentlichten Standards. Gerechnet wird mit
+7. **Ohne Tabelle zählt der eigene Verlauf.** Für Bauchübungen, Mobilität und
+   Selbstangelegtes gibt es keine veröffentlichten Standards, und sich welche
+   auszudenken wäre schlechter als gar keine. Stattdessen wird gemessen, wie viel
+   mehr du heute schaffst als beim ersten Mal (bis +75 %) und wie oft du dran
+   warst (bis zwölf Einheiten). Solche Ränge sind in der App gestrichelt
+   gerahmt.
+8. **Für „divers"** gibt es keine veröffentlichten Standards. Gerechnet wird mit
    dem Mittel aus beiden Tabellen, und in der App steht, dass es so gemacht wird.
 
 Das sind keine Messwerte. Die Schwellen sind gerundete Richtwerte aus öffentlich

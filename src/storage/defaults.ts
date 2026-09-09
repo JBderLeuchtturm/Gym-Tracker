@@ -34,6 +34,15 @@ export const DEFAULT_SETTINGS: Settings = {
   weather: { enabled: false, lat: null, lon: null, placeName: '' },
   autoBackup: false,
   shareRank: false,
+  profileCard: {
+    emoji: '💪',
+    accent: 'messing',
+    bio: '',
+    pinnedAchievements: [],
+    favoriteExerciseIds: [],
+    showRank: true,
+    showStats: true,
+  },
   yazio: { bridgeUrl: '', token: '', enabled: false, lastSyncAt: null },
   mealPresets: [],
 };

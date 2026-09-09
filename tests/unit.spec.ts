@@ -9,9 +9,11 @@ import { fatigueSignal } from '../src/lib/fatigue';
 import { plannedWeeklyLoad } from '../src/lib/planVolume';
 import { roundToPlate, warmupSets } from '../src/lib/coaching';
 import {
-  badges, exerciseRanks, freshness, nextStep, overallRank, rankTimeline, ratioToScore,
-  thresholdsFor, tierForScore, tierProgress, STANDARDS,
+  RANKED_FAMILIES, STANDARDS, exerciseFactor, exerciseRanks, familyRanks, freshness,
+  nextSteps, overallRank, rankSnapshot, rankTimeline, ratioToScore, thresholdsFor,
+  tierCounts, tierForScore, tierProgress,
 } from '../src/lib/ranks';
+import { achievements, byGroup, earnedCount } from '../src/lib/achievements';
 import { mergeStates } from '../src/sync/merge';
 import { createInitialState } from '../src/storage/defaults';
 import type { AppState, Exercise, SetLog, Workout } from '../src/types';
@@ -292,6 +294,8 @@ check('thresholdsFor: "divers" mittelt beide Tabellen', () => {
   const mixed = thresholdsFor('bench', 'diverse')!;
   near(mixed[0], (STANDARDS.bench.male[0] + STANDARDS.bench.female[0]) / 2, 0.001);
   eq(thresholdsFor('gibtesnicht', 'male'), null);
+  // Ein Faktor skaliert alle Schwellen mit.
+  near(thresholdsFor('bench', 'male', 0.85)![0], STANDARDS.bench.male[0] * 0.85, 0.001);
 });
 
 check('freshness: frisch zaehlt voll, alt nie unter 60 Prozent', () => {
@@ -313,49 +317,6 @@ function rankState(weightKg: number): AppState {
   return state;
 }
 
-check('exerciseRanks: 100 kg Bankdruecken bei 80 kg sind "Stark"', () => {
-  const state = stateWith([workoutOn(todayISO(), 100, 1)]);
-  state.profile = { ...state.profile, weightKg: 80, sex: 'male' };
-  const bench: Exercise = {
-    id: 'cat_barbell-bench-press', name: 'Bankdrücken', category: 'chest', kind: 'strength',
-    primaryMuscles: [], secondaryMuscles: [], equipment: [], met: 6, source: 'catalog',
-  };
-  const ranks = exerciseRanks(state, [bench], () => bench);
-  eq(ranks.length, 1, 'eine gewertete Bewegung');
-  near(ranks[0].bestKg, 100, 0.5);
-  near(ranks[0].ratio, 1.25, 0.01);
-  near(ranks[0].score, 60, 0.5);
-  eq(ranks[0].tier, 'stark');
-  eq(ranks[0].nextTier, 'elite');
-  near(ranks[0].nextKg!, 160, 0.5);
-});
-
-check('exerciseRanks: ohne Koerpergewicht kein Rang', () => {
-  const state = stateWith([workoutOn(todayISO(), 100, 1)]);
-  state.profile = { ...state.profile, weightKg: 0 };
-  eq(exerciseRanks(state, [], () => undefined).length, 0);
-});
-
-check('overallRank: untrainierte Bewegungen zaehlen als null', () => {
-  const single = overallRank([{
-    family: 'bench', label: 'Bankdrücken', bestKg: 100, ratio: 1.25, score: 60, tier: 'stark',
-    toNext: 20, nextTier: 'elite', nextKg: 160, lastDate: todayISO(), days: 0,
-  }]);
-  eq(single.covered, 1);
-  eq(single.total, 6);
-  near(single.score, 10, 0.05);   // 60 / 6
-  eq(single.tier, 'einsteiger');
-  eq(overallRank([]).score, 0);
-});
-
-check('overallRank: ein alter Bestwert zaehlt weniger', () => {
-  const part = {
-    family: 'bench', label: 'Bankdrücken', bestKg: 100, ratio: 1.25, score: 60, tier: 'stark' as const,
-    toNext: 20, nextTier: 'elite' as const, nextKg: 160, lastDate: '2020-01-01', days: 400,
-  };
-  near(overallRank([part]).score, 6, 0.05);  // 60 * 0,6 / 6
-});
-
 /* -------------------------------------------------- Raenge zum Weitermachen */
 
 check('tierProgress misst den Weg durch die eigene Stufe', () => {
@@ -375,60 +336,221 @@ check('tierProgress misst den Weg durch die eigene Stufe', () => {
   eq(top.toNext, null);
 });
 
-check('nextStep nimmt Unberuehrtes vor allem anderen', () => {
+check('Einundzwanzig Bewegungen haben einen Standard', () => {
+  eq(RANKED_FAMILIES.length, 21);
+  for (const family of RANKED_FAMILIES) {
+    const standard = STANDARDS[family];
+    truthy(standard.weight > 0, `${family} ohne Gewicht`);
+    // Die Schwellen muessen aufsteigen - sonst waere eine Stufe unerreichbar.
+    for (let index = 1; index < 5; index += 1) {
+      truthy(standard.male[index] > standard.male[index - 1], `${family} maennlich Stufe ${index}`);
+      truthy(standard.female[index] > standard.female[index - 1], `${family} weiblich Stufe ${index}`);
+    }
+  }
+});
+
+check('Die drei Grunduebungen wiegen am schwersten', () => {
+  for (const family of ['bench', 'squat', 'deadlift']) eq(STANDARDS[family].weight, 1);
+  for (const family of ['ohp', 'row', 'pulldown']) eq(STANDARDS[family].weight, 0.75);
+  truthy(STANDARDS.raise.weight < 0.5, 'Seitheben ist Beiwerk');
+});
+
+check('exerciseFactor kennt die Spielarten', () => {
+  const make = (name: string): Exercise => ({
+    id: 'x', name, category: 'chest', kind: 'strength', primaryMuscles: [],
+    secondaryMuscles: [], equipment: [], met: 6, source: 'catalog',
+  });
+  near(exerciseFactor(make('Schrägbankdrücken (Langhantel)')), 0.85, 0.001);
+  near(exerciseFactor(make('Frontkniebeuge')), 0.8, 0.001);
+  near(exerciseFactor(make('Handstand-Liegestütze')), 0.35, 0.001);
+  near(exerciseFactor(make('Bankdrücken (Langhantel)')), 1, 0.001);
+});
+
+check('exerciseRanks: 100 kg Bankdruecken bei 80 kg sind "Stark"', () => {
   const ranks = exerciseRanks(rankState(100), [benchExercise], () => benchExercise);
-  const step = nextStep(ranks, 80, 'male')!;
-  truthy(step, 'ein Schritt');
-  eq(step.untouched, true, 'eine Bewegung ohne Eintrag');
-  truthy(step.family !== 'bench', `war ${step.family}`);
-  truthy(step.gainPoints > 0, 'bringt Punkte');
+  eq(ranks.length, 1, 'eine Übung');
+  near(ranks[0].best, 100, 0.5);
+  near(ranks[0].ratio, 1.25, 0.01);
+  near(ranks[0].score, 60, 0.5);
+  eq(ranks[0].tier, 'stark');
+  eq(ranks[0].nextTier, 'elite');
+  near(ranks[0].nextValue!, 160, 0.5);
+  eq(ranks[0].personal, false);
+  eq(ranks[0].thresholds.length, 5, 'fünf Schwellen in Kilogramm');
+  near(ranks[0].thresholds[0], 40, 0.5, 'Einsteiger = 0,5 × 80 kg');
 });
 
-check('nextStep waehlt sonst den kleinsten Abstand', () => {
-  // Nur Bank ist unberuehrt-frei: alle sechs bekommen einen Eintrag.
-  const ranks = [
-    { family: 'bench', label: 'Bankdrücken', bestKg: 100, ratio: 1.25, score: 60,
-      tier: 'stark' as const, toNext: 20, nextTier: 'elite' as const, nextKg: 160,
-      lastDate: todayISO(), days: 0 },
-    { family: 'row', label: 'Rudern', bestKg: 118, ratio: 1.48, score: 79,
-      tier: 'stark' as const, toNext: 1, nextTier: 'elite' as const, nextKg: 120,
-      lastDate: todayISO(), days: 0 },
-  ];
-  const all = ['squat', 'deadlift', 'ohp', 'curl'].map((family) => ({
-    family, label: family, bestKg: 500, ratio: 6, score: 100, tier: 'elite' as const,
-    toNext: null, nextTier: null, nextKg: null, lastDate: todayISO(), days: 0,
-  }));
-  const step = nextStep([...ranks, ...all], 80, 'male')!;
-  eq(step.family, 'row', 'zwei Kilo sind naeher als sechzig');
-  near(step.missingKg, 2, 0.01);
-});
-
-check('nextStep ohne Koerpergewicht gibt nichts', () => {
-  eq(nextStep([], 0, 'male'), null);
-});
-
-check('Abzeichen werden abgeleitet, nicht gespeichert', () => {
+check('Die Spielart verschiebt die Schwellen der Uebung', () => {
+  const incline: Exercise = { ...benchExercise, id: 'cat_incline', name: 'Schrägbankdrücken (Langhantel)' };
   const state = rankState(100);
-  const ranks = exerciseRanks(state, [benchExercise], () => benchExercise);
-  const list = badges(ranks, overallRank(ranks), 0);
-  eq(list.length, 8, 'acht Meilensteine');
-
-  const first = list.find((badge) => badge.id === 'erster-rang')!;
-  eq(first.earned, true, 'ein Rang existiert');
-  const bench = list.find((badge) => badge.id === 'bank-koerpergewicht')!;
-  eq(bench.earned, true, '100 kg bei 80 kg Koerpergewicht');
-  const full = list.find((badge) => badge.id === 'vollstaendig')!;
-  eq(full.earned, false, 'nur eine von sechs');
-  near(full.share, 1 / 6, 0.01);
-
-  // Erreichtes steht vorn.
-  truthy(list[0].earned, 'erreicht zuerst');
+  state.workouts = [{ ...workoutOn(todayISO(), 100, 1), exercises: [{
+    id: 'le', exerciseId: 'cat_incline',
+    sets: [{ id: 's', reps: 1, weightKg: 100, durationSec: null, distanceKm: null,
+      rpe: null, done: true, isWarmup: false }],
+  }] }];
+  const ranks = exerciseRanks(state, [incline], () => incline);
+  eq(ranks.length, 1);
+  eq(ranks[0].family, 'bench', 'gehört zum Bankdrücken');
+  // 0,85 × 40 = 34 kg statt 40 kg fuer die erste Stufe.
+  near(ranks[0].thresholds[0], 34, 0.5);
+  truthy(ranks[0].score > 60, `mit Faktor mehr Punkte: ${ranks[0].score}`);
 });
 
-check('Abzeichen: die Wochen-Serie zaehlt mit', () => {
-  const list = badges([], overallRank([]), 12);
-  eq(list.find((badge) => badge.id === 'zehn-wochen')!.earned, true);
-  eq(badges([], overallRank([]), 4).find((badge) => badge.id === 'zehn-wochen')!.share, 0.4);
+check('Koerpergewichtsuebungen zaehlen die Gesamtlast', () => {
+  const pullup: Exercise = {
+    id: 'cat_pull-up', name: 'Klimmzüge (Obergriff)', category: 'back', kind: 'bodyweight',
+    primaryMuscles: [], secondaryMuscles: [], equipment: [], met: 8, source: 'catalog',
+  };
+  const state = createInitialState();
+  state.profile = { ...state.profile, weightKg: 80, sex: 'male' };
+  state.workouts = [{ ...workoutOn(todayISO(), 0, 1), exercises: [{
+    id: 'le', exerciseId: 'cat_pull-up',
+    sets: [{ id: 's', reps: 1, weightKg: 0, durationSec: null, distanceKm: null,
+      rpe: null, done: true, isWarmup: false }],
+  }] }];
+  const ranks = exerciseRanks(state, [pullup], () => pullup);
+  eq(ranks.length, 1);
+  eq(ranks[0].basis, 'bodyload');
+  // Ein Klimmzug ohne Zusatz ist genau das eigene Gewicht - nicht null.
+  near(ranks[0].best, 80, 1);
+  near(ranks[0].ratio, 1, 0.02);
+});
+
+check('Ohne Standard zaehlt der eigene Verlauf', () => {
+  const crunch: Exercise = {
+    id: 'cat_crunch', name: 'Crunches', category: 'core', kind: 'bodyweight',
+    primaryMuscles: [], secondaryMuscles: [], equipment: [], met: 3, source: 'catalog',
+  };
+  const state = createInitialState();
+  state.profile = { ...state.profile, weightKg: 80 };
+  const day = (date: string, reps: number): Workout => ({
+    ...workoutOn(date, 0, reps),
+    exercises: [{ id: `le_${date}`, exerciseId: 'cat_crunch', sets: [{
+      id: `s_${date}`, reps, weightKg: null, durationSec: null, distanceKm: null,
+      rpe: null, done: true, isWarmup: false,
+    }] }],
+  });
+  state.workouts = [day('2026-01-05', 10), day('2026-02-05', 15), day('2026-03-05', 20)];
+  const ranks = exerciseRanks(state, [crunch], () => crunch);
+  eq(ranks.length, 1);
+  eq(ranks[0].personal, true, 'aus dem eigenen Verlauf');
+  eq(ranks[0].thresholds.length, 0, 'keine Schwellen aus einer Tabelle');
+  truthy(ranks[0].score > 0, `Punkte: ${ranks[0].score}`);
+});
+
+check('familyRanks nimmt die staerkste Uebung, nicht den Schnitt', () => {
+  const incline: Exercise = { ...benchExercise, id: 'cat_incline', name: 'Schrägbankdrücken (Langhantel)' };
+  const state = rankState(100);
+  state.workouts = [
+    { ...workoutOn('2026-05-01', 100, 1) },
+    { ...workoutOn('2026-05-08', 100, 1), exercises: [{
+      id: 'le2', exerciseId: 'cat_incline',
+      sets: [{ id: 's2', reps: 1, weightKg: 40, durationSec: null, distanceKm: null,
+        rpe: null, done: true, isWarmup: false }],
+    }] },
+  ];
+  const lookup = (id: string) => (id === 'cat_incline' ? incline : benchExercise);
+  const exercises = exerciseRanks(state, [benchExercise, incline], lookup);
+  const families = familyRanks(exercises);
+  const bench = families.find((rank) => rank.family === 'bench')!;
+  eq(bench.exercises, 2, 'beide Übungen in der Gruppe');
+  eq(bench.bestExerciseId, 'cat_barbell-bench-press', 'die stärkere trägt den Rang');
+  near(bench.score, Math.max(...exercises.map((entry) => entry.score)), 0.01);
+});
+
+check('overallRank: Tiefe mal Breite', () => {
+  const empty = overallRank([]);
+  eq(empty.score, 0);
+  eq(empty.covered, 0);
+  eq(empty.total, 21);
+
+  const ranks = exerciseRanks(rankState(100), [benchExercise], () => benchExercise);
+  const overall = overallRank(familyRanks(ranks));
+  eq(overall.covered, 1);
+  near(overall.depth, 60, 0.5, 'die Tiefe ist der Wert der einen Bewegung');
+  truthy(overall.breadthFactor > 0.35 && overall.breadthFactor < 0.6,
+    `Breite bei einer von einundzwanzig: ${overall.breadthFactor}`);
+  near(overall.score, overall.depth * overall.breadthFactor, 0.2);
+});
+
+check('overallRank: mehr Breite bringt mehr Punkte bei gleicher Tiefe', () => {
+  const part = (family: string, weight: number) => ({
+    family, label: family, basis: 'load' as const, best: 100, ratio: 1.25, score: 60,
+    tier: 'stark' as const, nextTier: 'elite' as const, nextValue: 160, thresholds: [],
+    lastDate: todayISO(), days: 0, sessions: 3, personal: false,
+    bestExerciseId: null, bestExerciseName: '', exercises: 1, weight,
+  });
+  const one = overallRank([part('bench', 1)]);
+  const three = overallRank([part('bench', 1), part('squat', 1), part('deadlift', 1)]);
+  near(one.depth, three.depth, 0.01, 'dieselbe Tiefe');
+  truthy(three.score > one.score, `${three.score} sollte über ${one.score} liegen`);
+});
+
+check('Alte Bestwerte ziehen den Gesamtrang nach unten', () => {
+  const part = (days: number) => ({
+    family: 'bench', label: 'Bankdrücken', basis: 'load' as const, best: 100, ratio: 1.25,
+    score: 60, tier: 'stark' as const, nextTier: 'elite' as const, nextValue: 160,
+    thresholds: [], lastDate: '2020-01-01', days, sessions: 1, personal: false,
+    bestExerciseId: null, bestExerciseName: '', exercises: 1, weight: 1,
+  });
+  truthy(overallRank([part(400)]).score < overallRank([part(0)]).score);
+  near(overallRank([part(400)]).depth, 36, 0.5, '60 × 0,6');
+});
+
+check('nextSteps stellt Unberuehrtes nach vorn und rechnet den Gewinn', () => {
+  const snapshot = rankSnapshot(rankState(100), [benchExercise], () => benchExercise);
+  const steps = nextSteps(snapshot, 80, 'male', 3);
+  eq(steps.length, 3);
+  truthy(steps[0].untouched, 'zuerst etwas ohne Eintrag');
+  truthy(steps.every((step) => step.gainPoints > 0), 'jeder Schritt bringt Punkte');
+  // Die Grunduebungen bringen mehr als Beiwerk.
+  truthy(['squat', 'deadlift'].includes(steps[0].family), `war ${steps[0].family}`);
+});
+
+check('nextSteps ohne Koerpergewicht gibt nichts', () => {
+  eq(nextSteps({ exercises: [], families: [], overall: overallRank([]) }, 0, 'male').length, 0);
+});
+
+check('tierCounts zaehlt die Bewegungen je Stufe', () => {
+  const snapshot = rankSnapshot(rankState(100), [benchExercise], () => benchExercise);
+  const counts = tierCounts(snapshot.families);
+  eq(counts.stark, 1);
+  eq(counts.elite, 0);
+});
+
+/* ---------------------------------------------------------------- Erfolge */
+
+check('Vierzig Erfolge in sechs Gruppen', () => {
+  const state = rankState(100);
+  const snapshot = rankSnapshot(state, [benchExercise], () => benchExercise);
+  const list = achievements(state, () => benchExercise, snapshot.families, snapshot.overall);
+  eq(list.length, 40);
+  eq(byGroup(list).length, 6);
+  // Jede ID nur einmal - sonst ueberschreiben sich angeheftete Erfolge.
+  eq(new Set(list.map((item) => item.id)).size, 40);
+  for (const item of list) {
+    truthy(item.share >= 0 && item.share <= 1, `${item.id}: Anteil ${item.share}`);
+    truthy(item.progress.includes('von'), `${item.id} ohne Stand`);
+  }
+});
+
+check('Erfolge: 100 kg Bank bei 80 kg loesen "Bank = Koerpergewicht" aus', () => {
+  const state = rankState(100);
+  const snapshot = rankSnapshot(state, [benchExercise], () => benchExercise);
+  const list = achievements(state, () => benchExercise, snapshot.families, snapshot.overall);
+  const find = (id: string) => list.find((item) => item.id === id)!;
+  eq(find('bank-koerpergewicht').earned, true);
+  eq(find('bank-anderthalb').earned, false, '1,25 ist nicht 1,5');
+  near(find('bank-anderthalb').share, 1.25 / 1.5, 0.01);
+  eq(find('erster-rang').earned, true);
+  eq(find('breite-voll').earned, false);
+  truthy(earnedCount(list) > 0);
+});
+
+check('Erfolge ohne Verlauf sind alle offen', () => {
+  const state = createInitialState();
+  const list = achievements(state, () => undefined, [], overallRank([]));
+  eq(earnedCount(list), 0);
 });
 
 check('rankTimeline rechnet den Rang von damals mit den Daten von damals', () => {

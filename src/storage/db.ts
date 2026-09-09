@@ -65,6 +65,17 @@ export function migrate(raw: unknown): AppState {
       weather: { ...DEFAULT_SETTINGS.weather, ...(isObject(settings.weather) ? settings.weather : {}) },
       yazio: { ...DEFAULT_SETTINGS.yazio, ...(yazio as object) },
       mealPresets: asArray(settings.mealPresets),
+      profileCard: {
+        ...DEFAULT_SETTINGS.profileCard,
+        ...(isObject(settings.profileCard) ? settings.profileCard : {}),
+        // Die beiden Listen kommen aus dem Speicher und koennen alles sein.
+        pinnedAchievements: asArray<string>(
+          isObject(settings.profileCard) ? settings.profileCard.pinnedAchievements : [],
+        ).slice(0, 4),
+        favoriteExerciseIds: asArray<string>(
+          isObject(settings.profileCard) ? settings.profileCard.favoriteExerciseIds : [],
+        ).slice(0, 4),
+      },
     },
   };
 
