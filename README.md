@@ -366,12 +366,16 @@ bereits eingetragen.
 Der Build verwendet relative Pfade, funktioniert also auch in jedem Unterordner
 oder bei Netlify, Vercel und Co.
 
-## Aufs Handy holen
+## Aufs Handy holen und weitergeben
 
 Im Browser die Seite öffnen und „Zum Startbildschirm hinzufügen" wählen
 (Safari: Teilen-Menü, Chrome: Drei-Punkte-Menü). Danach startet der Tracker im
 Vollbild wie eine normale App und funktioniert dank Service Worker auch ohne
 Internet – nur die Online-Übungssuche braucht dann eine Verbindung.
+
+> **Schritt für Schritt**, inklusive Weitergeben an Freunde, einer Android-APK
+> zum Verschicken und dem, was beim Aktualisieren passiert:
+> [`docs/app-verteilen.md`](docs/app-verteilen.md).
 
 **Updates** kommen von selbst: Die installierte App prüft beim Öffnen und
 stündlich, ob eine neuere Fassung online steht, lädt sie im Hintergrund und
