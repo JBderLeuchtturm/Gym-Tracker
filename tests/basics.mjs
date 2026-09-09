@@ -8,7 +8,7 @@ export async function run() {
 
   await runner.step('App startet mit allen Reitern', async () => {
     const tabs = await page.locator('.nav__item span:last-child').allTextContents();
-    const expected = ['Heute', 'Pläne', 'Fortschritt', 'Kalorien', 'Freunde', 'Profil'];
+    const expected = ['Heute', 'Pläne', 'Fortschritt', 'Rang', 'Freunde', 'Profil'];
     if (tabs.join(',') !== expected.join(',')) throw new Error(tabs.join(','));
   });
 
@@ -64,7 +64,7 @@ export async function run() {
     if (after <= before) throw new Error('Keine Übung dazugekommen');
   });
 
-  for (const [index, name] of [[1, 'Pläne'], [2, 'Fortschritt'], [3, 'Kalorien'], [4, 'Freunde'], [5, 'Profil']]) {
+  for (const [index, name] of [[1, 'Pläne'], [2, 'Fortschritt'], [3, 'Rang'], [4, 'Freunde'], [5, 'Profil']]) {
     await runner.step(`Reiter ${name} rendert`, async () => {
       await page.locator('.nav__item').nth(index).click();
       await page.waitForTimeout(600);

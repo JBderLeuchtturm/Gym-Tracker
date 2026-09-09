@@ -65,6 +65,9 @@ export function migrate(raw: unknown): AppState {
       weather: { ...DEFAULT_SETTINGS.weather, ...(isObject(settings.weather) ? settings.weather : {}) },
       yazio: { ...DEFAULT_SETTINGS.yazio, ...(yazio as object) },
       mealPresets: asArray(settings.mealPresets),
+      seenRanks: isObject(settings.seenRanks)
+        ? (settings.seenRanks as Record<string, string>)
+        : {},
       profileCard: {
         ...DEFAULT_SETTINGS.profileCard,
         ...(isObject(settings.profileCard) ? settings.profileCard : {}),
@@ -74,6 +77,9 @@ export function migrate(raw: unknown): AppState {
         ).slice(0, 4),
         favoriteExerciseIds: asArray<string>(
           isObject(settings.profileCard) ? settings.profileCard.favoriteExerciseIds : [],
+        ).slice(0, 4),
+        favoriteRankIds: asArray<string>(
+          isObject(settings.profileCard) ? settings.profileCard.favoriteRankIds : [],
         ).slice(0, 4),
       },
     },

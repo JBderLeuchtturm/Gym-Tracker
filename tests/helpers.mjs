@@ -140,6 +140,20 @@ export async function openCard(card, page) {
   }
 }
 
+/**
+ * Klickt eine Aufstiegsmeldung weg, falls eine steht.
+ *
+ * Ein abgehakter Satz kann eine Stufe knacken, und dann meldet sich die App
+ * mit einem Fenster - genau so soll es sein. Im Test liegt es dann aber ueber
+ * allem, was danach geklickt wird.
+ */
+export async function dismissRankUp(page) {
+  if (await page.locator('.rankup').count() === 0) return false;
+  await page.getByRole('button', { name: 'Weiter' }).click();
+  await page.waitForTimeout(350);
+  return true;
+}
+
 /** Traegt einen Satz ein und hakt ihn ab. */
 export async function logSet(page, card, { kg, reps, index = 0 }) {
   await openCard(card, page);
@@ -150,6 +164,7 @@ export async function logSet(page, card, { kg, reps, index = 0 }) {
   await page.waitForTimeout(200);
   await row.locator('.check').click();
   await page.waitForTimeout(500);
+  await dismissRankUp(page);
 }
 
 export const readState = (page) =>

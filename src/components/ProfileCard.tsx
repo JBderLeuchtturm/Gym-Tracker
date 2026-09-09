@@ -4,11 +4,11 @@ import type { Exercise, ID, ProfileAccent, ProfileCard as CardSettings } from '.
 import { useStore } from '../storage/store';
 import { useSync } from '../sync/SyncProvider';
 import { streakInfo, workoutSetCount, workoutVolume } from '../lib/stats';
-import { rankSnapshot, TIER_LABELS, type RankTier } from '../lib/ranks';
+import { rankOf, rankSnapshot, TIER_LABELS, type RankTier } from '../lib/ranks';
 import { achievements, sortAchievements, type Achievement } from '../lib/achievements';
 import { formatDateShort } from '../lib/date';
 import { Modal, fmt } from './ui';
-import { TIER_COLOR } from './Ranks';
+import { RankBadge } from './RankBadge';
 import { IconCheck, IconEdit, IconTrophy, IconX } from './icons';
 
 /**
@@ -40,6 +40,8 @@ export interface CardData {
   stats?: Array<{ label: string; value: string }>;
   achievements?: Achievement[];
   favorites?: Array<{ id: ID; name: string; detail: string }>;
+  /** Bis zu vier Rang-Abzeichen mit dem Namen der Übung darunter. */
+  rankBadges?: Array<{ id: string; name: string; rank: ReturnType<typeof rankOf> }>;
   since?: string;
 }
 
@@ -74,13 +76,10 @@ export function ProfileCardView({ data }: { data: CardData }) {
             <div className="pcard__name">{data.name || t('Ohne Namen')}</div>
             {data.handle && <div className="tiny dim">@{data.handle}</div>}
           </div>
-          {card.showRank && data.tier && (
+          {card.showRank && data.score != null && (
             <div className="pcard__rank">
-              <div className="tiny dim">{t('Rang')}</div>
-              <div className="pcard__tier" style={{ color: TIER_COLOR[data.tier] }}>
-                {t(TIER_LABELS[data.tier])}
-              </div>
-              {data.score != null && <div className="tiny mono dim">{fmt(data.score, 0)} / 100</div>}
+              <RankBadge rank={rankOf(data.score)} size="md" />
+              <div className="tiny dim">{fmt(data.score, 0)} / 100</div>
             </div>
           )}
         </div>
@@ -95,6 +94,21 @@ export function ProfileCardView({ data }: { data: CardData }) {
                 <div className="tiny dim">{stat.label}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {(data.rankBadges?.length ?? 0) > 0 && (
+          <div>
+            <div className="section-label" style={{ marginBottom: 7 }}>{t('Lieblingsabzeichen')}</div>
+            <div className="badge-wall">
+              {data.rankBadges!.map((entry) => (
+                <div key={entry.id} className="badge-wall__item">
+                  <RankBadge rank={entry.rank} size="md" />
+                  <span className="tiny">{entry.name}</span>
+                  <span className="tiny dim">{entry.rank.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -158,10 +172,18 @@ export function useOwnCard(handle?: string): CardData {
       };
     }).filter((favorite) => favorite.name !== t('Unbekannte Übung'));
 
+    const rankBadges = card.favoriteRankIds.map((id) => {
+      const entry = snapshot.exercises.find((item) => item.exerciseId === id);
+      if (!entry) return null;
+      return { id, name: entry.exerciseName, rank: entry.rank };
+    }).filter((entry): entry is { id: string; name: string; rank: ReturnType<typeof rankOf> } =>
+      entry !== null);
+
     return {
       name: state.profile.name,
       handle,
       card,
+      rankBadges,
       tier: snapshot.overall.tier,
       score: snapshot.overall.score,
       stats: [
@@ -192,7 +214,7 @@ const EMOJI_CHOICES = [
 export function ProfileCardEditor({ onClose }: { onClose: () => void }) {
   const { state, updateSettings, updateProfile, allExercises, getExercise } = useStore();
   const card = state.settings.profileCard;
-  const [tab, setTab] = useState<'aussehen' | 'erfolge' | 'uebungen'>('aussehen');
+  const [tab, setTab] = useState<'aussehen' | 'abzeichen' | 'erfolge' | 'uebungen'>('aussehen');
   const [search, setSearch] = useState('');
 
   const snapshot = useMemo(
@@ -212,6 +234,13 @@ export function ProfileCardEditor({ onClose }: { onClose: () => void }) {
       ? card.pinnedAchievements.filter((item) => item !== id)
       : [...card.pinnedAchievements, id].slice(-4);
     patch({ pinnedAchievements: list });
+  };
+
+  const toggleRankBadge = (id: ID) => {
+    const list = card.favoriteRankIds.includes(id)
+      ? card.favoriteRankIds.filter((item) => item !== id)
+      : [...card.favoriteRankIds, id].slice(-4);
+    patch({ favoriteRankIds: list });
   };
 
   const toggleFavorite = (id: ID) => {
@@ -235,7 +264,8 @@ export function ProfileCardEditor({ onClose }: { onClose: () => void }) {
   return (
     <Modal title={t("Profil gestalten")} onClose={onClose}>
       <div className="seg" role="tablist">
-        {([['aussehen', 'Aussehen'], ['erfolge', 'Erfolge'], ['uebungen', 'Übungen']] as const)
+        {([['aussehen', 'Aussehen'], ['abzeichen', 'Abzeichen'], ['erfolge', 'Erfolge'],
+          ['uebungen', 'Übungen']] as const)
           .map(([id, label]) => (
             <button
               key={id}
@@ -327,6 +357,49 @@ export function ProfileCardEditor({ onClose }: { onClose: () => void }) {
             />
             <span className="small">{t('Einheiten, Volumen und Serie zeigen')}</span>
           </label>
+        </div>
+      )}
+
+      {tab === 'abzeichen' && (
+        <div className="list">
+          <div className="tiny dim">
+            {t('Bis zu vier Rang-Abzeichen stehen auf deiner Karte. {count} von 4 vergeben.', {
+              count: card.favoriteRankIds.length,
+            })}
+          </div>
+          <input
+            className="input"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={t('Übung suchen')}
+          />
+          <div className="list" style={{ gap: 5 }}>
+            {snapshot.exercises
+              .filter((entry) => !search
+                || entry.exerciseName.toLowerCase().includes(search.toLowerCase()))
+              .slice(0, 60)
+              .map((entry) => {
+                const on = card.favoriteRankIds.includes(entry.exerciseId);
+                return (
+                  <button
+                    key={entry.exerciseId}
+                    className={`pick-row ${on ? 'pick-row--on' : ''}`}
+                    onClick={() => toggleRankBadge(entry.exerciseId)}
+                    aria-pressed={on}
+                  >
+                    <RankBadge rank={entry.rank} size="sm" />
+                    <span style={{ minWidth: 0, flex: 1 }}>
+                      <span className="small bold">{entry.exerciseName}</span>
+                      <span className="tiny dim" style={{ display: 'block' }}>{entry.rank.label}</span>
+                    </span>
+                    {on && <span className="pick-row__mark"><IconCheck /></span>}
+                  </button>
+                );
+              })}
+            {snapshot.exercises.length === 0 && (
+              <div className="tiny dim">{t('Noch keine Übung im Verlauf.')}</div>
+            )}
+          </div>
         </div>
       )}
 
@@ -472,12 +545,11 @@ export function useProfileCardSync() {
  * Angeheftete Erfolge kommen als reine Namen herueber - was dahintersteht,
  * bleibt beim Freund. Deshalb sind sie hier Marken ohne Fortschrittsanteil.
  */
-export function FriendProfileCard({ friend, tier, score, stats }: {
+export function FriendProfileCard({ friend, score, stats }: {
   friend: {
     displayName: string; handle: string; emoji: string;
     bio?: string; accent?: string; pins?: string[]; favorites?: string[];
   };
-  tier?: RankTier | null;
   score?: number | null;
   stats?: Array<{ label: string; value: string }>;
 }) {
@@ -496,13 +568,10 @@ export function FriendProfileCard({ friend, tier, score, stats }: {
             <div className="pcard__name">{friend.displayName}</div>
             <div className="tiny dim">@{friend.handle}</div>
           </div>
-          {tier && (
+          {score != null && (
             <div className="pcard__rank">
-              <div className="tiny dim">{t('Rang')}</div>
-              <div className="pcard__tier" style={{ color: TIER_COLOR[tier] }}>
-                {t(TIER_LABELS[tier])}
-              </div>
-              {score != null && <div className="tiny mono dim">{fmt(score, 0)} / 100</div>}
+              <RankBadge rank={rankOf(score)} size="md" />
+              <div className="tiny dim">{fmt(score, 0)} / 100</div>
             </div>
           )}
         </div>
@@ -564,7 +633,7 @@ function badgeName(id: string): string {
     const empty = { workouts: [] } as unknown as Parameters<typeof achievements>[0];
     badgeNames = Object.fromEntries(
       achievements(empty, () => undefined, [], {
-        score: 0, tier: 'einsteiger', covered: 0, total: 1,
+        score: 0, tier: 'bronze', rank: rankOf(0), covered: 0, total: 1,
         breadth: 0, breadthFactor: 0, depth: 0, parts: [],
       }).map((badge) => [badge.id, badge.label]),
     );

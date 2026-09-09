@@ -72,6 +72,25 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.22);
 
   --nav-height: 60px;
+
+  /*
+   * Die sechs Rangfarben. Je Stufe drei Toene: hell und dunkel fuer den
+   * Verlauf im Wappen, dazu die Kante. Die Schrift darin ist dunkel, weil
+   * alle sechs Fuellungen hell genug dafuer sind - das haelt die roemische
+   * Ziffer auf jedem Abzeichen gleich gut lesbar.
+   */
+  --tier-bronze-light: #c98a52;
+  --tier-bronze-dark:  #7d4d24;
+  --tier-silber-light: #cbd3da;
+  --tier-silber-dark:  #7e8892;
+  --tier-gold-light:   #e5bb5a;
+  --tier-gold-dark:    #a1791f;
+  --tier-diamant-light:#9fdcef;
+  --tier-diamant-dark: #3d8ba8;
+  --tier-emerald-light:#7fd8a8;
+  --tier-emerald-dark: #2c8256;
+  --tier-elite-light:  #d3a6f2;
+  --tier-elite-dark:   #7a3fa8;
   /* Abstand zwischen zwei Abschnitten - eine Zahl, ueberall dieselbe. */
   --gap-section: 20px;
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -2283,7 +2302,18 @@ textarea:focus-visible,
   border-bottom: 1px solid var(--border-soft);
 }
 .dayline__name { font-size: 1rem; font-weight: 640; letter-spacing: -0.01em; }
-.dayline__plan { flex: 1; min-width: 0; font-size: 0.8rem; color: var(--text-muted); }
+/*
+ * Der Planname darf umbrechen, aber nicht in eine drei Zeichen breite Spalte
+ * gequetscht werden: Steht daneben noch "Zurueck zu heute", war aus
+ * "Push (Brust / Schulter / Trizeps)" sonst ein Wortturm geworden.
+ */
+.dayline__plan {
+  flex: 1 1 14ch;
+  min-width: 14ch;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.dayline > .btn { flex: none; margin-left: auto; align-self: center; }
 
 /* Ein Knopf in einer Abschnittsueberschrift sitzt mittig, nicht auf der Grundlinie. */
 .section__head .btn { align-self: center; }
@@ -2719,6 +2749,7 @@ textarea:focus-visible,
   cursor: pointer;
 }
 .move-row__head > svg:last-child { flex: none; color: var(--text-dim); width: 15px; height: 15px; }
+.move-row__head .rbadge { flex: none; }
 .move-row__head[aria-expanded='true'] > svg:last-child { transform: rotate(180deg); }
 .move-row__name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .move-row__body {
@@ -2745,22 +2776,14 @@ textarea:focus-visible,
 /* Eine einzelne Übung mit eigenem Rang. */
 .ex-rank {
   display: grid;
-  grid-template-columns: 1fr 54px auto;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 9px;
-  padding: 7px 10px;
+  gap: 10px;
+  padding: 8px 10px;
   border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
 .ex-rank--personal { background: transparent; border: 1px dashed var(--border-soft); }
-.ex-rank__bar {
-  display: block;
-  height: 5px;
-  border-radius: 3px;
-  background: var(--surface);
-  overflow: hidden;
-}
-.ex-rank__bar > span { display: block; height: 100%; border-radius: 3px; }
 
 /* ------------------------------------------------------------- Erfolge */
 
@@ -2936,8 +2959,13 @@ textarea:focus-visible,
   letter-spacing: -0.015em;
   overflow-wrap: break-word;
 }
-.pcard__rank { text-align: right; flex: none; }
-.pcard__tier { font-size: 0.9rem; font-weight: 700; }
+.pcard__rank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+}
 .pcard__bio {
   margin: 0;
   font-size: 0.86rem;
@@ -3063,3 +3091,129 @@ textarea:focus-visible,
   color: var(--text-dim);
 }
 .friend-card__go svg { width: 13px; height: 13px; }
+
+/* ===================================================================
+   Rang-Abzeichen
+   =================================================================== */
+
+/*
+ * Das Wappen bekommt seine Farben ueber drei Variablen, die je Stufe gesetzt
+ * werden. So bleibt die Zeichnung eine einzige und die Stufe ist eine Klasse.
+ */
+.rbadge { display: inline-flex; align-items: center; gap: 7px; vertical-align: middle; }
+.rbadge__art { display: block; flex: none; }
+.rbadge--dim .rbadge__art { opacity: 0.3; filter: grayscale(0.7); }
+
+.rbadge__roman {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-family: var(--font);
+}
+.rbadge--xs .rbadge__roman { font-size: 17px; }
+.rbadge--lg .rbadge__roman { font-size: 14px; }
+
+.rbadge__label { font-size: 0.8rem; font-weight: 650; white-space: nowrap; }
+.rbadge--xs .rbadge__label { font-size: 0.68rem; }
+.rbadge--lg .rbadge__label { font-size: 1.05rem; }
+
+.rbadge__art--bronze  { --tier-light: var(--tier-bronze-light);  --tier-dark: var(--tier-bronze-dark);  --tier-edge: #5c3616; --tier-ink: #4a2b11; }
+.rbadge__art--silber  { --tier-light: var(--tier-silber-light);  --tier-dark: var(--tier-silber-dark);  --tier-edge: #5c646d; --tier-ink: #454c53; }
+.rbadge__art--gold    { --tier-light: var(--tier-gold-light);    --tier-dark: var(--tier-gold-dark);    --tier-edge: #755612; --tier-ink: #5b420c; }
+.rbadge__art--diamant { --tier-light: var(--tier-diamant-light); --tier-dark: var(--tier-diamant-dark); --tier-edge: #256378; --tier-ink: #14495c; }
+.rbadge__art--emerald { --tier-light: var(--tier-emerald-light); --tier-dark: var(--tier-emerald-dark); --tier-edge: #1c5b3b; --tier-ink: #0f452c; }
+.rbadge__art--elite   { --tier-light: var(--tier-elite-light);   --tier-dark: var(--tier-elite-dark);   --tier-edge: #542a76; --tier-ink: #3f1d5c; }
+
+/* Die Leiter über alle achtzehn Abzeichen. */
+.rladder {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 10px 8px;
+}
+.rladder__tier { text-align: center; }
+.rladder__badges { display: flex; justify-content: center; gap: 2px; margin-bottom: 3px; }
+.rladder__badges .is-now {
+  border-radius: 6px;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Ein Weg auf eine andere Seite - breit genug, dass man ihn nicht sucht. */
+.big-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 12px 13px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.big-link:hover { border-color: var(--accent); background: var(--accent-soft); }
+.big-link__icon { display: flex; flex: none; color: var(--accent); }
+.big-link__icon svg { width: 19px; height: 19px; }
+.big-link > svg:last-child { flex: none; width: 15px; height: 15px; color: var(--text-dim); }
+
+/* Was gerade an Wertung verliert. */
+.fade-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.fade-row__loss { color: var(--warn); font-weight: 650; white-space: nowrap; }
+
+.ex-rank__score { font-weight: 650; }
+
+/* ---------------------------------------------------- Auf- und Abstieg */
+
+.rankup { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.rankup__stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 18px 8px 6px;
+}
+.rankup__from,
+.rankup__to { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.rankup__arrow { font-size: 1.3rem; color: var(--text-dim); }
+.rankup--up .rankup__to { animation: rankpop 0.5s var(--ease) backwards; }
+.rankup__what { font-size: 1.05rem; font-weight: 700; text-align: center; }
+
+@keyframes rankpop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+.rankup-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+/* Die Abzeichenwand auf der Profilkarte. */
+.badge-wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  gap: 10px 8px;
+}
+.badge-wall__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  text-align: center;
+  min-width: 0;
+}
+.badge-wall__item .tiny { overflow-wrap: break-word; hyphens: auto; line-height: 1.3; }

@@ -1,4 +1,4 @@
-import { createRunner, launchBrowser, logSet, newAppContext, openCard, readState } from './helpers.mjs';
+import { createRunner, dismissRankUp, launchBrowser, logSet, newAppContext, openCard, readState } from './helpers.mjs';
 
 /** Antwort von wger, wie sie fuer eine Anleitung gebraucht wird. */
 const WGER_BASEINFO = {
@@ -177,6 +177,8 @@ export async function run() {
 
     // Einen Satz wirklich abhaken - darauf bauen spaetere Schritte auf.
     await card.locator('.set-row').first().locator('.check').click();
+    await page.waitForTimeout(400);
+    await dismissRankUp(page);
     await page.waitForTimeout(600);
     await page.locator('.rest-timer [aria-label="Pause beenden"]').click().catch(() => {});
     await page.waitForTimeout(300);

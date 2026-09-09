@@ -276,6 +276,12 @@ export interface ProfileCard {
   pinnedAchievements: string[];
   /** Bis zu vier Lieblingsuebungen. */
   favoriteExerciseIds: ID[];
+  /**
+   * Bis zu vier Rang-Abzeichen, die auf der Karte stehen sollen - als
+   * Uebungs-IDs. Welche Stufe darauf steht, wird jedes Mal neu gerechnet:
+   * Wer eine Bewegung liegen laesst, sieht sein Lieblingsabzeichen sinken.
+   */
+  favoriteRankIds: ID[];
   /** Rang auf der Karte zeigen. */
   showRank: boolean;
   /** Zahlen (Einheiten, Volumen, Serie) auf der Karte zeigen. */
@@ -380,6 +386,13 @@ export interface Settings {
    * steht, ist eine Erinnerung an das, was zuletzt auf dem Bildschirm stand.
    */
   lastSeenRank?: { tier: string; score: number; on: string };
+  /**
+   * Zuletzt gemeldeter Rang - gesamt und je Uebung, als "stufe:division".
+   *
+   * Nur dafuer da, einen Auf- oder Abstieg genau einmal zu melden. Der Rang
+   * selbst wird immer frisch aus dem Verlauf gerechnet und nie gespeichert.
+   */
+  seenRanks?: Record<string, string>;
   yazio: YazioSettings;
   /** Gespeicherte Mahlzeiten fuer den schnellen Eintrag. */
   mealPresets: MealPreset[];

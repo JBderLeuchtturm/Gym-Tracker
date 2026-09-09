@@ -1,5 +1,5 @@
 import { LANGUAGE_LABELS, t, useI18n, type Language } from '../i18n';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import type { ActivityLevel, Goal, Sex } from '../types';
 import { ACTIVITY_LABELS, GOAL_LABELS, calcBMR, calcTDEE, proteinTarget } from '../lib/calories';
 import { ageFromBirthDate, formatDateShort, locale, todayISO } from '../lib/date';
@@ -14,7 +14,8 @@ import {
   ConfirmDialog, DateInput, Modal, NumberInput, Stat, TimeInput, fmt, useToast,
 } from '../components/ui';
 import {
-  IconCalendar, IconCloud, IconDownload, IconEdit, IconPlus, IconScale, IconTarget, IconTrash,
+  IconCalendar, IconChevronRight, IconCloud, IconDownload, IconEdit, IconFlame, IconPlus,
+  IconScale, IconTarget, IconTrash,
   IconUpload, IconUser,
 } from '../components/icons';
 import { searchPlace, type Place } from '../api/weather';
@@ -26,6 +27,15 @@ import { ALL_EQUIPMENT } from '../data/catalog';
 import {
   EditCardButton, ProfileCardEditor, ProfileCardView, useOwnCard, useProfileCardSync,
 } from '../components/ProfileCard';
+import { PageSkeleton } from '../components/ui';
+
+/*
+ * Die Kalorienseite hat ihren Reiter an den Rang abgegeben. Verschwunden ist
+ * sie nicht: Wer sie braucht, findet sie hier vollstaendig - Eintraege,
+ * Lebensmittelsuche, Yazio, Verlauf. Was man taeglich davon braucht, der
+ * Verbrauch des Trainings, steht jetzt unter dem Training selbst.
+ */
+const CaloriesPage = lazy(() => import('./Calories').then((m) => ({ default: m.CaloriesPage })));
 
 export function ProfilePage() {
   const {
@@ -45,6 +55,7 @@ export function ProfilePage() {
   const [newExerciseOpen, setNewExerciseOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
+  const [caloriesOpen, setCaloriesOpen] = useState(false);
 
   const { profile, settings } = state;
   const age = ageFromBirthDate(profile.birthDate);
@@ -66,6 +77,19 @@ export function ProfilePage() {
       toast.show(t("Datei konnte nicht gelesen werden"));
     }
   };
+
+  if (caloriesOpen) {
+    return (
+      <>
+        <button className="btn btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => setCaloriesOpen(false)}>
+          ← {t('Zurück zum Profil')}
+        </button>
+        <Suspense fallback={<PageSkeleton />}>
+          <CaloriesPage />
+        </Suspense>
+      </>
+    );
+  }
 
   return (
     <>
@@ -157,6 +181,17 @@ export function ProfilePage() {
           </div>
         </div>
       </div>
+
+      <button className="big-link" onClick={() => setCaloriesOpen(true)}>
+        <span className="big-link__icon" aria-hidden="true"><IconFlame /></span>
+        <span style={{ minWidth: 0, flex: 1 }}>
+          <span className="small bold">{t('Kalorien und Ernährung')}</span>
+          <span className="tiny dim" style={{ display: 'block' }}>
+            {t('Zufuhr eintragen, Lebensmittel suchen, Verlauf – die ganze Seite')}
+          </span>
+        </span>
+        <IconChevronRight />
+      </button>
 
       <div className="grid-auto">
         <Stat label={t("Grundumsatz")} value={fmt(bmr)} unit={t("kcal")} />

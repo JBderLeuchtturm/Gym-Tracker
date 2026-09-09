@@ -2,6 +2,81 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Bronze bis Elite: Ränge mit Divisionen, Verfall und eigenem Reiter
+
+*Branch `claude/rocket-raenge`*
+
+**Sechs Stufen mit je drei Divisionen** – Bronze, Silber, Gold, Diamant,
+Emerald, Elite, jeweils I bis III. Achtzehn Schritte statt fünf. Von Gold nach
+Diamant sind es zwanzig Punkte; das kann Monate dauern, und dazwischen passierte
+vorher scheinbar nichts. Nach oben werden die Stufen enger: Bronze bis Gold je
+zwanzig Punkte, Diamant und Emerald je fünfzehn, Elite die letzten zehn.
+
+**Gezeichnete Abzeichen.** Ein Wappen, dessen Form für alle Stufen gleich bleibt
+und dessen Farbe, Innenkante und Sterne sie unterscheiden; die Division steht als
+römische Ziffer darin. Vier Größen, vom Daumennagel an der Übungskarte bis zum
+großen im Rangkopf. Warum ein Bild und nicht nur „Gold II"? Weil man ein
+Abzeichen im Vorbeigehen erkennt – wer beim Training liest, hat schon verloren.
+
+**Jede Übung trägt ihr Abzeichen im Training.** Klein, links neben dem Namen,
+auf der Heute-Seite.
+
+**Wertungsverlust, wenn man eine Übung liegen lässt.** Vier Wochen Schonfrist,
+danach fällt der Wert linear, bis nach 400 Tagen noch 45 Prozent übrig sind. Der
+Verfall greift jetzt **im Rang der Übung selbst**, nicht erst drei Ebenen weiter
+oben im Gesamtrang – wer eine Bewegung liegen lässt, sieht ihr Abzeichen sinken.
+Die Rangseite listet auf, was gerade fällt und in wie vielen Tagen es weiter
+fällt.
+
+Dabei ein Fehler gefunden: Die Frische hing am Datum, an dem der Bestwert **zum
+ersten Mal** erreicht wurde. Wer nach einem Jahr Pause dieselbe Last wieder hob,
+bekam trotzdem den vollen Abzug. Maßgeblich ist jetzt, wann der Bestwert zuletzt
+bestätigt wurde – ein einziger Satz holt den Rang zurück.
+
+Und noch einer: Die Kraftstandard-Tabellen haben fünf Werte, es gibt aber sechs
+Stufen. Die fünf sind jetzt die Eintritte in Silber, Gold, Diamant, Emerald und
+Elite; Bronze gibt es ab dem ersten Satz. Innerhalb von Elite geht es bis zu
+einem sechsten Wert weiter, der bewusst **kein Tabellenwert mehr ist**, sondern
+eine gedämpfte Verlängerung – wer dort steht, ist ohnehin jenseits dessen, wofür
+es veröffentlichte Richtwerte gibt.
+
+**Auf- und Abstieg melden sich mit einem Fenster** – altes und neues Abzeichen
+nebeneinander, für den Gesamtrang und für einzelne Übungen. Die Meldung hängt an
+der App, nicht an einer Seite: Wer beim Eintragen eine Stufe knackt, sieht es im
+selben Moment. Beim allerersten Start wird nichts gemeldet, sondern nur
+festgehalten – sonst begrüßte die App einen mit achtzehn Aufstiegen auf einmal.
+
+**Rang ist ein eigener Reiter und ersetzt Kalorien.** Die Kalorienseite trägt man
+einmal am Tag ein, den Rang sieht man jedes Mal an. Verschwunden ist sie nicht:
+Unter *Profil → Kalorien und Ernährung* liegt sie vollständig – Eintragen,
+Lebensmittelsuche, Yazio, Verlauf. Was man täglich davon braucht, **der Verbrauch
+des Trainings**, steht jetzt unter dem Training selbst, aufgeschlüsselt nach
+Übung.
+
+**Die Rangseite** zeigt in fünf Ansichten: die Leiter über alle achtzehn
+Abzeichen mit dem eigenen hervorgehoben, was gerade an Wertung verliert, die drei
+nächsten Schritte mit dem, was sie bringen, die Rechnung Tiefe × Breite, die
+Verteilung über die Stufen, den Verlauf über die Zeit, jede Übung mit eigenem
+Abzeichen, jede Bewegung mit ihren sechs Schwellen bei deinem Körpergewicht, alle
+Erfolge und den Vergleich.
+
+**Vier Lieblingsabzeichen am Profil.** Wählbar unter *Profil gestalten →
+Abzeichen*, sichtbar auf der Karte – eigener wie fremder. Welche Stufe darauf
+steht, wird jedes Mal neu gerechnet: Wer eine Bewegung liegen lässt, sieht auch
+sein Lieblingsabzeichen sinken.
+
+**Nebenbei behoben:** Auf der Heute-Seite quetschten sich Datum, Planname und
+„Zurück zu heute" in eine Zeile, in der der Planname auf drei Zeichen Breite
+zusammenfiel – aus „Push (Brust / Schulter / Trizeps)" wurde ein Wortturm.
+
+**Tests.** Neue Prüfungen ohne Browser für die sechs Stufen, die Divisionen
+(Bronze I bis Elite III an den Grenzen), den Abstand zweier Ränge in Divisionen,
+Schonfrist und Verfall bis zum Boden, dass der Verfall im Rang der Übung steckt
+und dass ein frischer Satz ihn zurückholt. Im Browser: die Leiter mit achtzehn
+Abzeichen, der Verfall in Zahlen, das Abzeichen an der Übungskarte, die
+Aufstiegsmeldung mit Vorher und Nachher – und dass beim ersten Start **keine**
+kommt. Der Testhelfer klickt die Meldung weg, wo sie im Weg steht.
+
 ## Rang je Übung, eine eigene Rang-Ansicht, vierzig Erfolge, gestaltbares Profil
 
 *Branch `claude/raenge-profil`*

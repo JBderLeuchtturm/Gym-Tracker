@@ -1,4 +1,4 @@
-import { createRunner, launchBrowser, newAppContext, openCard, readState } from './helpers.mjs';
+import { createRunner, dismissRankUp, launchBrowser, newAppContext, openCard, readState } from './helpers.mjs';
 
 /** Stoppuhr, Sortieren, Supersaetze, Aufwaermsaetze, Vorschlag, Bestleistung. */
 export async function run() {
@@ -85,6 +85,7 @@ export async function run() {
       await inputs.nth(1).fill(String(reps)); await inputs.nth(1).blur();
       await page.waitForTimeout(220);
       await row.locator('.check').click();
+      await dismissRankUp(page);
       await page.waitForTimeout(650);
     };
 
@@ -120,6 +121,7 @@ export async function run() {
       await inputs.nth(1).fill('10'); await inputs.nth(1).blur();
       await page.waitForTimeout(150);
       await rows.nth(i).locator('.check').click();
+      await dismissRankUp(page);
       await page.waitForTimeout(240);
     }
 

@@ -21,8 +21,6 @@ import { ALL_REGIONS, REGION_LABELS, suggestForRegion, type MuscleRegion } from 
 import { daysSince, loadStatus, regionLoad, targetFor } from '../lib/muscleLoad';
 import { Block, EmptyState, Section, Stat, fmt, useToast } from '../components/ui';
 import { formatSet } from '../lib/setFormat';
-import { RankPanel } from '../components/Ranks';
-import { RankDetail } from '../components/RankDetail';
 import { formatClock } from '../lib/date';
 import {
   IconChevronRight, IconDownload, IconPrinter, IconSearch, IconShare, IconTrophy,
@@ -60,8 +58,6 @@ export function ProgressPage() {
   const [filter, setFilter] = useState('');
   const [calendarDay, setCalendarDay] = useState<string | null>(null);
   const [recordsOpen, setRecordsOpen] = useState(false);
-  /* Die Vollansicht zum Rang ersetzt die Seite, statt sie zu ueberlagern. */
-  const [rankOpen, setRankOpen] = useState(false);
   const toast = useToast();
 
   const since = range === 0 ? '0000-01-01' : addDays(todayISO(), -range);
@@ -215,8 +211,6 @@ export function ProgressPage() {
   const records = useMemo(() => allTimeRecords(state, getExercise), [state, getExercise]);
   const thisYear = new Date().getFullYear();
   const year = useMemo(() => yearReview(state, thisYear, getExercise), [state, thisYear, getExercise]);
-
-  if (rankOpen) return <RankDetail onClose={() => setRankOpen(false)} />;
 
   return (
     <>
@@ -441,8 +435,6 @@ export function ProgressPage() {
           </div>
 
           <div className="split__side">
-            <RankPanel onOpenDetail={() => setRankOpen(true)} />
-
             {fatigue && fatigue.level !== 'steady' && (
               <Section title={t("Belastung")} note={t("letzte 7 Tage")}>
                 <div className={`load-note load-note--${fatigue.level}`}>

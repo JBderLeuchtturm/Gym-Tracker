@@ -1158,10 +1158,6 @@ export const EN: Record<string, string> = {
   'Verlauf der letzten 30 Tage zeigen': 'Show the last 30 days',
 
   'Rang': 'Rank',
-  'Einsteiger': 'Beginner',
-  'Geübt': 'Novice',
-  'Fortgeschritten': 'Intermediate',
-  'Stark': 'Advanced',
   'Elite': 'Elite',
   'Bankdrücken': 'Bench press',
   'Kniebeuge': 'Squat',
@@ -1336,15 +1332,11 @@ export const EN: Record<string, string> = {
     'Bench, squat and deadlift adding up to over 500 kg',
   'Die drei Großen': 'The big three',
   'Bank, Kniebeuge und Kreuzheben mindestens einmal': 'Bench, squat and deadlift at least once',
-  'Überall geübt': 'Novice everywhere',
-  'Jede trainierte Bewegung mindestens „Geübt“': 'Every trained movement at least “Novice”',
   'Erstes Elite': 'First Elite',
   'Eine Bewegung auf der höchsten Stufe': 'One movement at the top tier',
-  'Jede trainierte Bewegung mindestens „Stark“': 'Every trained movement at least “Advanced”',
   'Gesamtrang 40': 'Overall rank 40',
   'Fortgeschritten im Gesamtrang': 'Intermediate overall',
   'Gesamtrang 60': 'Overall rank 60',
-  'Stark im Gesamtrang': 'Advanced overall',
   'Gesamtrang 80': 'Overall rank 80',
   'Elite im Gesamtrang': 'Elite overall',
   'Halbe Landkarte': 'Half the map',
@@ -1428,4 +1420,51 @@ export const EN: Record<string, string> = {
   'Schiefer': 'Slate',
   'Rost': 'Rust',
   'Tinte': 'Ink',
+
+  /* ------------------------------------------ Ränge nach Rocket-League-Art */
+  'Diamant': 'Diamond',
+  'Emerald': 'Emerald',
+  '{tier} {division}': '{tier} {division}',
+  'Bronze bis Elite, je drei Divisionen': 'Bronze to Elite, three divisions each',
+  'Die Stufen': 'The tiers',
+  'Sechs Stufen mit je drei Divisionen. Von Bronze I bis Elite III sind es achtzehn Schritte – etwa alle sieben Punkte einer.':
+    'Six tiers with three divisions each. From Bronze I to Elite III that is eighteen steps – roughly one every seven points.',
+  'noch {points} Punkte bis zur nächsten Division': '{points} points to the next division',
+  'höchste Division erreicht': 'top division reached',
+  'Verliert gerade an Wertung': 'Losing value right now',
+  'Ein Bestwert zählt {grace} Tage voll. Danach fällt er, bis nach gut einem Jahr noch {floor} % übrig sind. Ein einziger Satz holt ihn zurück.':
+    'A best counts in full for {grace} days. After that it decays until about {floor} % is left after a year or so. A single set brings it back.',
+  'seit {days} Tagen nicht gemacht': 'not done for {days} days',
+  'fällt in {days} Tagen weiter': 'drops further in {days} days',
+  '−{loss} durch Pause': '−{loss} from the break',
+  'eigener Verlauf · {times}× gemacht': 'own history · done {times}×',
+  'Antippen zeigt, welcher Wert welche Stufe bedeutet – bei deinem Körpergewicht von {kg} kg.':
+    'Tap to see which value means which tier – at your bodyweight of {kg} kg.',
+  'Noch kein Rang': 'No rank yet',
+  'Trag einen Satz mit Gewicht ein – danach steht hier für jede Übung ein Abzeichen.':
+    'Log one set with a weight – after that every exercise gets a badge here.',
+  'Eine Division weiter. Weiter so.': 'One division further. Keep it up.',
+  'Eine Division zurück – ein Bestwert zählt mit der Zeit weniger. Ein einziger Satz holt ihn zurück.':
+    'One division back – a best counts for less over time. A single set brings it back.',
+  'Außerdem': 'Also',
+  'Lieblingsabzeichen': 'Favourite badges',
+  'Bis zu vier Rang-Abzeichen stehen auf deiner Karte. {count} von 4 vergeben.':
+    'Up to four rank badges go on your card. {count} of 4 chosen.',
+  'Kalorien und Ernährung': 'Calories and nutrition',
+  'Zufuhr eintragen, Lebensmittel suchen, Verlauf – die ganze Seite':
+    'Log intake, search foods, history – the whole page',
+  'Zurück zum Profil': 'Back to profile',
+  'Geschätzt über MET-Werte je Übung. Zufuhr, Lebensmittel und Verlauf stehen unter Profil → Kalorien und Ernährung.':
+    'Estimated from MET values per exercise. Intake, foods and history are under Profile → Calories and nutrition.',
+  'geschätzt': 'estimated',
+  'Überall Gold': 'Gold everywhere',
+  'Jede trainierte Bewegung mindestens „Gold“': 'Every trained movement at least “Gold”',
+  'Jede trainierte Bewegung mindestens „Diamant“': 'Every trained movement at least “Diamond”',
+  'Überall Diamant': 'Diamond everywhere',
+  'Diamant im Gesamtrang': 'Diamond overall',
+  'Überall Silber': 'Silver everywhere',
+  'Jede trainierte Bewegung mindestens „Silber“': 'Every trained movement at least “Silver”',
+  'Gold im Gesamtrang': 'Gold overall',
+  'Gesamtrang 90': 'Overall rank 90',
+  'ab dem ersten Satz': 'from the first set',
 };
