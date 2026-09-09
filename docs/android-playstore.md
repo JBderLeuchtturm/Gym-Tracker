@@ -1,5 +1,10 @@
 # Als Android-App in den Play Store
 
+> Wenn du die App nur an Freunde weitergeben willst, brauchst du den Play Store
+> nicht. Der einfachere Weg – Link, Installation auf dem Startbildschirm und
+> eine APK zum Verschicken – steht in
+> [`app-verteilen.md`](app-verteilen.md).
+
 Der Gym-Tracker ist eine PWA: eine Webseite mit Manifest, Icons und Service
 Worker, die sich installieren lässt und offline startet. Um daraus eine APK
 (genauer: ein AAB fürs Play-Store, plus eine APK zum Testen) zu machen, gibt es
