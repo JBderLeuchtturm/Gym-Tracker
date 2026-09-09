@@ -27,22 +27,88 @@ import { addDays, daysBetween, todayISO } from './date';
 
 /* ------------------------------------------------------------------ Stufen */
 
-export type RankTier = 'einsteiger' | 'geuebt' | 'fortgeschritten' | 'stark' | 'elite';
+/**
+ * Sechs Stufen, jede in drei Divisionen.
+ *
+ * Der Aufbau ist bei Spielen erprobt, und er loest ein echtes Problem: Von
+ * "Gold" nach "Diamant" sind es zwanzig Punkte - das kann Monate dauern, und
+ * dazwischen passiert scheinbar nichts. Mit Divisionen gibt es alle knapp
+ * sieben Punkte etwas zu sehen, ohne dass die Stufe selbst billiger wird.
+ *
+ * Nach oben werden die Stufen enger: Bronze bis Gold sind je zwanzig Punkte,
+ * Diamant fuenfzehn, Emerald fuenfzehn, Elite die letzten zehn. Weiter oben
+ * ist jeder Punkt schwerer verdient, also darf er auch mehr zeigen.
+ */
+export type RankTier = 'bronze' | 'silber' | 'gold' | 'diamant' | 'emerald' | 'elite';
 
-export const TIERS: RankTier[] = ['einsteiger', 'geuebt', 'fortgeschritten', 'stark', 'elite'];
+export const TIERS: RankTier[] = ['bronze', 'silber', 'gold', 'diamant', 'emerald', 'elite'];
 
 export const TIER_LABELS: Record<RankTier, string> = {
-  einsteiger: 'Einsteiger',
-  geuebt: 'Geübt',
-  fortgeschritten: 'Fortgeschritten',
-  stark: 'Stark',
+  bronze: 'Bronze',
+  silber: 'Silber',
+  gold: 'Gold',
+  diamant: 'Diamant',
+  emerald: 'Emerald',
   elite: 'Elite',
 };
 
-/** Punktebereich je Stufe - fuer die Anzeige des Fortschritts innerhalb einer Stufe. */
+/** Untergrenze je Stufe in Punkten. */
 export const TIER_FLOOR: Record<RankTier, number> = {
-  einsteiger: 0, geuebt: 20, fortgeschritten: 40, stark: 60, elite: 80,
+  bronze: 0, silber: 20, gold: 40, diamant: 60, emerald: 75, elite: 90,
 };
+
+/** Obergrenze je Stufe - Elite endet bei hundert. */
+export const TIER_CEILING: Record<RankTier, number> = {
+  bronze: 20, silber: 40, gold: 60, diamant: 75, emerald: 90, elite: 100,
+};
+
+/** Divisionen innerhalb einer Stufe: I, II, III. */
+export const DIVISIONS = [1, 2, 3] as const;
+export type Division = (typeof DIVISIONS)[number];
+
+export const DIVISION_LABELS: Record<Division, string> = { 1: 'I', 2: 'II', 3: 'III' };
+
+export interface Rank {
+  tier: RankTier;
+  division: Division;
+  /** Punktestand, aus dem sich das ergibt. */
+  score: number;
+  /** 0 bis 1 innerhalb der Division - fuer den kleinen Balken. */
+  share: number;
+  /** Punkte bis zur naechsten Division; null auf der hoechsten. */
+  toNext: number | null;
+  /** "Gold II" */
+  label: string;
+}
+
+/** Aus einem Punktestand wird Stufe und Division. */
+export function rankOf(score: number): Rank {
+  const clamped = Math.max(0, Math.min(100, score));
+  const tier = tierForScore(clamped);
+  const floor = TIER_FLOOR[tier];
+  const ceiling = TIER_CEILING[tier];
+  const span = (ceiling - floor) / 3;
+
+  const step = Math.min(2, Math.floor((clamped - floor) / span));
+  const division = (step + 1) as Division;
+  const start = floor + step * span;
+  const isTop = tier === 'elite' && division === 3;
+
+  return {
+    tier,
+    division,
+    score: Math.round(clamped * 10) / 10,
+    share: span > 0 ? Math.min(1, Math.max(0, (clamped - start) / span)) : 1,
+    toNext: isTop ? null : Math.round((start + span - clamped) * 10) / 10,
+    label: `${TIER_LABELS[tier]} ${DIVISION_LABELS[division]}`,
+  };
+}
+
+/** Wie viele Divisionen liegen zwischen zwei Raengen? Negativ heisst abwaerts. */
+export function rankDistance(from: Rank, to: Rank): number {
+  const index = (rank: Rank) => TIERS.indexOf(rank.tier) * 3 + (rank.division - 1);
+  return index(to) - index(from);
+}
 
 /* -------------------------------------------------------------- Standards */
 
@@ -229,8 +295,38 @@ export function thresholdsFor(family: string, sex: Sex, factor = 1): number[] | 
   const base = sex === 'male' ? standard.male
     : sex === 'female' ? standard.female
       : standard.male.map((value, index) => (value + standard.female[index]) / 2);
-  return base.map((value) => value * factor);
+
+  /*
+   * Die Tabellen haben fuenf Werte, es gibt aber sechs Stufen. Der erste
+   * Eintrag jeder Stufe ist deshalb:
+   *
+   *   Bronze   ab dem ersten Satz        (0)
+   *   Silber   erster Tabellenwert
+   *   Gold     zweiter
+   *   Diamant  dritter
+   *   Emerald  vierter
+   *   Elite    fuenfter - der Wert, den die Tabellen "elite" nennen
+   *
+   * Innerhalb von Elite geht es dann noch bis zu einem sechsten Wert weiter,
+   * der bewusst kein Tabellenwert mehr ist: eine gedaempfte Verlaengerung des
+   * letzten Schritts. Wer dort steht, ist ohnehin jenseits dessen, wofuer es
+   * veroeffentlichte Richtwerte gibt.
+   */
+  return [0, ...base].map((value) => value * factor);
 }
+
+/**
+ * Der Wert, ab dem es innerhalb von Elite nichts mehr zu holen gibt.
+ * Ein gedaempfter Schritt ueber den letzten Tabellenwert hinaus.
+ */
+function eliteTop(entries: number[]): number {
+  const last = entries[entries.length - 1];
+  const before = entries[entries.length - 2];
+  return last + Math.max(last - before, last * 0.05) * 0.6;
+}
+
+/** Punktestand, den der Eintritt in jede Stufe bedeutet. */
+const ENTRY_SCORES = TIERS.map((tier) => TIER_FLOOR[tier]);
 
 /* ------------------------------------------------------------- Punktestand */
 
@@ -244,43 +340,77 @@ export function thresholdsFor(family: string, sex: Sex, factor = 1): number[] | 
  */
 export function ratioToScore(ratio: number, thresholds: number[]): number {
   if (ratio <= 0) return 0;
-  if (ratio < thresholds[0]) return Math.max(0, (ratio / thresholds[0]) * 20);
 
-  for (let index = 0; index < thresholds.length - 1; index += 1) {
-    const low = thresholds[index];
-    const high = thresholds[index + 1];
-    if (ratio < high) {
-      const share = (ratio - low) / (high - low);
-      return 20 * (index + 1) + share * 20;
-    }
+  // In welcher Stufe liegt das Verhaeltnis?
+  let index = 0;
+  for (let step = thresholds.length - 1; step >= 0; step -= 1) {
+    if (ratio >= thresholds[step]) { index = step; break; }
   }
 
-  // Oberhalb von Elite: gedaempft weiter, bei 120 gedeckelt.
-  const elite = thresholds[thresholds.length - 1];
-  const over = (ratio - elite) / elite;
-  return Math.min(120, 100 + over * 25);
+  // Innerhalb der obersten Stufe: bis zum gedaempften Zusatzwert, dann weiter.
+  if (index === thresholds.length - 1) {
+    const floor = thresholds[index];
+    const top = eliteTop(thresholds);
+    const share = top > floor ? (ratio - floor) / (top - floor) : 1;
+    // Ueber den Zusatzwert hinaus geht es gedaempft weiter, gedeckelt bei 120.
+    return Math.min(120, ENTRY_SCORES[index] + share * (100 - ENTRY_SCORES[index]));
+  }
+
+  const low = thresholds[index];
+  const high = thresholds[index + 1];
+  const share = high > low ? (ratio - low) / (high - low) : 0;
+  return ENTRY_SCORES[index] + share * (ENTRY_SCORES[index + 1] - ENTRY_SCORES[index]);
 }
 
 export const tierForScore = (score: number): RankTier => {
-  if (score >= 80) return 'elite';
-  if (score >= 60) return 'stark';
-  if (score >= 40) return 'fortgeschritten';
-  if (score >= 20) return 'geuebt';
-  return 'einsteiger';
+  if (score >= 90) return 'elite';
+  if (score >= 75) return 'emerald';
+  if (score >= 60) return 'diamant';
+  if (score >= 40) return 'gold';
+  if (score >= 20) return 'silber';
+  return 'bronze';
 };
+
+/* --------------------------------------------------------------- Verfall */
+
+/** Ab hier zaehlt ein Bestwert weniger. */
+export const GRACE_DAYS = 28;
+/** Ab hier faellt er nicht weiter. */
+export const DECAY_END_DAYS = 400;
+/** Was am Ende noch uebrig bleibt. */
+export const DECAY_FLOOR = 0.45;
 
 /**
  * Wie frisch ist ein Wert?
  *
- * Ein Bestwert von vor einem halben Jahr sagt etwas ueber damals. Er zaehlt
- * deshalb weniger - nicht, weil die Kraft weg waere, sondern weil er als
- * Beleg fuer den heutigen Stand schwaecher ist. Unter 60 Prozent faellt er
- * nie: Wer einmal 140 kg gehoben hat, faengt nicht bei null wieder an.
+ * Vier Wochen Schonfrist - so lange gilt ein Bestwert voll. Danach faellt er,
+ * bis nach gut einem Jahr noch 45 Prozent uebrig sind.
+ *
+ * Das ist kein Misstrauen gegen die eigene Leistung: Wer einmal 140 kg
+ * gehoben hat, hat das getan, und der Bestwert im Verlauf bleibt auch stehen.
+ * Der Rang beantwortet aber eine andere Frage - naemlich wo man *heute* steht.
+ * Und dafuer ist eine Zahl von vor einem Jahr ein schwacher Beleg. Wer eine
+ * Bewegung liegen laesst, sieht ihr Abzeichen sinken; ein einziger Satz holt
+ * es zurueck.
  */
 export function freshness(days: number): number {
-  if (days <= 28) return 1;
-  if (days >= 180) return 0.6;
-  return 1 - ((days - 28) / (180 - 28)) * 0.4;
+  if (days <= GRACE_DAYS) return 1;
+  if (days >= DECAY_END_DAYS) return DECAY_FLOOR;
+  const share = (days - GRACE_DAYS) / (DECAY_END_DAYS - GRACE_DAYS);
+  return 1 - share * (1 - DECAY_FLOOR);
+}
+
+/**
+ * In wie vielen Tagen faellt der Wert das naechste Mal um einen ganzen Punkt?
+ * Fuer den Hinweis "in 6 Tagen faellt der Rang weiter".
+ */
+export function daysUntilNextDrop(days: number, rawScore: number): number | null {
+  if (rawScore <= 0 || days >= DECAY_END_DAYS) return null;
+  const now = Math.floor(rawScore * freshness(days));
+  for (let ahead = 1; ahead <= 120; ahead += 1) {
+    if (Math.floor(rawScore * freshness(days + ahead)) < now) return ahead;
+  }
+  return null;
 }
 
 /* ---------------------------------------------------- Der Wert einer Uebung */
@@ -331,7 +461,17 @@ export interface RankEntry {
   best: number;
   /** Vielfaches des Koerpergewichts; bei Wiederholungen und Zeit gleich best. */
   ratio: number;
+  /** Punkte aus der Tabelle - ohne Verfall. */
+  rawScore: number;
+  /** Punkte nach Verfall. Das ist der Wert, der ueberall angezeigt wird. */
   score: number;
+  /** Was der Verfall gekostet hat. */
+  decayLoss: number;
+  /** Anteil, mit dem der Bestwert noch zaehlt (1 bis 0,45). */
+  freshness: number;
+  /** In wie vielen Tagen faellt er das naechste Mal? null, wenn frisch oder am Boden. */
+  dropsInDays: number | null;
+  rank: Rank;
   tier: RankTier;
   nextTier: RankTier | null;
   /** Wert, mit dem die naechste Stufe erreicht waere. */
@@ -440,15 +580,26 @@ function rankFromSessions(
   let lastDate = '';
   for (const session of sessions) {
     const value = sessionValue(session, standard.basis, bodyWeightKg);
-    if (value > best) { best = value; lastDate = session.date; }
+    /*
+     * Groesser ODER gleich: Massgeblich ist, wann der Bestwert zuletzt
+     * bestaetigt wurde. Wer nach einem Jahr Pause wieder dieselbe Last hebt,
+     * hat einen frischen Beleg - nicht einen ein Jahr alten.
+     */
+    if (value >= best && value > 0) { best = value; lastDate = session.date; }
   }
   if (best <= 0) return personalRank(exercise, sessions, family!.id, today);
 
   const ratio = ratioOf(best, standard.basis, bodyWeightKg);
-  const score = ratioToScore(ratio, thresholds);
-  const tier = tierForScore(score);
-  const tierIndex = TIERS.indexOf(tier);
-  const nextTier = tierIndex < TIERS.length - 1 ? TIERS[tierIndex + 1] : null;
+  const rawScore = ratioToScore(ratio, thresholds);
+  const days = lastDate ? daysBetween(lastDate, today) : 0;
+
+  /*
+   * Der Verfall greift hier, nicht erst im Gesamtrang: Wer eine Bewegung ein
+   * halbes Jahr liegen laesst, soll das an ihrem Abzeichen sehen - und nicht
+   * an einer Zahl drei Ebenen darueber.
+   */
+  const fresh = freshness(days);
+  const score = rawScore * fresh;
 
   return {
     family: family!.id,
@@ -456,16 +607,43 @@ function rankFromSessions(
     basis: standard.basis,
     best: Math.round(best * 10) / 10,
     ratio: Math.round(ratio * 100) / 100,
-    score: Math.round(score * 10) / 10,
-    tier,
-    nextTier,
-    nextValue: nextTier ? Math.round(scaled[tierIndex + 1] * 10) / 10 : null,
+    ...decayFields(rawScore, score, fresh, days),
+    nextValue: nextValueFor(score, scaled),
     thresholds: scaled.map((value) => Math.round(value * 10) / 10),
     lastDate,
-    days: lastDate ? daysBetween(lastDate, today) : 0,
+    days,
     sessions: sessions.length,
     personal: false,
   };
+}
+
+/** Die Felder rund um Punktestand und Verfall - an drei Stellen gebraucht. */
+function decayFields(rawScore: number, score: number, fresh: number, days: number) {
+  const tier = tierForScore(score);
+  const tierIndex = TIERS.indexOf(tier);
+  return {
+    rawScore: Math.round(rawScore * 10) / 10,
+    score: Math.round(score * 10) / 10,
+    decayLoss: Math.round((rawScore - score) * 10) / 10,
+    freshness: Math.round(fresh * 100) / 100,
+    dropsInDays: daysUntilNextDrop(days, rawScore),
+    rank: rankOf(score),
+    tier,
+    nextTier: tierIndex < TIERS.length - 1 ? TIERS[tierIndex + 1] : null,
+  };
+}
+
+/**
+ * Welcher Wert bringt die naechste Stufe?
+ *
+ * Gerechnet wird gegen den Stand nach Verfall: Wer durch eine Pause auf Gold
+ * zurueckgefallen ist, braucht wieder den Diamant-Wert - und nicht den, der
+ * vor der Pause schon geschafft war.
+ */
+function nextValueFor(score: number, scaled: number[]): number | null {
+  const tierIndex = TIERS.indexOf(tierForScore(score));
+  if (tierIndex >= TIERS.length - 1) return null;
+  return Math.round(scaled[tierIndex + 1] * 10) / 10;
 }
 
 /**
@@ -496,7 +674,7 @@ function personalRank(
   let lastDate = sessions[0].date;
   for (const session of sessions) {
     const value = measure(session);
-    if (value > best) { best = value; lastDate = session.date; }
+    if (value >= best && value > 0) { best = value; lastDate = session.date; }
   }
   if (best <= 0) return null;
 
@@ -504,10 +682,9 @@ function personalRank(
   // Bis 12 Einheiten waechst der Anteil fuer Bestaendigkeit, bis +75 % der fuer Fortschritt.
   const steady = Math.min(1, sessions.length / 12);
   const gain = Math.min(1, Math.max(0, (growth - 1) / 0.75));
-  const score = Math.round((35 * steady + 65 * gain) * 10) / 10;
-  const tier = tierForScore(score);
-  const tierIndex = TIERS.indexOf(tier);
-  const nextTier = tierIndex < TIERS.length - 1 ? TIERS[tierIndex + 1] : null;
+  const rawScore = 35 * steady + 65 * gain;
+  const days = daysBetween(lastDate, today);
+  const fresh = freshness(days);
 
   return {
     family,
@@ -515,13 +692,11 @@ function personalRank(
     basis: sessions[0].best1RM > 0 ? 'load' : sessions[0].bestDurationSec > 0 ? 'seconds' : 'reps',
     best: Math.round(best * 10) / 10,
     ratio: Math.round(growth * 100) / 100,
-    score,
-    tier,
-    nextTier,
+    ...decayFields(rawScore, rawScore * fresh, fresh, days),
     nextValue: null,
     thresholds: [],
     lastDate,
-    days: daysBetween(lastDate, today),
+    days,
     sessions: sessions.length,
     personal: true,
   };
@@ -566,6 +741,8 @@ export function familyRanks(exercises: ExerciseRankEntry[]): FamilyRank[] {
 export interface OverallRank {
   score: number;
   tier: RankTier;
+  /** Stufe und Division in einem. */
+  rank: Rank;
   /** Wie viele Bewegungen ueberhaupt Daten haben. */
   covered: number;
   total: number;
@@ -601,7 +778,7 @@ export function overallRank(families: FamilyRank[]): OverallRank {
   const total = RANKED_FAMILIES.length;
   if (families.length === 0) {
     return {
-      score: 0, tier: 'einsteiger', covered: 0, total,
+      score: 0, tier: 'bronze', rank: rankOf(0), covered: 0, total,
       breadth: 0, breadthFactor: 0.35, depth: 0, parts: [],
     };
   }
@@ -609,8 +786,8 @@ export function overallRank(families: FamilyRank[]): OverallRank {
   let weighted = 0;
   let weightSum = 0;
   for (const family of families) {
-    const value = family.score * freshness(family.days);
-    weighted += value * family.weight;
+    // Der Verfall steckt seit dieser Runde schon im Punktestand der Bewegung.
+    weighted += family.score * family.weight;
     weightSum += family.weight;
   }
   const depth = weightSum > 0 ? weighted / weightSum : 0;
@@ -622,6 +799,7 @@ export function overallRank(families: FamilyRank[]): OverallRank {
   return {
     score,
     tier: tierForScore(score),
+    rank: rankOf(score),
     covered: families.length,
     total,
     breadth: Math.round(breadth * 1000) / 1000,
@@ -811,7 +989,7 @@ export function rankTimeline(
 /** Wie viele Bewegungen stehen auf welcher Stufe? Fuer die Uebersicht. */
 export function tierCounts(families: FamilyRank[]): Record<RankTier, number> {
   const counts: Record<RankTier, number> = {
-    einsteiger: 0, geuebt: 0, fortgeschritten: 0, stark: 0, elite: 0,
+    bronze: 0, silber: 0, gold: 0, diamant: 0, emerald: 0, elite: 0,
   };
   for (const family of families) counts[family.tier] += 1;
   return counts;

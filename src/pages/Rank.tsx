@@ -3,38 +3,38 @@ import { useMemo, useState } from 'react';
 import { useStore } from '../storage/store';
 import { useSync } from '../sync/SyncProvider';
 import {
-  RANKED_FAMILIES, STANDARDS, TIERS, TIER_LABELS, allFamilyRows, nextSteps, rankSnapshot,
-  rankTimeline, tierCounts, exerciseFactor,
+  DECAY_FLOOR, GRACE_DAYS, TIERS, TIER_FLOOR, TIER_LABELS, allFamilyRows, nextSteps, rankOf,
+  rankSnapshot, rankTimeline, tierCounts,
   type ExerciseRankEntry, type RankBasis,
 } from '../lib/ranks';
 import { achievements, byGroup, earnedCount, LEVEL_LABELS, type Achievement } from '../lib/achievements';
 import { CATEGORY_LABELS } from '../data/catalog';
 import { formatDateShort } from '../lib/date';
-import { Section, fmt } from './ui';
-import {
-  Board, TierPill, TierProgressBar, TierScale, TIER_COLOR, formatValue, useRankSideEffects,
-} from './Ranks';
-import { IconChevronLeft, IconChevronDown, IconTrophy } from './icons';
+import { EmptyState, Section, fmt } from '../components/ui';
+import { Board, DivisionBar, TIER_COLOR, formatValue, useRankSideEffects } from '../components/Ranks';
+import { RankBadge, RankLadder } from '../components/RankBadge';
+import { IconChevronDown, IconTrophy } from '../components/icons';
 
-type Tab = 'uebersicht' | 'bewegungen' | 'uebungen' | 'erfolge' | 'vergleich';
+type Tab = 'uebersicht' | 'uebungen' | 'bewegungen' | 'erfolge' | 'vergleich';
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'uebersicht', label: 'Übersicht' },
-  { id: 'bewegungen', label: 'Bewegungen' },
   { id: 'uebungen', label: 'Übungen' },
+  { id: 'bewegungen', label: 'Bewegungen' },
   { id: 'erfolge', label: 'Erfolge' },
   { id: 'vergleich', label: 'Vergleich' },
 ];
 
 /**
- * Die Vollansicht zum Rang.
+ * Die Rangseite.
  *
- * Hier steht alles: woraus sich die Zahl ergibt, jede Bewegung mit ihren fuenf
- * Schwellen in Kilogramm, jede einzelne Uebung mit eigenem Rang, alle Erfolge
- * und der Vergleich. Das Rangfeld auf der Fortschrittsseite bleibt dafuer
- * knapp - wer mehr will, kommt hierher.
+ * Sie hat den Kalorienreiter abgeloest - nicht, weil Kalorien unwichtig
+ * waeren, sondern weil man sie einmal am Tag eintraegt und den Rang jedes Mal
+ * ansieht. Die Kalorienseite liegt vollstaendig unter Profil, und was man
+ * wirklich taeglich davon braucht - der Verbrauch des Trainings - steht jetzt
+ * unter dem Training selbst.
  */
-export function RankDetail({ onClose }: { onClose: () => void }) {
+export function RankPage() {
   const { state, allExercises, getExercise } = useStore();
   const [tab, setTab] = useState<Tab>('uebersicht');
 
@@ -47,19 +47,19 @@ export function RankDetail({ onClose }: { onClose: () => void }) {
     [state, getExercise, snapshot],
   );
 
-  /*
-   * Auch hier, nicht nur im Rangfeld: Wer im Reiter "Vergleich" zustimmt,
-   * bleibt in dieser Ansicht - und dann muss der eigene Stand von hier aus
-   * hochgeladen werden.
-   */
   useRankSideEffects(snapshot);
+
+  if (snapshot.exercises.length === 0) {
+    return (
+      <EmptyState
+        title={t('Noch kein Rang')}
+        hint={t('Trag einen Satz mit Gewicht ein – danach steht hier für jede Übung ein Abzeichen.')}
+      />
+    );
+  }
 
   return (
     <>
-      <button className="btn btn--sm" style={{ alignSelf: 'flex-start' }} onClick={onClose}>
-        <IconChevronLeft /> {t('Zurück')}
-      </button>
-
       <RankHero snapshot={snapshot} badges={badges} />
 
       <div className="seg" role="tablist">
@@ -77,30 +77,12 @@ export function RankDetail({ onClose }: { onClose: () => void }) {
       </div>
 
       {tab === 'uebersicht' && <Overview snapshot={snapshot} />}
-      {tab === 'bewegungen' && <Movements snapshot={snapshot} />}
       {tab === 'uebungen' && <Exercises entries={snapshot.exercises} />}
+      {tab === 'bewegungen' && <Movements snapshot={snapshot} />}
       {tab === 'erfolge' && <Achievements list={badges} />}
       {tab === 'vergleich' && <Comparison />}
     </>
   );
-}
-
-/**
- * Bestwert in Worten.
- *
- * Das Vielfache des Koerpergewichts steht nur da, wo es eines gibt: Bei
- * Liegestuetzen hiess es sonst "32 Wdh · 32,00×", und das ist keine Aussage,
- * sondern dieselbe Zahl zweimal. Bei Klimmzuegen und Dips wird dazugesagt,
- * dass die Gesamtlast gemeint ist - sonst wundert man sich ueber 114 kg.
- */
-function describeRank(best: number, ratio: number, basis: RankBasis, exercises?: number): string {
-  const parts: string[] = [formatValue(best, basis)];
-  if (basis === 'bodyload') parts[0] = t('{value} gesamt', { value: parts[0] });
-  if (basis === 'load' || basis === 'bodyload') parts.push(`${fmt(ratio, 2)}×`);
-  if (exercises != null) {
-    parts.push(exercises === 1 ? t('1 Übung') : t('{count} Übungen', { count: exercises }));
-  }
-  return parts.join(' · ');
 }
 
 /* ------------------------------------------------------------------- Kopf */
@@ -112,20 +94,20 @@ function RankHero({ snapshot, badges }: {
   return (
     <div className="rank-hero">
       <div className="rank-hero__top">
-        <div>
+        <RankBadge rank={overall.rank} size="lg" />
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div className="tiny dim">{t('Gesamtrang')}</div>
           <div className="rank-hero__tier" style={{ color: TIER_COLOR[overall.tier] }}>
-            {t(TIER_LABELS[overall.tier])}
+            {overall.rank.label}
           </div>
-        </div>
-        <div className="rank-hero__score">
-          <span className="mono">{fmt(overall.score, 0)}</span>
-          <span className="dim">/100</span>
+          <div className="rank-hero__score">
+            <span className="mono">{fmt(overall.score, 0)}</span>
+            <span className="dim"> / 100</span>
+          </div>
         </div>
       </div>
 
-      <TierProgressBar score={overall.score} />
-      <TierScale current={overall.tier} />
+      <DivisionBar score={overall.score} />
 
       <div className="rank-hero__facts">
         <Fact label={t('Bewegungen')} value={`${overall.covered} / ${overall.total}`} />
@@ -158,36 +140,54 @@ function Overview({ snapshot }: { snapshot: ReturnType<typeof rankSnapshot> }) {
   );
   const counts = useMemo(() => tierCounts(snapshot.families), [snapshot.families]);
 
+  /* Was gerade an Wertung verliert - nach Verlust sortiert. */
+  const fading = useMemo(
+    () => snapshot.exercises
+      .filter((entry) => entry.decayLoss >= 0.5)
+      .sort((a, b) => b.decayLoss - a.decayLoss)
+      .slice(0, 6),
+    [snapshot.exercises],
+  );
+
   return (
     <>
-      {/* ------------------------------------------------ Wie die Zahl entsteht */}
-      <Section title={t('Woraus sich der Gesamtrang ergibt')}>
-        <div className="formula">
-          <div className="formula__part">
-            <div className="formula__value mono">{fmt(overall.depth, 0)}</div>
-            <div className="tiny dim">{t('Tiefe')}</div>
-          </div>
-          <div className="formula__sign" aria-hidden="true">×</div>
-          <div className="formula__part">
-            <div className="formula__value mono">{fmt(overall.breadthFactor, 2)}</div>
-            <div className="tiny dim">{t('Breite')}</div>
-          </div>
-          <div className="formula__sign" aria-hidden="true">=</div>
-          <div className="formula__part formula__part--result">
-            <div className="formula__value mono">{fmt(overall.score, 0)}</div>
-            <div className="tiny dim">{t('Punkte')}</div>
-          </div>
-        </div>
-
-        <p className="tiny dim" style={{ margin: 0 }}>
-          {t('Die Tiefe ist der gewichtete Schnitt über die Bewegungen, die du trainierst – die drei Grundübungen zählen voll, die weiteren Grundmuster drei Viertel, Beiwerk weniger. Die Breite sagt, wie viel davon überhaupt abgedeckt ist: Wer nur die drei Großen macht, kommt auf rund drei Viertel des Werts, wer alles abdeckt, auf den vollen.')}
-        </p>
+      {/* ------------------------------------------------------ Die Leiter */}
+      <Section title={t('Die Stufen')} note={overall.rank.label}>
+        <RankLadder current={overall.rank} />
         <div className="tiny dim">
-          {t('Abgedeckt: {percent} % des möglichen Gewichts.', {
-            percent: fmt(overall.breadth * 100, 0),
-          })}
+          {t('Sechs Stufen mit je drei Divisionen. Von Bronze I bis Elite III sind es achtzehn Schritte – etwa alle sieben Punkte einer.')}
         </div>
       </Section>
+
+      {/* --------------------------------------------------- Was gerade fällt */}
+      {fading.length > 0 && (
+        <Section
+          title={t('Verliert gerade an Wertung')}
+          note={t('{count} Übungen', { count: fading.length })}
+        >
+          <div className="tiny dim">
+            {t('Ein Bestwert zählt {grace} Tage voll. Danach fällt er, bis nach gut einem Jahr noch {floor} % übrig sind. Ein einziger Satz holt ihn zurück.', {
+              grace: GRACE_DAYS, floor: Math.round(DECAY_FLOOR * 100),
+            })}
+          </div>
+          <div className="list" style={{ gap: 6 }}>
+            {fading.map((entry) => (
+              <div key={entry.exerciseId} className="fade-row">
+                <RankBadge rank={entry.rank} size="xs" />
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  <span className="small">{entry.exerciseName}</span>
+                  <span className="tiny dim" style={{ display: 'block' }}>
+                    {t('seit {days} Tagen nicht gemacht', { days: entry.days })}
+                    {entry.dropsInDays != null
+                      && ` · ${t('fällt in {days} Tagen weiter', { days: entry.dropsInDays })}`}
+                  </span>
+                </span>
+                <span className="fade-row__loss mono">−{fmt(entry.decayLoss, 1)}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
 
       {/* ---------------------------------------------------- Nächste Schritte */}
       {steps.length > 0 && (
@@ -215,6 +215,34 @@ function Overview({ snapshot }: { snapshot: ReturnType<typeof rankSnapshot> }) {
           </div>
         </Section>
       )}
+
+      {/* ------------------------------------------------ Wie die Zahl entsteht */}
+      <Section title={t('Woraus sich der Gesamtrang ergibt')}>
+        <div className="formula">
+          <div className="formula__part">
+            <div className="formula__value mono">{fmt(overall.depth, 0)}</div>
+            <div className="tiny dim">{t('Tiefe')}</div>
+          </div>
+          <div className="formula__sign" aria-hidden="true">×</div>
+          <div className="formula__part">
+            <div className="formula__value mono">{fmt(overall.breadthFactor, 2)}</div>
+            <div className="tiny dim">{t('Breite')}</div>
+          </div>
+          <div className="formula__sign" aria-hidden="true">=</div>
+          <div className="formula__part formula__part--result">
+            <div className="formula__value mono">{fmt(overall.score, 0)}</div>
+            <div className="tiny dim">{t('Punkte')}</div>
+          </div>
+        </div>
+        <p className="tiny dim" style={{ margin: 0 }}>
+          {t('Die Tiefe ist der gewichtete Schnitt über die Bewegungen, die du trainierst – die drei Grundübungen zählen voll, die weiteren Grundmuster drei Viertel, Beiwerk weniger. Die Breite sagt, wie viel davon überhaupt abgedeckt ist: Wer nur die drei Großen macht, kommt auf rund drei Viertel des Werts, wer alles abdeckt, auf den vollen.')}
+        </p>
+        <div className="tiny dim">
+          {t('Abgedeckt: {percent} % des möglichen Gewichts.', {
+            percent: fmt(overall.breadth * 100, 0),
+          })}
+        </div>
+      </Section>
 
       {/* -------------------------------------------------- Stufenverteilung */}
       <Section title={t('Wie sich die Bewegungen verteilen')}>
@@ -248,7 +276,6 @@ function Overview({ snapshot }: { snapshot: ReturnType<typeof rankSnapshot> }) {
         </div>
       </Section>
 
-      {/* --------------------------------------------------------- Verlauf */}
       {timeline.length >= 3 && (
         <Section
           title={t('Rang über die Zeit')}
@@ -263,7 +290,7 @@ function Overview({ snapshot }: { snapshot: ReturnType<typeof rankSnapshot> }) {
           {t('Eine Messung. Die Schwellen sind gerundete Richtwerte aus öffentlich verbreiteten Kraftstandard-Tabellen; sie schwanken je nach Quelle und sagen nichts über Technik, Hebelverhältnisse oder Alter. Sie taugen für „wo stehe ich ungefähr“ und für den Vergleich mit Leuten, die dieselbe Tabelle benutzen.')}
         </p>
         <p className="tiny dim" style={{ margin: 0 }}>
-          {t('Für jede Bewegung wird das beste geschätzte Ein-Wiederholungs-Maximum durch dein Körpergewicht geteilt. Bei Klimmzügen und Dips zählt die Gesamtlast einschließlich des eigenen Körpers, bei Liegestützen die Wiederholungen, beim Unterarmstütz die Zeit. Ein Bestwert von vor einem halben Jahr zählt nur noch zu 60 Prozent, weil er als Beleg für den heutigen Stand schwächer ist.')}
+          {t('Für jede Bewegung wird das beste geschätzte Ein-Wiederholungs-Maximum durch dein Körpergewicht geteilt. Bei Klimmzügen und Dips zählt die Gesamtlast einschließlich des eigenen Körpers, bei Liegestützen die Wiederholungen, beim Unterarmstütz die Zeit.')}
         </p>
         {state.profile.sex === 'diverse' && (
           <p className="tiny dim" style={{ margin: 0 }}>
@@ -302,7 +329,7 @@ function RankTrend({ points }: { points: Array<{ date: string; score: number }> 
         })}
       >
         {/* Die Stufengrenzen als Linien - so sieht man, wann es eine Stufe hoch ging. */}
-        {[20, 40, 60, 80].filter((mark) => mark < max).map((mark) => (
+        {[20, 40, 60, 75, 90].filter((mark) => mark < max).map((mark) => (
           <line key={mark} x1="0" x2={width} y1={y(mark)} y2={y(mark)} className="rank-trend__grid" />
         ))}
         <path d={`${line} L${width},${height} L0,${height} Z`} className="rank-trend__area" />
@@ -317,82 +344,9 @@ function RankTrend({ points }: { points: Array<{ date: string; score: number }> 
   );
 }
 
-/* ------------------------------------------------------------- Bewegungen */
-
-function Movements({ snapshot }: { snapshot: ReturnType<typeof rankSnapshot> }) {
-  const { state } = useStore();
-  const [open, setOpen] = useState<string | null>(null);
-  const rows = useMemo(
-    () => allFamilyRows(snapshot.families, state.profile.weightKg, state.profile.sex),
-    [snapshot.families, state.profile.weightKg, state.profile.sex],
-  );
-
-  return (
-    <Section
-      title={t('Alle Bewegungen')}
-      note={t('{done} von {total}', { done: snapshot.overall.covered, total: rows.length })}
-    >
-      <div className="tiny dim">
-        {t('Antippen zeigt, welches Gewicht welche Stufe bedeutet – bei deinem Körpergewicht von {kg} kg.', {
-          kg: fmt(state.profile.weightKg, 0),
-        })}
-      </div>
-      <div className="list" style={{ gap: 6 }}>
-        {rows.map((row) => {
-          const isOpen = open === row.family;
-          return (
-            <div key={row.family} className={`move-row ${row.rank ? '' : 'move-row--empty'}`}>
-              <button
-                className="move-row__head"
-                onClick={() => setOpen(isOpen ? null : row.family)}
-                aria-expanded={isOpen}
-              >
-                <span className="move-row__name">
-                  <span className="small bold">{t(row.label)}</span>
-                  <span className="tiny dim">
-                    {row.rank ? describeRank(row.rank.best, row.rank.ratio, row.basis, row.rank.exercises)
-                      : t('noch kein Eintrag')}
-                  </span>
-                </span>
-                {row.rank
-                  ? <TierPill tier={row.rank.tier} />
-                  : <span className="tier-pill tier-pill--empty">{t('offen')}</span>}
-                <IconChevronDown />
-              </button>
-
-              {isOpen && (
-                <div className="move-row__body">
-                  <div className="threshold-grid">
-                    {TIERS.map((tier, index) => (
-                      <div
-                        key={tier}
-                        className={`threshold ${row.rank && row.rank.score >= index * 20 ? 'is-reached' : ''}`}
-                      >
-                        <div className="tiny" style={{ color: TIER_COLOR[tier] }}>{t(TIER_LABELS[tier])}</div>
-                        <div className="small mono">{formatValue(row.thresholds[index] ?? 0, row.basis)}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="tiny dim">
-                    {t('Gewicht im Gesamtrang: {weight}', { weight: fmt(row.weight, 2) })}
-                    {row.rank && ` · ${t('beste Übung: {name}', { name: row.rank.bestExerciseName })}`}
-                    {row.rank && row.rank.days > 28
-                      && ` · ${t('zuletzt {date}', { date: formatDateShort(row.rank.lastDate) })}`}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </Section>
-  );
-}
-
 /* ---------------------------------------------------------------- Übungen */
 
 function Exercises({ entries }: { entries: ExerciseRankEntry[] }) {
-  const { getExercise } = useStore();
   const [showPersonal, setShowPersonal] = useState(true);
 
   const groups = useMemo(() => {
@@ -402,10 +356,7 @@ function Exercises({ entries }: { entries: ExerciseRankEntry[] }) {
       map.set(entry.category, [...(map.get(entry.category) ?? []), entry]);
     }
     return [...map.entries()]
-      .map(([category, items]) => ({
-        category,
-        items: items.sort((a, b) => b.score - a.score),
-      }))
+      .map(([category, items]) => ({ category, items: items.sort((a, b) => b.score - a.score) }))
       .sort((a, b) => b.items[0].score - a.items[0].score);
   }, [entries, showPersonal]);
 
@@ -433,47 +384,111 @@ function Exercises({ entries }: { entries: ExerciseRankEntry[] }) {
         </label>
       )}
 
-      {groups.length === 0 && (
-        <div className="tiny dim">{t('Noch keine Übung im Verlauf.')}</div>
-      )}
-
       {groups.map((group) => (
         <div key={group.category}>
           <div className="section-label" style={{ marginBottom: 6 }}>
             {t(CATEGORY_LABELS[group.category as keyof typeof CATEGORY_LABELS] ?? group.category)}
           </div>
-          <div className="list" style={{ gap: 5 }}>
-            {group.items.map((entry) => {
-              const factor = exerciseFactor(getExercise(entry.exerciseId));
-              return (
-                <div key={entry.exerciseId} className={`ex-rank ${entry.personal ? 'ex-rank--personal' : ''}`}>
-                  <span style={{ minWidth: 0 }}>
-                    <span className="small">{entry.exerciseName}</span>
-                    <span className="tiny dim" style={{ display: 'block' }}>
-                      {entry.personal
-                        ? t('eigener Verlauf · {times}× gemacht · Bestwert {value}', {
-                            times: entry.sessions,
-                            value: formatValue(entry.best, entry.basis),
-                          })
-                        : `${describeRank(entry.best, entry.ratio, entry.basis)}${
-                            factor !== 1 ? ` · ${t('Spielart {factor}', { factor: fmt(factor, 2) })}` : ''}`}
-                    </span>
+          <div className="list" style={{ gap: 6 }}>
+            {group.items.map((entry) => (
+              <div key={entry.exerciseId} className={`ex-rank ${entry.personal ? 'ex-rank--personal' : ''}`}>
+                <RankBadge rank={entry.rank} size="sm" />
+                <span style={{ minWidth: 0 }}>
+                  <span className="small">{entry.exerciseName}</span>
+                  <span className="tiny dim" style={{ display: 'block' }}>
+                    {entry.personal
+                      ? t('eigener Verlauf · {times}× gemacht', { times: entry.sessions })
+                      : `${formatValue(entry.best, entry.basis)}${
+                        entry.basis === 'load' || entry.basis === 'bodyload'
+                          ? ` · ${fmt(entry.ratio, 2)}×` : ''}`}
+                    {entry.decayLoss >= 0.5 && ` · ${t('−{loss} durch Pause', { loss: fmt(entry.decayLoss, 1) })}`}
                   </span>
-                  <span className="ex-rank__bar" aria-hidden="true">
-                    <span
-                      style={{
-                        width: `${Math.min(100, entry.score)}%`,
-                        background: TIER_COLOR[entry.tier],
-                      }}
-                    />
-                  </span>
-                  <TierPill tier={entry.tier} personal={entry.personal} />
-                </div>
-              );
-            })}
+                </span>
+                <span className="ex-rank__score mono">{fmt(entry.score, 0)}</span>
+              </div>
+            ))}
           </div>
         </div>
       ))}
+    </Section>
+  );
+}
+
+/* ------------------------------------------------------------- Bewegungen */
+
+function Movements({ snapshot }: { snapshot: ReturnType<typeof rankSnapshot> }) {
+  const { state } = useStore();
+  const [open, setOpen] = useState<string | null>(null);
+  const rows = useMemo(
+    () => allFamilyRows(snapshot.families, state.profile.weightKg, state.profile.sex),
+    [snapshot.families, state.profile.weightKg, state.profile.sex],
+  );
+
+  return (
+    <Section
+      title={t('Alle Bewegungen')}
+      note={t('{done} von {total}', { done: snapshot.overall.covered, total: rows.length })}
+    >
+      <div className="tiny dim">
+        {t('Antippen zeigt, welcher Wert welche Stufe bedeutet – bei deinem Körpergewicht von {kg} kg.', {
+          kg: fmt(state.profile.weightKg, 0),
+        })}
+      </div>
+      <div className="list" style={{ gap: 6 }}>
+        {rows.map((row) => {
+          const isOpen = open === row.family;
+          return (
+            <div key={row.family} className={`move-row ${row.rank ? '' : 'move-row--empty'}`}>
+              <button
+                className="move-row__head"
+                onClick={() => setOpen(isOpen ? null : row.family)}
+                aria-expanded={isOpen}
+              >
+                {row.rank
+                  ? <RankBadge rank={row.rank.rank} size="sm" />
+                  : <RankBadge rank={rankOf(0)} size="sm" dim />}
+                <span className="move-row__name">
+                  <span className="small bold">{t(row.label)}</span>
+                  <span className="tiny dim">
+                    {row.rank
+                      ? `${formatValue(row.rank.best, row.basis)}${
+                        row.basis === 'load' || row.basis === 'bodyload'
+                          ? ` · ${fmt(row.rank.ratio, 2)}×` : ''}`
+                      : t('noch kein Eintrag')}
+                  </span>
+                </span>
+                <IconChevronDown />
+              </button>
+
+              {isOpen && (
+                <div className="move-row__body">
+                  <div className="threshold-grid">
+                    {TIERS.map((tier, index) => (
+                      <div
+                        key={tier}
+                        className={`threshold ${row.rank && row.rank.score >= TIER_FLOOR[tier] ? 'is-reached' : ''}`}
+                      >
+                        <div className="tiny" style={{ color: TIER_COLOR[tier] }}>{t(TIER_LABELS[tier])}</div>
+                        <div className="small mono">
+                          {index === 0
+                            ? t('ab dem ersten Satz')
+                            : formatValue(row.thresholds[index] ?? 0, row.basis)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="tiny dim">
+                    {t('Gewicht im Gesamtrang: {weight}', { weight: fmt(row.weight, 2) })}
+                    {row.rank && ` · ${t('beste Übung: {name}', { name: row.rank.bestExerciseName })}`}
+                    {row.rank && row.rank.days > GRACE_DAYS
+                      && ` · ${t('zuletzt {date}', { date: formatDateShort(row.rank.lastDate) })}`}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </Section>
   );
 }
@@ -578,6 +593,4 @@ function Comparison() {
   );
 }
 
-/** Damit die Datei auch die Bewegungen kennt, die nichts anzeigen. */
-export const knownFamilies = RANKED_FAMILIES.map((family) => STANDARDS[family].label);
 export type { RankBasis };

@@ -1,11 +1,13 @@
 import { exerciseName, t } from '../i18n';
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Exercise, LoggedExercise, PlanExercise, SetLog, Workout } from '../types';
+import type { Exercise, ID, LoggedExercise, PlanExercise, SetLog, Workout } from '../types';
 import {
   WEEKDAY_SHORT, addDays, formatClock, formatDateShort, parseISODate, relativeDayLabel,
   startOfWeek, todayISO, weekdayOf,
 } from '../lib/date';
 import { calcWorkoutBurn } from '../lib/calories';
+import { exerciseRanks, type ExerciseRankEntry } from '../lib/ranks';
+import { RankBadge } from '../components/RankBadge';
 import { formatSet } from '../lib/setFormat';
 import { detectRecord, suggestWeight, warmupSets, type NewRecord } from '../lib/coaching';
 import { cycleLabel, cycleWeight, isDeload } from '../lib/cycle';
@@ -80,7 +82,8 @@ const newSet = (partial: Partial<SetLog> = {}): SetLog => ({
 
 export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void }) {
   const {
-    state, getExercise, upsertWorkout, deleteWorkout, snapshot, replaceState, updateSettings,
+    state, getExercise, allExercises, upsertWorkout, deleteWorkout, snapshot, replaceState,
+    updateSettings,
   } = useStore();
   const toast = useToast();
 
@@ -95,6 +98,19 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
   const [sortMode, setSortMode] = useState(false);
   const [record, setRecord] = useState<{ name: string; record: NewRecord } | null>(null);
   const [flashSet, setFlashSet] = useState<string | null>(null);
+
+  /*
+   * Der Rang je Uebung - einmal fuer die ganze Seite. Jede Karte einzeln
+   * rechnen zu lassen hiesse, den gesamten Verlauf zwoelfmal zu durchlaufen,
+   * und das merkt man beim Tippen.
+   */
+  const ranks = useMemo(() => {
+    const map = new Map<ID, ExerciseRankEntry>();
+    for (const entry of exerciseRanks(state, allExercises, getExercise)) {
+      map.set(entry.exerciseId, entry);
+    }
+    return map;
+  }, [state, allExercises, getExercise]);
 
   const plan = state.plans.find((item) => item.id === state.activePlanId) ?? null;
   const planDay = plan?.days[weekdayOf(date)] ?? null;
@@ -476,7 +492,10 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
 
   const stats = useMemo(() => {
     if (!workout) {
-      return { sets: 0, volume: 0, kcal: 0, minutes: 0, durationImplausible: false };
+      return {
+        sets: 0, volume: 0, kcal: 0, minutes: 0,
+        durationImplausible: false, estimated: true, perExercise: [],
+      };
     }
     const burn = calcWorkoutBurn(workout, getExercise, state.profile.weightKg, state.settings.restTimerSec);
     return {
@@ -485,6 +504,8 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
       kcal: burn.kcal,
       minutes: burn.minutes,
       durationImplausible: burn.durationImplausible,
+      estimated: burn.estimated,
+      perExercise: burn.perExercise,
     };
   }, [workout, getExercise, state.profile.weightKg, state.settings.restTimerSec]);
 
@@ -611,6 +632,7 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
           <ExerciseCard
             key={row.key}
             row={row}
+            rank={ranks.get(row.exerciseId)}
             index={index}
             total={rows.length}
             date={date}
@@ -694,6 +716,38 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans') => void 
           <button className="btn btn--danger btn--sm" onClick={() => setConfirmClear(true)}>
             <IconTrash /> {t('Training löschen')}
           </button>
+          </div>
+        </Section>
+      )}
+
+      {/*
+        * Der Verbrauch steht am Ende des Trainings, wo man ihn braucht - nicht
+        * mehr in einem eigenen Reiter. Alles Weitere zur Ernaehrung liegt unter
+        * Profil.
+        */}
+      {workout && stats.perExercise.length > 0 && (
+        <Section
+          title={t('Verbrauch')}
+          note={t('{min} min{estimated}', {
+            min: fmt(stats.minutes), estimated: stats.estimated ? ` ${t('geschätzt')}` : '',
+          })}
+        >
+          <div className="burn-rows">
+            {stats.perExercise.map((row) => (
+              <div key={row.exerciseId} className="burn-rows__row">
+                <span className="muted">{row.name}</span>
+                <span className="dim tiny">{fmt(row.minutes)} min</span>
+                <span className="mono">{fmt(row.kcal)}</span>
+              </div>
+            ))}
+            <div className="burn-rows__row burn-rows__row--total">
+              <span className="bold">{t('Training gesamt')}</span>
+              <span />
+              <span className="bold mono">{fmt(stats.kcal)} kcal</span>
+            </div>
+          </div>
+          <div className="tiny dim">
+            {t('Geschätzt über MET-Werte je Übung. Zufuhr, Lebensmittel und Verlauf stehen unter Profil → Kalorien und Ernährung.')}
           </div>
         </Section>
       )}
@@ -830,10 +884,12 @@ function WeekStrip({
 /* ------------------------------------------------------------- Übungskarte */
 
 function ExerciseCard({
-  row, index, total, date, sortMode, groupedWithAbove, groupRound, groupTotal, flashSet,
+  row, rank, index, total, date, sortMode, groupedWithAbove, groupRound, groupTotal, flashSet,
   onToggleSet, onUpdate, onAddSet, onRemove, onToggleSkip, onOpenDetail, onSwap, onStartRest, onMove, onToggleSuperset,
 }: {
   row: Row;
+  /** Der Rang genau dieser Uebung - steht als Abzeichen an der Karte. */
+  rank?: ExerciseRankEntry;
   index: number;
   total: number;
   date: string;
@@ -1064,6 +1120,11 @@ function ExerciseCard({
       )}
 
       <div className="exercise__head" onClick={() => setOpen(!open)}>
+        {/*
+          * Das Abzeichen der Uebung. Klein und ohne Text: Wer beim Training
+          * darauf schaut, will es erkennen, nicht lesen.
+          */}
+        {rank && <RankBadge rank={rank.rank} size="sm" dim={skipped} />}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="exercise__name">
             {exerciseName(row.exercise)}

@@ -12,7 +12,7 @@ import { TodayPage } from './pages/Today';
  */
 const PlansPage = lazy(() => import('./pages/Plans').then((m) => ({ default: m.PlansPage })));
 const ProgressPage = lazy(() => import('./pages/Progress').then((m) => ({ default: m.ProgressPage })));
-const CaloriesPage = lazy(() => import('./pages/Calories').then((m) => ({ default: m.CaloriesPage })));
+const RankPage = lazy(() => import('./pages/Rank').then((m) => ({ default: m.RankPage })));
 const ProfilePage = lazy(() => import('./pages/Profile').then((m) => ({ default: m.ProfilePage })));
 const HistoryPage = lazy(() => import('./pages/History').then((m) => ({ default: m.HistoryPage })));
 const FriendsPage = lazy(() => import('./pages/Friends').then((m) => ({ default: m.FriendsPage })));
@@ -22,16 +22,23 @@ import { workoutSetCount } from './lib/stats';
 import { formatDateLong, todayISO, weekdayOf } from './lib/date';
 import { PageSkeleton } from './components/ui';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { IconCalendar, IconChart, IconDumbbell, IconFlame, IconUser } from './components/icons';
+import { RankUpWatcher } from './components/RankUp';
+import { IconCalendar, IconChart, IconDumbbell, IconTrophy, IconUser } from './components/icons';
 import { IconUsers } from './components/icons';
 
-type Tab = 'today' | 'plans' | 'progress' | 'calories' | 'friends' | 'profile';
+type Tab = 'today' | 'plans' | 'progress' | 'rank' | 'friends' | 'profile';
 
 const TABS: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
   { id: 'today', label: 'Heute', icon: <IconDumbbell /> },
   { id: 'plans', label: 'Pläne', icon: <IconCalendar /> },
   { id: 'progress', label: 'Fortschritt', icon: <IconChart /> },
-  { id: 'calories', label: 'Kalorien', icon: <IconFlame /> },
+  /*
+   * Rang statt Kalorien: Die Kalorienseite traegt man einmal am Tag ein, den
+   * Rang sieht man jedes Mal an. Sie liegt vollstaendig unter Profil, und der
+   * Trainingsverbrauch - das Einzige, was man taeglich davon braucht - steht
+   * unter dem Training selbst.
+   */
+  { id: 'rank', label: 'Rang', icon: <IconTrophy /> },
   { id: 'friends', label: 'Freunde', icon: <IconUsers /> },
   { id: 'profile', label: 'Profil', icon: <IconUser /> },
 ];
@@ -40,7 +47,7 @@ const TITLE_KEYS: Record<Tab, string> = {
   today: 'Training',
   plans: 'Wochenpläne',
   progress: 'Fortschritt',
-  calories: 'Kalorien',
+  rank: 'Rang',
   friends: 'Freunde',
   profile: 'Profil',
 };
@@ -88,7 +95,7 @@ export function App() {
         ? activePlan ? t('Aktiv: {name}', { name: activePlan.name }) : t('Kein Plan aktiv')
         : tab === 'progress' && workoutCount > 0
           ? t('{count} Einheiten aufgezeichnet', { count: workoutCount })
-          : tab === 'calories' ? formatDateLong(todayISO())
+          : tab === 'rank' ? t('Bronze bis Elite, je drei Divisionen')
             : null;
 
   return (
@@ -140,6 +147,12 @@ export function App() {
         * ausserhalb und koennen deshalb nicht wegrutschen.
         */}
       <div className="app__scroll" ref={scrollRef}>
+      {/*
+        * Auf- und Abstieg melden - unabhaengig davon, auf welcher Seite man
+        * gerade steht. Wer beim Eintragen eine Stufe knackt, sieht es sofort.
+        */}
+      <RankUpWatcher />
+
       <TrainingReminder onOpen={() => { setTab('today'); setHistoryOpen(false); }} />
 
       {updateReady && (
@@ -181,7 +194,7 @@ export function App() {
                 {tab === 'today' && <TodayPage onNavigate={setTab} />}
                 {tab === 'plans' && <PlansPage />}
                 {tab === 'progress' && <ProgressPage />}
-                {tab === 'calories' && <CaloriesPage />}
+                {tab === 'rank' && <RankPage />}
                 {tab === 'friends' && <FriendsPage />}
                 {tab === 'profile' && <ProfilePage />}
               </>

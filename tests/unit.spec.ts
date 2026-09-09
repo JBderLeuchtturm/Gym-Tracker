@@ -9,9 +9,10 @@ import { fatigueSignal } from '../src/lib/fatigue';
 import { plannedWeeklyLoad } from '../src/lib/planVolume';
 import { roundToPlate, warmupSets } from '../src/lib/coaching';
 import {
-  RANKED_FAMILIES, STANDARDS, exerciseFactor, exerciseRanks, familyRanks, freshness,
-  nextSteps, overallRank, rankSnapshot, rankTimeline, ratioToScore, thresholdsFor,
-  tierCounts, tierForScore, tierProgress,
+  DECAY_END_DAYS, DECAY_FLOOR, GRACE_DAYS, RANKED_FAMILIES, STANDARDS, TIERS,
+  daysUntilNextDrop, exerciseFactor, exerciseRanks, familyRanks, freshness, nextSteps,
+  overallRank, rankDistance, rankOf, rankSnapshot, rankTimeline, ratioToScore,
+  thresholdsFor, tierCounts, tierForScore, tierProgress,
 } from '../src/lib/ranks';
 import { achievements, byGroup, earnedCount } from '../src/lib/achievements';
 import { mergeStates } from '../src/sync/merge';
@@ -265,45 +266,35 @@ check('Kalorien: ausgelassene Uebungen verbrennen nichts', () => {
 
 /* ---------------------------------------------------------------- Raenge */
 
-check('ratioToScore trifft die Schwellen genau', () => {
+check('ratioToScore trifft die Eintrittsschwellen genau', () => {
+  // Sechs Eintrittswerte: Bronze ab null, danach die fuenf Tabellenwerte.
   const bench = thresholdsFor('bench', 'male')!;
-  eq(bench, [0.5, 0.75, 1.25, 1.75, 2.0]);
-  near(ratioToScore(0.5, bench), 20, 0.01);
-  near(ratioToScore(1.25, bench), 60, 0.01);
-  near(ratioToScore(1.5, bench), 70, 0.01);  // genau zwischen zwei Stufen
-  near(ratioToScore(2.0, bench), 100, 0.01);
-  eq(ratioToScore(0, bench), 0);
+  eq(bench.length, 6);
+  eq(bench, [0, 0.5, 0.75, 1.25, 1.75, 2.0]);
+
+  near(ratioToScore(0, bench), 0, 0.01, 'Bronze faengt bei null an');
+  near(ratioToScore(0.5, bench), 20, 0.01, 'Silber');
+  near(ratioToScore(0.75, bench), 40, 0.01, 'Gold');
+  near(ratioToScore(1.25, bench), 60, 0.01, 'Diamant');
+  near(ratioToScore(1.75, bench), 75, 0.01, 'Emerald');
+  near(ratioToScore(2.0, bench), 90, 0.01, 'Elite');
+  // Genau zwischen zwei Schwellen liegt man in der Mitte der Punktespanne.
+  near(ratioToScore(0.625, bench), 30, 0.01);
 });
 
 check('ratioToScore daempft ueber Elite und deckelt bei 120', () => {
   const bench = thresholdsFor('bench', 'male')!;
-  truthy(ratioToScore(2.4, bench) > 100, 'über Elite geht es weiter');
-  truthy(ratioToScore(2.4, bench) < 110, 'aber gedämpft');
+  truthy(ratioToScore(2.1, bench) > 90, 'über Elite geht es weiter');
+  truthy(ratioToScore(2.1, bench) < 100, 'aber langsam');
   truthy(ratioToScore(20, bench) <= 120, 'gedeckelt');
-});
-
-check('tierForScore an den Grenzen', () => {
-  eq(tierForScore(0), 'einsteiger');
-  eq(tierForScore(19.9), 'einsteiger');
-  eq(tierForScore(20), 'geuebt');
-  eq(tierForScore(60), 'stark');
-  eq(tierForScore(80), 'elite');
 });
 
 check('thresholdsFor: "divers" mittelt beide Tabellen', () => {
   const mixed = thresholdsFor('bench', 'diverse')!;
-  near(mixed[0], (STANDARDS.bench.male[0] + STANDARDS.bench.female[0]) / 2, 0.001);
+  near(mixed[1], (STANDARDS.bench.male[0] + STANDARDS.bench.female[0]) / 2, 0.001);
   eq(thresholdsFor('gibtesnicht', 'male'), null);
   // Ein Faktor skaliert alle Schwellen mit.
-  near(thresholdsFor('bench', 'male', 0.85)![0], STANDARDS.bench.male[0] * 0.85, 0.001);
-});
-
-check('freshness: frisch zaehlt voll, alt nie unter 60 Prozent', () => {
-  eq(freshness(0), 1);
-  eq(freshness(28), 1);
-  near(freshness(104), 0.8, 0.01);
-  eq(freshness(180), 0.6);
-  eq(freshness(3650), 0.6, 'auch nach zehn Jahren');
+  near(thresholdsFor('bench', 'male', 0.85)![1], STANDARDS.bench.male[0] * 0.85, 0.001);
 });
 
 /** Eine Bank und ein Stand, in dem sie mit dem gegebenen Gewicht steht. */
@@ -320,9 +311,9 @@ function rankState(weightKg: number): AppState {
 /* -------------------------------------------------- Raenge zum Weitermachen */
 
 check('tierProgress misst den Weg durch die eigene Stufe', () => {
-  const start = tierProgress(20);   // genau auf der Schwelle zu "Geuebt"
-  eq(start.tier, 'geuebt');
-  eq(start.nextTier, 'fortgeschritten');
+  const start = tierProgress(20);   // genau auf der Schwelle zu "Silber"
+  eq(start.tier, 'silber');
+  eq(start.nextTier, 'gold');
   near(start.share, 0, 0.001);
   near(start.toNext!, 20, 0.001);
 
@@ -334,6 +325,92 @@ check('tierProgress misst den Weg durch die eigene Stufe', () => {
   eq(top.tier, 'elite');
   eq(top.nextTier, null);
   eq(top.toNext, null);
+});
+
+/* --------------------------------------------------- Stufen und Divisionen */
+
+check('Sechs Stufen in der Reihenfolge von Bronze bis Elite', () => {
+  eq(TIERS, ['bronze', 'silber', 'gold', 'diamant', 'emerald', 'elite']);
+  eq(tierForScore(0), 'bronze');
+  eq(tierForScore(19.9), 'bronze');
+  eq(tierForScore(20), 'silber');
+  eq(tierForScore(40), 'gold');
+  eq(tierForScore(60), 'diamant');
+  eq(tierForScore(75), 'emerald');
+  eq(tierForScore(90), 'elite');
+  eq(tierForScore(100), 'elite');
+});
+
+check('rankOf teilt jede Stufe in drei Divisionen', () => {
+  // Bronze spannt 0 bis 20, also je Division knapp sieben Punkte.
+  eq(rankOf(0).label, 'Bronze I');
+  eq(rankOf(6).label, 'Bronze I');
+  eq(rankOf(7).label, 'Bronze II');
+  eq(rankOf(14).label, 'Bronze III');
+  eq(rankOf(20).label, 'Silber I');
+  // Elite spannt nur zehn Punkte.
+  eq(rankOf(90).label, 'Elite I');
+  eq(rankOf(97).label, 'Elite III');
+  eq(rankOf(100).label, 'Elite III');
+});
+
+check('rankOf: der Anteil laeuft je Division von null bis eins', () => {
+  const low = rankOf(0);
+  near(low.share, 0, 0.01);
+  truthy(low.toNext! > 0, 'es geht weiter');
+  const top = rankOf(100);
+  eq(top.toNext, null, 'ganz oben geht nichts mehr');
+});
+
+check('rankDistance zaehlt Divisionen, nicht Stufen', () => {
+  eq(rankDistance(rankOf(0), rankOf(7)), 1, 'eine Division');
+  eq(rankDistance(rankOf(0), rankOf(20)), 3, 'eine ganze Stufe sind drei');
+  eq(rankDistance(rankOf(20), rankOf(0)), -3, 'abwärts zählt negativ');
+  eq(rankDistance(rankOf(5), rankOf(6)), 0, 'dieselbe Division');
+});
+
+/* ---------------------------------------------------------------- Verfall */
+
+check('freshness: Schonfrist, dann Verfall bis auf einen Boden', () => {
+  eq(freshness(0), 1);
+  eq(freshness(GRACE_DAYS), 1, 'am letzten Tag der Schonfrist noch voll');
+  truthy(freshness(GRACE_DAYS + 1) < 1, 'danach faellt es');
+  eq(freshness(DECAY_END_DAYS), DECAY_FLOOR);
+  eq(freshness(3650), DECAY_FLOOR, 'tiefer geht es nie');
+  // In der Mitte genau die Haelfte des Verlusts.
+  near(freshness((GRACE_DAYS + DECAY_END_DAYS) / 2), 1 - (1 - DECAY_FLOOR) / 2, 0.01);
+});
+
+check('daysUntilNextDrop sagt, wann es weiter faellt', () => {
+  eq(daysUntilNextDrop(0, 80), GRACE_DAYS + 1, 'in der Schonfrist sagt es, wann es losgeht');
+  truthy((daysUntilNextDrop(100, 80) ?? 0) > 0, 'danach schon');
+  eq(daysUntilNextDrop(DECAY_END_DAYS, 80), null, 'am Boden faellt nichts mehr');
+  eq(daysUntilNextDrop(100, 0), null, 'ohne Punkte auch nicht');
+});
+
+check('Der Verfall steckt im Rang der Uebung, nicht erst im Gesamtrang', () => {
+  const state = rankState(100);
+  state.workouts = [{ ...workoutOn('2020-01-01', 100, 1), bodyWeightKg: 80 }];
+  const [old] = exerciseRanks(state, [benchExercise], () => benchExercise);
+  const [fresh] = exerciseRanks(rankState(100), [benchExercise], () => benchExercise);
+
+  near(old.rawScore, fresh.rawScore, 0.1, 'dieselbe Leistung');
+  truthy(old.score < fresh.score, `${old.score} sollte unter ${fresh.score} liegen`);
+  near(old.freshness, DECAY_FLOOR, 0.01, 'nach Jahren am Boden');
+  near(old.decayLoss, old.rawScore - old.score, 0.05);
+  truthy(fresh.decayLoss === 0, 'frisch kostet nichts');
+  // Und der Rang faellt sichtbar mit.
+  truthy(TIERS.indexOf(old.tier) < TIERS.indexOf(fresh.tier), `${old.tier} vs ${fresh.tier}`);
+});
+
+check('Wer nach der Pause wieder trainiert, holt den Rang zurueck', () => {
+  const state = rankState(100);
+  state.workouts = [
+    { ...workoutOn('2020-01-01', 100, 1), bodyWeightKg: 80 },
+    { ...workoutOn(todayISO(), 100, 1), bodyWeightKg: 80 },
+  ];
+  const [entry] = exerciseRanks(state, [benchExercise], () => benchExercise);
+  eq(entry.decayLoss, 0, 'der frische Satz zählt wieder voll');
 });
 
 check('Einundzwanzig Bewegungen haben einen Standard', () => {
@@ -366,18 +443,19 @@ check('exerciseFactor kennt die Spielarten', () => {
   near(exerciseFactor(make('Bankdrücken (Langhantel)')), 1, 0.001);
 });
 
-check('exerciseRanks: 100 kg Bankdruecken bei 80 kg sind "Stark"', () => {
+check('exerciseRanks: 100 kg Bankdruecken bei 80 kg sind "Diamant"', () => {
   const ranks = exerciseRanks(rankState(100), [benchExercise], () => benchExercise);
   eq(ranks.length, 1, 'eine Übung');
   near(ranks[0].best, 100, 0.5);
   near(ranks[0].ratio, 1.25, 0.01);
   near(ranks[0].score, 60, 0.5);
-  eq(ranks[0].tier, 'stark');
-  eq(ranks[0].nextTier, 'elite');
-  near(ranks[0].nextValue!, 160, 0.5);
+  eq(ranks[0].tier, 'diamant');
+  eq(ranks[0].nextTier, 'emerald');
+  near(ranks[0].nextValue!, 140, 0.5, 'Emerald = 1,75 × 80 kg');
   eq(ranks[0].personal, false);
-  eq(ranks[0].thresholds.length, 5, 'fünf Schwellen in Kilogramm');
-  near(ranks[0].thresholds[0], 40, 0.5, 'Einsteiger = 0,5 × 80 kg');
+  eq(ranks[0].thresholds.length, 6, 'sechs Schwellen in Kilogramm');
+  eq(ranks[0].thresholds[0], 0, 'Bronze gibt es ab dem ersten Satz');
+  near(ranks[0].thresholds[1], 40, 0.5, 'Silber = 0,5 × 80 kg');
 });
 
 check('Die Spielart verschiebt die Schwellen der Uebung', () => {
@@ -391,8 +469,8 @@ check('Die Spielart verschiebt die Schwellen der Uebung', () => {
   const ranks = exerciseRanks(state, [incline], () => incline);
   eq(ranks.length, 1);
   eq(ranks[0].family, 'bench', 'gehört zum Bankdrücken');
-  // 0,85 × 40 = 34 kg statt 40 kg fuer die erste Stufe.
-  near(ranks[0].thresholds[0], 34, 0.5);
+  // 0,85 × 40 = 34 kg statt 40 kg fuer Silber.
+  near(ranks[0].thresholds[1], 34, 0.5);
   truthy(ranks[0].score > 60, `mit Faktor mehr Punkte: ${ranks[0].score}`);
 });
 
@@ -475,26 +553,16 @@ check('overallRank: Tiefe mal Breite', () => {
 
 check('overallRank: mehr Breite bringt mehr Punkte bei gleicher Tiefe', () => {
   const part = (family: string, weight: number) => ({
-    family, label: family, basis: 'load' as const, best: 100, ratio: 1.25, score: 60,
-    tier: 'stark' as const, nextTier: 'elite' as const, nextValue: 160, thresholds: [],
-    lastDate: todayISO(), days: 0, sessions: 3, personal: false,
-    bestExerciseId: null, bestExerciseName: '', exercises: 1, weight,
+    family, label: family, basis: 'load' as const, best: 100, ratio: 1.25,
+    rawScore: 60, score: 60, decayLoss: 0, freshness: 1, dropsInDays: null,
+    rank: rankOf(60), tier: 'diamant' as const, nextTier: 'emerald' as const,
+    nextValue: 160, thresholds: [], lastDate: todayISO(), days: 0, sessions: 3,
+    personal: false, bestExerciseId: null, bestExerciseName: '', exercises: 1, weight,
   });
   const one = overallRank([part('bench', 1)]);
   const three = overallRank([part('bench', 1), part('squat', 1), part('deadlift', 1)]);
   near(one.depth, three.depth, 0.01, 'dieselbe Tiefe');
   truthy(three.score > one.score, `${three.score} sollte über ${one.score} liegen`);
-});
-
-check('Alte Bestwerte ziehen den Gesamtrang nach unten', () => {
-  const part = (days: number) => ({
-    family: 'bench', label: 'Bankdrücken', basis: 'load' as const, best: 100, ratio: 1.25,
-    score: 60, tier: 'stark' as const, nextTier: 'elite' as const, nextValue: 160,
-    thresholds: [], lastDate: '2020-01-01', days, sessions: 1, personal: false,
-    bestExerciseId: null, bestExerciseName: '', exercises: 1, weight: 1,
-  });
-  truthy(overallRank([part(400)]).score < overallRank([part(0)]).score);
-  near(overallRank([part(400)]).depth, 36, 0.5, '60 × 0,6');
 });
 
 check('nextSteps stellt Unberuehrtes nach vorn und rechnet den Gewinn', () => {
@@ -514,7 +582,7 @@ check('nextSteps ohne Koerpergewicht gibt nichts', () => {
 check('tierCounts zaehlt die Bewegungen je Stufe', () => {
   const snapshot = rankSnapshot(rankState(100), [benchExercise], () => benchExercise);
   const counts = tierCounts(snapshot.families);
-  eq(counts.stark, 1);
+  eq(counts.diamant, 1);
   eq(counts.elite, 0);
 });
 

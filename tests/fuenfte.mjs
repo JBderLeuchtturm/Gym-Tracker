@@ -145,8 +145,12 @@ export async function run() {
   });
 
   await runner.step('Kalorienverlauf sind Balken, keine Linie', async () => {
-    await page.locator('.nav__item', { hasText: 'Kalorien' }).first().click();
+    // Die Kalorienseite hat ihren Reiter an den Rang abgegeben und liegt jetzt
+    // unter Profil.
+    await page.locator('.nav__item', { hasText: 'Profil' }).first().click();
     await page.waitForTimeout(900);
+    await page.getByRole('button', { name: 'Kalorien und Ernährung' }).click();
+    await page.waitForTimeout(1200);
     // Der Verlauf erscheint erst, wenn ueberhaupt eine Zufuhr eingetragen ist.
     const kcal = page.locator('.field', { hasText: 'Kalorien (kcal)' }).locator('input');
     await kcal.fill('2400');

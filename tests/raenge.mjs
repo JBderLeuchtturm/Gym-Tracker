@@ -1,5 +1,5 @@
 import { createMockBackend } from './mockBackend.mjs';
-import { createRunner, launchBrowser, logSet, newAppContext, openCard, readState } from './helpers.mjs';
+import { createRunner, dismissRankUp, launchBrowser, logSet, newAppContext, openCard, readState } from './helpers.mjs';
 
 /**
  * Sechste Runde: schlanke Kalorienseite, Ausgelassenes und die Raenge.
@@ -40,11 +40,15 @@ function seedRanks() {
       lift('bench', 'cat_barbell-bench-press', 100, 1, 3),
       lift('dead', 'cat_deadlift', 180, 3, 6),
       lift('row', 'cat_barbell-bent-over-row', 80, 8, 9),
+      // Lange her: das ist der Fall, an dem der Verfall sichtbar wird.
+      lift('curl', 'cat_barbell-curl', 45, 8, 250),
     ],
   };
 }
 
 const openTab = async (page, name) => {
+  // Ein Wechsel der Stufe meldet sich mit einem Fenster - erst wegklicken.
+  await dismissRankUp(page);
   await page.locator('.nav__item', { hasText: name }).first().click();
   await page.waitForTimeout(900);
 };
@@ -62,9 +66,19 @@ const openTraining = async (page) => {
   await page.waitForTimeout(700);
 };
 
-/** Oeffnet die Kalorienseite und blaettert zum gewuenschten Tag zurueck. */
+/**
+ * Oeffnet die Kalorienseite und blaettert zum gewuenschten Tag zurueck.
+ *
+ * Sie hat ihren Reiter an den Rang abgegeben und liegt jetzt unter Profil.
+ */
+const openCalories = async (page) => {
+  await openTab(page, 'Profil');
+  await page.getByRole('button', { name: 'Kalorien und Ernährung' }).click();
+  await page.waitForTimeout(1100);
+};
+
 const openCaloriesOn = async (page, date) => {
-  await openTab(page, 'Kalorien');
+  await openCalories(page);
   const days = Math.round((Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)
     - Date.parse(`${date}T00:00:00Z`)) / 86400000);
   for (let step = 0; step < days; step += 1) {
@@ -85,7 +99,7 @@ export async function run() {
   errors.push(...solo.errors);
 
   await runner.step('Kalorien zeigt zuerst nur Kalorien und Protein', async () => {
-    await openTab(solo.page, 'Kalorien');
+    await openCalories(solo.page);
     const text = await solo.page.locator('.page').innerText();
     if (!/Kalorien/.test(text)) throw new Error('Keine Kalorienangabe');
     if (/Kohlenhydrate/.test(text)) throw new Error('Kohlenhydrate stehen offen da');
@@ -134,6 +148,8 @@ export async function run() {
     await card.locator('.exercise__actions').getByRole('button', { name: 'Mehr' }).click();
     await gym.page.waitForTimeout(300);
     await card.getByRole('button', { name: 'Heute auslassen' }).click();
+    await gym.page.waitForTimeout(500);
+    await dismissRankUp(gym.page);
     await gym.page.waitForTimeout(700);
 
     if (await card.locator('.tag--skipped').count() === 0) {
@@ -166,6 +182,8 @@ export async function run() {
     await card.locator('.exercise__actions').getByRole('button', { name: 'Mehr' }).click();
     await gym.page.waitForTimeout(300);
     await card.getByRole('button', { name: 'Doch machen' }).click();
+    await gym.page.waitForTimeout(500);
+    await dismissRankUp(gym.page);
     await gym.page.waitForTimeout(700);
     if (await card.locator('.tag--skipped').count() > 0) throw new Error('Bleibt ausgelassen');
   });
@@ -177,6 +195,8 @@ export async function run() {
     await row.locator('.set-more').click();
     await gym.page.waitForTimeout(350);
     await card.locator('.set-extra').getByRole('button', { name: 'Satz auslassen' }).click();
+    await gym.page.waitForTimeout(500);
+    await dismissRankUp(gym.page);
     await gym.page.waitForTimeout(700);
 
     const state = await readState(gym.page);
@@ -191,6 +211,7 @@ export async function run() {
     const card = gym.page.locator('.exercise').first();
     await card.locator('.set-row').first().locator('.check').click();
     await gym.page.waitForTimeout(700);
+    await dismissRankUp(gym.page);
     const state = await readState(gym.page);
     const first = state.workouts.at(-1).exercises[0].sets[0];
     if (first.skipped) throw new Error('Bleibt ausgelassen');
@@ -201,57 +222,60 @@ export async function run() {
 
   /* ------------------------------------------------------- Rang ohne Konto */
 
-  await runner.step('Der Rang steht auf der Fortschrittsseite', async () => {
-    await openTab(solo.page, 'Fortschritt');
-    const panel = solo.page.locator('.rank-head');
-    if (await panel.count() === 0) throw new Error('Kein Rangfeld');
-    const text = await solo.page.locator('.section', { has: solo.page.locator('.rank-head') }).innerText();
-    if (!/3 von 21 Bewegungen/.test(text)) {
-      throw new Error(`Falsche Abdeckung: ${text.replace(/\n/g, ' | ')}`);
+  await runner.step('Der Rang ist ein eigener Reiter', async () => {
+    await openTab(solo.page, 'Rang');
+    const hero = solo.page.locator('.rank-hero');
+    if (await hero.count() === 0) throw new Error('Kein Rangkopf');
+    const text = await hero.innerText();
+    if (!/4 \/ 21/.test(text)) throw new Error(`Falsche Abdeckung: ${text.replace(/\n/g, ' | ')}`);
+    if (!/(Bronze|Silber|Gold|Diamant|Emerald|Elite) (I|II|III)/.test(text)) {
+      throw new Error(`Keine Stufe mit Division: ${text.replace(/\n/g, ' | ')}`);
     }
-    if (!/Übungen mit eigenem Rang/.test(text)) throw new Error('Kein Weg in die Vollansicht');
+    // Das Wappen ist gezeichnet, nicht nur geschrieben.
+    if (await solo.page.locator('.rank-hero .rbadge__art').count() !== 1) {
+      throw new Error('Kein Abzeichen im Kopf');
+    }
   });
 
   await runner.step('Der nächste Schritt nennt eine Bewegung und einen Wert', async () => {
-    const step = await solo.page.locator('.next-step').innerText();
+    const step = await solo.page.locator('.step-row').first().innerText();
     if (!/kg|Wdh|min|\bs\b/.test(step)) throw new Error(`Kein Wert: ${step.replace(/\n/g, ' | ')}`);
     if (!/Kniebeuge|Schulterdrücken|Bizepscurl|Rudern|Bankdrücken|Kreuzheben|Dips|Liegestütze|Klimmzug|Latzug/.test(step)) {
       throw new Error(`Keine Bewegung genannt: ${step.replace(/\n/g, ' | ')}`);
     }
   });
 
-  await runner.step('Die Stufenleiste überlappt nicht', async () => {
-    const boxes = await solo.page.locator('.tier-scale__step').evaluateAll(
-      (list) => list.map((el) => el.getBoundingClientRect()).map((b) => ({
-        left: b.left, right: b.right, top: b.top, bottom: b.bottom,
-      })));
-    if (boxes.length !== 5) throw new Error(`${boxes.length} Stufen`);
-    for (let a = 0; a < boxes.length; a += 1) {
-      for (let b = a + 1; b < boxes.length; b += 1) {
-        const overlap = boxes[a].right > boxes[b].left + 0.5
-          && boxes[b].right > boxes[a].left + 0.5
-          && boxes[a].bottom > boxes[b].top + 0.5
-          && boxes[b].bottom > boxes[a].top + 0.5;
-        if (overlap) throw new Error(`Stufe ${a + 1} und ${b + 1} liegen übereinander`);
-      }
+  await runner.step('Die Leiter zeigt achtzehn Abzeichen, eines hervorgehoben', async () => {
+    const badges = await solo.page.locator('.rladder .rbadge__art').count();
+    if (badges !== 18) throw new Error(`${badges} Abzeichen statt 18`);
+    const now = await solo.page.locator('.rladder .is-now').count();
+    if (now !== 1) throw new Error(`${now} hervorgehoben`);
+    const names = await solo.page.locator('.rladder__tier').allInnerTexts();
+    for (const tier of ['Bronze', 'Silber', 'Gold', 'Diamant', 'Emerald', 'Elite']) {
+      if (!names.some((line) => line.includes(tier))) throw new Error(`${tier} fehlt`);
     }
+  });
+
+  await runner.step('Was lange liegt, verliert sichtbar an Wertung', async () => {
+    const rows = solo.page.locator('.fade-row');
+    if (await rows.count() === 0) {
+      throw new Error('Der alte Bestwert im Verlauf sollte als Verlust auftauchen');
+    }
+    const text = await rows.first().innerText();
+    if (!/nicht gemacht/.test(text)) throw new Error(text.replace(/\n/g, ' | '));
+    if (!/−/.test(text)) throw new Error(`Kein Abzug: ${text.replace(/\n/g, ' | ')}`);
   });
 
   /* ------------------------------------------------------- Die Vollansicht */
 
-  await runner.step('Die Vollansicht zeigt, woraus sich der Rang ergibt', async () => {
-    await solo.page.locator('.rank-open').click();
-    await solo.page.waitForTimeout(900);
-    const hero = await solo.page.locator('.rank-hero').innerText();
-    if (!/\/100/.test(hero)) throw new Error(`Kein Punktestand: ${hero.replace(/\n/g, ' | ')}`);
-
+  await runner.step('Die Übersicht zeigt, woraus sich der Rang ergibt', async () => {
     const formula = await solo.page.locator('.formula').innerText();
     for (const word of ['Tiefe', 'Breite', 'Punkte']) {
       if (!formula.includes(word)) throw new Error(`„${word}“ fehlt in der Rechnung`);
     }
   });
 
-  await runner.step('Jede Bewegung zeigt ihre fünf Schwellen in Kilogramm', async () => {
+  await runner.step('Jede Bewegung zeigt ihre sechs Schwellen in Kilogramm', async () => {
     await solo.page.locator('.seg__item', { hasText: 'Bewegungen' }).click();
     await solo.page.waitForTimeout(600);
     const rows = await solo.page.locator('.move-row').count();
@@ -260,9 +284,9 @@ export async function run() {
     await solo.page.locator('.move-row__head').first().click();
     await solo.page.waitForTimeout(400);
     const cells = await solo.page.locator('.threshold').count();
-    if (cells !== 5) throw new Error(`${cells} Schwellen`);
+    if (cells !== 6) throw new Error(`${cells} Schwellen`);
     const body = await solo.page.locator('.move-row__body').first().innerText();
-    if (!/Einsteiger/.test(body) || !/Elite/.test(body)) throw new Error(body.replace(/\n/g, ' | '));
+    if (!/Bronze/.test(body) || !/Elite/.test(body)) throw new Error(body.replace(/\n/g, ' | '));
   });
 
   await runner.step('Jede einzelne Übung hat einen eigenen Rang', async () => {
@@ -270,9 +294,10 @@ export async function run() {
     await solo.page.waitForTimeout(600);
     const rows = await solo.page.locator('.ex-rank').count();
     if (rows < 3) throw new Error(`${rows} Übungen`);
-    const text = await solo.page.locator('.ex-rank').first().innerText();
-    if (!/Einsteiger|Geübt|Fortgeschritten|Stark|Elite/.test(text)) {
-      throw new Error(`Keine Stufe: ${text.replace(/\n/g, ' | ')}`);
+    // Die Stufe steht im Abzeichen, nicht im Text - sonst waere es kein Abzeichen.
+    const label = await solo.page.locator('.ex-rank .rbadge__art').first().getAttribute('aria-label');
+    if (!/(Bronze|Silber|Gold|Diamant|Emerald|Elite) (I|II|III)/.test(label ?? '')) {
+      throw new Error(`Keine Stufe am Abzeichen: ${label}`);
     }
   });
 
@@ -296,7 +321,59 @@ export async function run() {
     if (/Am Rangvergleich teilnehmen/.test(text)) throw new Error('Teilnahme ohne Konto angeboten');
   });
 
+  await runner.step('Jede Übung trägt ihr Abzeichen an der Karte im Training', async () => {
+    await openTraining(solo.page);
+    const cards = solo.page.locator('.exercise');
+    if (await cards.count() === 0) throw new Error('Keine Übungskarte');
+    const badges = await solo.page.locator('.exercise__head .rbadge__art').count();
+    if (badges === 0) throw new Error('Kein Abzeichen an einer Karte');
+    const label = await solo.page.locator('.exercise__head .rbadge__art').first()
+      .getAttribute('aria-label');
+    if (!/(Bronze|Silber|Gold|Diamant|Emerald|Elite) (I|II|III)/.test(label ?? '')) {
+      throw new Error(`Abzeichen ohne Stufe: ${label}`);
+    }
+  });
+
   await solo.ctx.close();
+
+  /* ---------------------------------------------- Auf- und Abstiegsmeldung */
+
+  await runner.step('Ein Aufstieg wird als Fenster gemeldet', async () => {
+    const seed = seedRanks();
+    // So tun, als hätte man zuletzt eine niedrigere Stufe gesehen.
+    seed.settings = { seenRanks: { overall: 'bronze:1' } };
+    const promoted = await newAppContext(browser, { label: 'aufstieg', seed });
+    errors.push(...promoted.errors);
+    await promoted.page.waitForTimeout(1200);
+
+    const dialog = promoted.page.locator('.rankup');
+    if (await dialog.count() === 0) throw new Error('Keine Meldung');
+    const text = await promoted.page.locator('.modal').innerText();
+    if (!/Aufstieg/.test(text)) throw new Error(text.replace(/\n/g, ' | '));
+    if (!/Gesamtrang/.test(text)) throw new Error('Sagt nicht, worum es geht');
+    if (await dialog.locator('.rbadge__art').count() < 2) {
+      throw new Error('Zeigt nicht Vorher und Nachher');
+    }
+
+    await promoted.page.getByRole('button', { name: 'Weiter' }).click();
+    await promoted.page.waitForTimeout(500);
+    if (await promoted.page.locator('.rankup').count() > 0) throw new Error('Bleibt offen');
+
+    // Und danach nicht noch einmal.
+    const again = await readState(promoted.page);
+    if (!again.settings.seenRanks?.overall) throw new Error('Der Stand wurde nicht gemerkt');
+    await promoted.ctx.close();
+  });
+
+  await runner.step('Ohne Wechsel kommt keine Meldung', async () => {
+    const quiet = await newAppContext(browser, { label: 'ruhig', seed: seedRanks() });
+    errors.push(...quiet.errors);
+    await quiet.page.waitForTimeout(1400);
+    if (await quiet.page.locator('.rankup').count() > 0) {
+      throw new Error('Beim ersten Start soll nichts gemeldet werden');
+    }
+    await quiet.ctx.close();
+  });
 
   /* ------------------------------------------------------------- Rangliste */
 
@@ -311,9 +388,7 @@ export async function run() {
   };
   /* Die Zustimmung liegt seit der Vollansicht im Reiter "Vergleich". */
   const openComparison = async (page) => {
-    await openTab(page, 'Fortschritt');
-    const back = page.locator('.rank-open');
-    if (await back.count() > 0) { await back.click(); await page.waitForTimeout(800); }
+    await openTab(page, 'Rang');
     await page.locator('.seg__item', { hasText: 'Vergleich' }).click();
     await page.waitForTimeout(700);
   };

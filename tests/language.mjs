@@ -30,7 +30,7 @@ export async function run() {
 
   await runner.step('Englisches Gerät bekommt Englisch', async () => {
     const tabs = await page.locator('.nav__item span:last-child').allTextContents();
-    const expected = ['Today', 'Plans', 'Progress', 'Calories', 'Friends', 'Profile'];
+    const expected = ['Today', 'Plans', 'Progress', 'Rank', 'Friends', 'Profile'];
     if (tabs.join(',') !== expected.join(',')) throw new Error(tabs.join(','));
   });
 

@@ -22,7 +22,6 @@ import {
   IconTrash, IconTrophy, IconUser, IconUsers, IconX,
 } from '../components/icons';
 import { FriendProfileCard } from '../components/ProfileCard';
-import type { RankTier } from '../lib/ranks';
 
 const SCOPES: ShareScope[] = ['progress', 'weight', 'nutrition'];
 
@@ -707,7 +706,6 @@ function FriendsHome() {
                 >
                   <FriendProfileCard
                     friend={friend}
-                    tier={(board?.tier as RankTier | undefined) ?? null}
                     score={board?.score ?? null}
                     stats={data?.progress ? [
                       { label: t('Einheiten'), value: String(data.progress.totals.workouts) },
@@ -837,7 +835,6 @@ function FriendDetail({
       <div className="list">
         <FriendProfileCard
           friend={friend}
-          tier={(board?.tier as RankTier | undefined) ?? null}
           score={board?.score ?? null}
           stats={progress ? [
             { label: t('Einheiten'), value: String(progress.totals.workouts) },
