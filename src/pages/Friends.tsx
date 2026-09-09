@@ -14,13 +14,15 @@ import { GroupsSection } from './friends/GroupsSection';
 import { ChallengesSection } from './friends/ChallengesSection';
 import { notificationPermission, requestNotifications } from '../sync/notify';
 import { buildInviteLink } from '../sync/invite';
-import { formatClock, formatDateShort, formatDateTiny, relativeDayLabel } from '../lib/date';
+import { formatClock, formatDateShort, formatDateTiny } from '../lib/date';
 import { BarChart, LineChart, Sparkline } from '../components/charts/Charts';
 import { EmptyState, Modal, Stat, fmt, useToast } from '../components/ui';
 import {
   IconBell, IconCheck, IconChevronRight, IconCopy, IconPlus, IconRefresh,
   IconTrash, IconTrophy, IconUser, IconUsers, IconX,
 } from '../components/icons';
+import { FriendProfileCard } from '../components/ProfileCard';
+import type { RankTier } from '../lib/ranks';
 
 const SCOPES: ShareScope[] = ['progress', 'weight', 'nutrition'];
 
@@ -684,32 +686,41 @@ function FriendsHome() {
         />
       ) : (
         <>
-          <div className="card card--flush">
-            <div className="section-label" style={{ padding: '12px 14px 6px' }}>
-              Freunde ({accepted.length})
-            </div>
+          {/*
+            * Freunde als Karten, nicht als Zeilen einer Liste. Eine Zeile mit
+            * Emoji und Namen sagt nichts darueber, wer da steht - die Karte
+            * zeigt Farbe, Zeichen, zwei Zeilen Text und die Dinge, auf die
+            * jemand stolz ist.
+            */}
+          <div className="section-label">{t('Freunde ({count})', { count: accepted.length })}</div>
+          <div className="friend-cards">
             {accepted.map((friend) => {
               const data = friendData[friend.userId];
               const last = data?.progress?.totals.lastWorkoutDate;
+              const board = sync.rankBoard.find((row) => row.user_id === friend.userId);
               return (
-                <button key={friend.linkId} className="search-result" onClick={() => setOpen(friend)}>
-                  <span className="search-result__thumb" style={{ fontSize: '1.2rem' }}>{friend.emoji}</span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span className="search-result__name">{friend.displayName}</span>
-                    <span className="search-result__meta" style={{ display: 'block' }}>
-                      {data
-                        ? data.scopes.length === 0
-                          ? 'teilt gerade nichts mit dir'
-                          : last
-                            ? `zuletzt trainiert: ${relativeDayLabel(last)}`
-                            : t('noch kein Training')
-                        : 'wird geladen…'}
-                    </span>
+                <button
+                  key={friend.linkId}
+                  className="friend-card"
+                  onClick={() => setOpen(friend)}
+                  aria-label={t('Profil von {name} öffnen', { name: friend.displayName })}
+                >
+                  <FriendProfileCard
+                    friend={friend}
+                    tier={(board?.tier as RankTier | undefined) ?? null}
+                    score={board?.score ?? null}
+                    stats={data?.progress ? [
+                      { label: t('Einheiten'), value: String(data.progress.totals.workouts) },
+                      { label: t('Serie'), value: t('{count} Wo.', { count: data.progress.totals.streakWeeks }) },
+                      { label: t('zuletzt'), value: last ? formatDateTiny(last) : '–' },
+                    ] : undefined}
+                  />
+                  <span className="friend-card__go">
+                    {data && data.scopes.length === 0
+                      ? t('teilt gerade nichts mit dir')
+                      : t('Profil ansehen')}
+                    <IconChevronRight />
                   </span>
-                  {data?.progress && data.progress.totals.streakWeeks > 0 && (
-                    <span className="chip chip--success">{data.progress.totals.streakWeeks} Wo.</span>
-                  )}
-                  <IconChevronRight style={{ width: 16, height: 16, color: 'var(--text-dim)', flexShrink: 0 }} />
                 </button>
               );
             })}
@@ -819,11 +830,21 @@ function FriendDetail({
   const progress = data?.progress;
   const weight = data?.weight;
   const nutrition = data?.nutrition;
+  const board = sync.rankBoard.find((row) => row.user_id === friend.userId);
 
   return (
-    <Modal title={`${friend.emoji} ${friend.displayName}`} onClose={onClose}>
+    <Modal title={friend.displayName} onClose={onClose}>
       <div className="list">
-        <div className="tiny dim">@{friend.handle}</div>
+        <FriendProfileCard
+          friend={friend}
+          tier={(board?.tier as RankTier | undefined) ?? null}
+          score={board?.score ?? null}
+          stats={progress ? [
+            { label: t('Einheiten'), value: String(progress.totals.workouts) },
+            { label: t('Sätze'), value: String(progress.totals.sets) },
+            { label: t('Serie'), value: t('{count} Wo.', { count: progress.totals.streakWeeks }) },
+          ] : undefined}
+        />
 
         <div className="chip-scroll">
           <button className={`chip chip--button ${tab === 'progress' ? 'chip--accent' : ''}`} onClick={() => setTab('progress')}>

@@ -10,12 +10,29 @@ const CONTRAST = `(a, b) => {
   return (hi + 0.05) / (lo + 0.05);
 }`;
 
+/**
+ * Uebung zum Tag hinzufuegen.
+ *
+ * Steht sie schon im Plan des Tages, ist ihr Treffer deaktiviert - dann bleibt
+ * als einziger anklickbarer Eintrag "als eigene Uebung anlegen" uebrig, und
+ * der oeffnet ein zweites Fenster, das alles Weitere blockiert. Welcher Tag
+ * heute ist, entscheidet also darueber; deshalb wird der Fall hier behandelt
+ * statt darauf zu hoffen.
+ */
 async function addExercise(page, query) {
   await page.locator('.btn--primary', { hasText: 'Übung hinzufügen' }).first().click();
   await page.waitForSelector('.modal');
   await page.locator('.modal .input').first().fill(query);
-  await page.waitForTimeout(500);
-  await page.locator('.search-result:not([disabled])').first().click();
+  await page.waitForTimeout(600);
+
+  const hit = page.locator('.search-result:not([disabled])')
+    .filter({ hasNotText: 'als eigene Übung anlegen' }).first();
+  if (await hit.count() > 0) {
+    await hit.click();
+  } else {
+    // Schon im Tag - Fenster schliessen und die vorhandene Karte benutzen.
+    await page.locator('.modal [aria-label="Schließen"]').first().click();
+  }
   await page.waitForTimeout(400);
 }
 

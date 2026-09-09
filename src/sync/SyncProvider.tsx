@@ -70,7 +70,8 @@ interface SyncValue {
   /** true, solange die App aus einem Wiederherstellungs-Link kommt. */
   recoveryMode: boolean;
   endRecoveryMode: () => void;
-  saveProfile: (patch: Partial<Pick<RemoteProfile, 'handle' | 'display_name' | 'emoji'>>) => Promise<void>;
+  saveProfile: (patch: Partial<Pick<RemoteProfile,
+    'handle' | 'display_name' | 'emoji' | 'bio' | 'accent' | 'pins' | 'favorites'>>) => Promise<void>;
 
   friends: Friend[];
   refreshFriends: () => Promise<void>;
@@ -229,7 +230,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
     const existing = await client
       .from('profiles')
-      .select('id, handle, display_name, emoji')
+      .select('id, handle, display_name, emoji, bio, accent, pins, favorites')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -248,7 +249,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       const inserted = await client
         .from('profiles')
         .insert({ id: user.id, handle, display_name: stateRef.current.profile.name || base, emoji: '💪' })
-        .select('id, handle, display_name, emoji')
+        .select('id, handle, display_name, emoji, bio, accent, pins, favorites')
         .single();
       if (!inserted.error && inserted.data) {
         setProfile(inserted.data as RemoteProfile);
@@ -368,7 +369,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     if (otherIds.length > 0) {
       const result = await client
         .from('profiles')
-        .select('id, handle, display_name, emoji')
+        .select('id, handle, display_name, emoji, bio, accent, pins, favorites')
         .in('id', otherIds);
       if (result.error) { setError(result.error.message); return; }
       profiles = (result.data ?? []) as RemoteProfile[];
@@ -384,6 +385,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         handle: info?.handle ?? 'unbekannt',
         displayName: info?.display_name || info?.handle || 'Unbekannt',
         emoji: info?.emoji || '💪',
+        bio: info?.bio ?? '',
+        accent: info?.accent ?? 'messing',
+        pins: Array.isArray(info?.pins) ? info.pins : [],
+        favorites: Array.isArray(info?.favorites) ? info.favorites : [],
         state: row.status === 'accepted'
           ? 'accepted'
           : row.requester_id === user.id ? 'outgoing' : 'incoming',
@@ -728,7 +733,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const endRecoveryMode = useCallback(() => setRecoveryMode(false), []);
 
   const saveProfile = useCallback(async (
-    patch: Partial<Pick<RemoteProfile, 'handle' | 'display_name' | 'emoji'>>,
+    patch: Partial<Pick<RemoteProfile,
+      'handle' | 'display_name' | 'emoji' | 'bio' | 'accent' | 'pins' | 'favorites'>>,
   ) => {
     if (!client || !user) return;
     const next = { ...patch };
@@ -738,7 +744,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       .from('profiles')
       .update({ ...next, updated_at: new Date().toISOString() })
       .eq('id', user.id)
-      .select('id, handle, display_name, emoji')
+      .select('id, handle, display_name, emoji, bio, accent, pins, favorites')
       .single();
 
     if (updated.error) {

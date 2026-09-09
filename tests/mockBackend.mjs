@@ -243,7 +243,10 @@ export function createMockBackend({ log = () => {} } = {}) {
             if (!/^[a-z0-9][a-z0-9_-]{2,23}$/.test(item.handle)) {
               return json({ code: '23514', message: 'violates check constraint' }, 400);
             }
-            const row = { emoji: '💪', display_name: '', ...item, created_at: new Date().toISOString() };
+            const row = {
+              emoji: '💪', display_name: '', bio: '', accent: 'messing', pins: [], favorites: [],
+              ...item, created_at: new Date().toISOString(),
+            };
             db.profiles.set(row.id, row);
             written.push(row);
           } else if (table === 'user_state') {

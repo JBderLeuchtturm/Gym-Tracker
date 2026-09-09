@@ -6,7 +6,8 @@ import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { formatClock, formatDateShort, formatDateTiny } from '../lib/date';
 import { exerciseHistory, familyHistory, personalRecords } from '../lib/stats';
 import { formatSet } from '../lib/setFormat';
-import { STANDARDS, TIER_LABELS, exerciseRanks } from '../lib/ranks';
+import { TIER_LABELS, exerciseRanks } from '../lib/ranks';
+import { formatValue } from './Ranks';
 import { familyMembers, familyOf } from '../lib/variants';
 import { GOAL_LABELS, GOAL_UNITS, PACE_LABELS, goalPace, goalStatus } from '../lib/goals';
 import { addDays, todayISO } from '../lib/date';
@@ -529,34 +530,43 @@ function GoalCard({
  */
 function ExerciseRankLine({ exercise }: { exercise: Exercise }) {
   const { state, allExercises, getExercise } = useStore();
-  const family = familyOf(exercise, getExercise);
 
-  const rank = useMemo(() => {
-    if (!family || !STANDARDS[family.id]) return null;
-    return exerciseRanks(state, allExercises, getExercise)
-      .find((item) => item.family === family.id) ?? null;
-  }, [state, allExercises, getExercise, family]);
-
-  if (!family || !STANDARDS[family.id]) return null;
+  /*
+   * Der Rang genau dieser Uebung - nicht der ihrer Gruppe. Schraegbankdruecken
+   * hat seinen eigenen, mit verschobenen Schwellen: Wer beides mit derselben
+   * Tabelle misst, sieht bei jeder Schraegbank einen Rueckschritt, den es
+   * nicht gibt.
+   */
+  const rank = useMemo(
+    () => exerciseRanks(state, allExercises, getExercise)
+      .find((item) => item.exerciseId === exercise.id) ?? null,
+    [state, allExercises, getExercise, exercise.id],
+  );
 
   if (!rank) {
     return (
       <div className="tiny dim">
-        {t('Diese Bewegung wird gewertet – sobald ein Satz mit Gewicht drinsteht, steht hier dein Rang.')}
+        {t('Sobald ein Satz drinsteht, steht hier dein Rang für genau diese Übung.')}
       </div>
     );
   }
+
+  const missing = rank.nextValue != null ? Math.max(0, rank.nextValue - rank.best) : null;
 
   return (
     <div className="row row--between" style={{ alignItems: 'baseline', gap: 10 }}>
       <span className="small">
         {t('Rang')}: <span className="bold">{t(TIER_LABELS[rank.tier])}</span>
-        <span className="dim">{` · ${fmt(rank.ratio, 2)}× ${t('Körpergewicht')}`}</span>
+        <span className="dim">
+          {rank.personal
+            ? ` · ${t('aus deinem eigenen Verlauf')}`
+            : ` · ${fmt(rank.ratio, 2)}× ${t('Körpergewicht')}`}
+        </span>
       </span>
-      {rank.nextKg != null && rank.nextTier && (
+      {missing != null && rank.nextTier && (
         <span className="tiny dim nowrap">
-          {t('{kg} kg bis „{tier}“', {
-            kg: fmt(Math.max(0, rank.nextKg - rank.bestKg), 1),
+          {t('{value} bis „{tier}“', {
+            value: formatValue(missing, rank.basis),
             tier: t(TIER_LABELS[rank.nextTier]),
           })}
         </span>

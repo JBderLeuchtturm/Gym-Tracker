@@ -2,6 +2,89 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Rang je Übung, eine eigene Rang-Ansicht, vierzig Erfolge, gestaltbares Profil
+
+*Branch `claude/raenge-profil`*
+
+> **Nötig nach dem Merge:** [`supabase/schema.sql`](supabase/schema.sql) einmal
+> neu im SQL-Editor ausführen. Die Tabelle `profiles` bekommt vier Spalten für
+> die Profilkarte (`bio`, `accent`, `pins`, `favorites`). Ohne den Schritt läuft
+> alles weiter, nur sehen Freunde die Karte nicht.
+
+**Von sechs auf einundzwanzig gewertete Bewegungen** – und einen Rang für *jede
+einzelne Übung*, nicht nur für die Gruppe.
+
+- Neu mit Kraftstandard: Klimmzug, Latzug, Dips, Liegestütze, Beinpresse,
+  Ausfallschritt, Hüftstoß, Trizeps, Wadenheben, Beinbeuger, Beinstrecker,
+  Schulterheben, Seitheben, Fliegende, Unterarmstütz.
+- **Nicht alles wird in Kilogramm gemessen.** Bei Klimmzügen und Dips zählt die
+  Gesamtlast einschließlich des eigenen Körpers – ein Klimmzug ohne Zusatz ist
+  genau 1,0× Körpergewicht, vorher stand dort rechnerisch null und Klimmzüge
+  kamen im Rang gar nicht vor. Liegestütze werden in Wiederholungen gewertet,
+  der Unterarmstütz in Sekunden.
+- **Die Spielart verschiebt die Schwellen.** Schrägbank läuft mit 85 Prozent des
+  flachen, Frontkniebeuge mit 80 Prozent, Handstand-Liegestütze mit 35 Prozent.
+  Rund fünfundzwanzig solcher Faktoren sind hinterlegt. Vorher sah jede
+  Schrägbank nach einem Rückschritt aus, den es nicht gab.
+- **Ohne Tabelle zählt der eigene Verlauf.** Bauchübungen, Mobilität und
+  Selbstangelegtes bekommen einen Rang aus der eigenen Entwicklung – wie viel
+  mehr du heute schaffst als beim ersten Mal, und wie oft du dran warst. Solche
+  Ränge sind gestrichelt gerahmt, damit man sie nicht mit einem Kraftstandard
+  verwechselt.
+- **Ausfallschritte sind keine Kniebeuge mehr.** „Bulgarian Split Squat" trug
+  das Wort Squat und landete in derselben Linie wie eine schwere Kniebeuge –
+  einbeinig, mit einem Bruchteil der Last. Sie haben jetzt eine eigene Gruppe.
+
+**Der Gesamtrang ist Tiefe mal Breite.** Vorher zählten untrainierte Bewegungen
+schlicht als null. Bei sechs ging das noch; bei zwanzig hätte es bedeutet, dass
+selbst ein sehr starker Mensch nie über „Geübt" hinauskommt, solange er kein
+Seitheben protokolliert. Jetzt: die *Tiefe* ist der gewichtete Schnitt über das,
+was du trainierst (Grundübungen 1,0, weitere Grundmuster 0,75, Beiwerk 0,2 bis
+0,4), die *Breite* ist `0,35 + 0,65 × √Abdeckung`. Die Breite zieht spürbar,
+erdrückt die Leistung aber nicht mehr. Die Rechnung steht in der App sichtbar da,
+statt behauptet zu werden.
+
+**Eine eigene Rang-Ansicht** (*Fortschritt → Rang → Alles ansehen*) mit fünf
+Reitern:
+
+- **Übersicht** – die Rechnung Tiefe × Breite als Formel, die drei nächsten
+  Schritte mit dem, was sie im Gesamtrang bringen, die Verteilung über die
+  Stufen, der Verlauf über die Zeit mit Stufengrenzen als Linien.
+- **Bewegungen** – alle zwanzig, aufklappbar bis auf ihre **fünf Schwellen in
+  Kilogramm** bei deinem Körpergewicht, mit Gewicht im Gesamtrang und der Übung,
+  die den Rang trägt.
+- **Übungen** – jede einzelne, nach Muskelgruppe sortiert, mit Balken, Stufe und
+  dem Faktor ihrer Spielart.
+- **Erfolge** – nach Gruppen.
+- **Vergleich** – Zustimmung und Rangliste.
+
+Das Rangfeld auf der Fortschrittsseite ist dafür wieder knapp: Stufe, Weg durch
+die Stufe, der eine nächste Schritt, ein Weg nach drinnen.
+
+**Vierzig Erfolge statt acht**, in sechs Gruppen (Kraft, Stufen, Dranbleiben,
+bewegtes Gewicht, Vielfalt, Beständigkeit) und drei Stufen (Bronze, Silber,
+Gold). Bei allem Offenen steht der Stand dabei – „2,19 von 2,50 ×", „88 von
+100 t". Weiterhin abgeleitet und nirgends gespeichert.
+
+**Das Profil ist gestaltbar.** Statt einer Sammlung von Zahlen gibt es eine
+Karte: ein Band in einer von acht Farben, ein selbst gewähltes Zeichen aus
+zwanzig, dein Name, zwei Zeilen über dich, dein Rang, deine Zahlen – und **vier
+Erfolge und vier Lieblingsübungen, die du selbst anheftest**. Vier, nicht
+beliebig viele: Eine Auswahl ohne Grenze ist keine Auswahl.
+
+**Freunde sehen genau diese Karte.** Die Freundesliste sind jetzt Karten statt
+Zeilen – eine Zeile mit Emoji und Namen sagt nichts darüber, wer da steht.
+Übertragen werden dafür nur Text, Farbe, Zeichen und die *Namen* der
+angehefteten Dinge; ein Trainingswert steckt in nichts davon, und die Tabelle
+hat dafür auch keine Spalte.
+
+**Tests.** Der Rang-Lauf prüft jetzt die Vollansicht: dass die Formel Tiefe ×
+Breite dasteht, dass alle einundzwanzig Bewegungen gelistet sind und eine davon ihre
+fünf Schwellen aufklappt, dass jede Übung eine eigene Stufe hat und dass
+mindestens dreißig Erfolge mit Stand angezeigt werden. Dazu neue Prüfungen ohne
+Browser für die neuen Messgrößen, den Spielart-Faktor, Tiefe und Breite und den
+Rang aus dem eigenen Verlauf.
+
 ## Feste Leisten, aufgeräumte Abstände, ein Rang zum Weitermachen
 
 *Branch `claude/layout-fixes`*

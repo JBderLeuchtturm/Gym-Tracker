@@ -146,7 +146,7 @@ export async function run() {
     await b.page.getByRole('button', { name: 'Abgleichen' }).click();
     await b.page.waitForTimeout(1500);
     await openFriendList(b.page);
-    await b.page.locator('.search-result').first().click();
+    await b.page.locator('.friend-card').first().click();
     await b.page.waitForTimeout(900);
     // Beschriftungen der Kennzahlen stehen in Grossbuchstaben - unabhaengig pruefen.
     const text = await b.page.locator('.modal').innerText();
@@ -169,7 +169,7 @@ export async function run() {
   
   await guarded('A: gibt zusätzlich Gewicht frei', async () => {
     await openFriendList(a.page);
-    await a.page.locator('.search-result').first().click();
+    await a.page.locator('.friend-card').first().click();
     await a.page.waitForTimeout(700);
     await a.page.getByRole('button', { name: 'Was ich zeige' }).click();
     await a.page.waitForTimeout(400);
@@ -189,7 +189,7 @@ export async function run() {
     await b.page.getByRole('button', { name: 'Abgleichen' }).click();
     await b.page.waitForTimeout(1500);
     await openFriendList(b.page);
-    await b.page.locator('.search-result').first().click();
+    await b.page.locator('.friend-card').first().click();
     await b.page.waitForTimeout(900);
     const text = await b.page.locator('.modal').innerText();
     if (!text.includes('Körpergewicht')) throw new Error('Gewicht fehlt trotz Freigabe');
@@ -253,7 +253,7 @@ export async function run() {
     await b.page.locator('.nav__item').nth(4).click();
     await b.page.waitForTimeout(600);
     await openFriendList(b.page);
-    await b.page.locator('.search-result').first().click();
+    await b.page.locator('.friend-card').first().click();
     await b.page.waitForTimeout(700);
     await b.page.getByRole('button', { name: 'Was ich zeige' }).click();
     await b.page.waitForTimeout(300);

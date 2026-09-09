@@ -18,6 +18,17 @@ create table if not exists public.profiles (
   updated_at   timestamptz not null default now()
 );
 
+-- Die Profilkarte: was Freunde von einem sehen.
+--
+-- Ausdruecklich nichts davon ist ein Trainingswert. Zwei Zeilen Text, eine
+-- Farbe und die Namen der Dinge, auf die man stolz ist - keine Gewichte, kein
+-- Koerpergewicht, kein Eintrag. Wer die Karte sieht, weiss deshalb nicht mehr
+-- ueber das Training als vorher.
+alter table public.profiles add column if not exists bio       text  not null default '';
+alter table public.profiles add column if not exists accent    text  not null default 'messing';
+alter table public.profiles add column if not exists pins      jsonb not null default '[]'::jsonb;
+alter table public.profiles add column if not exists favorites jsonb not null default '[]'::jsonb;
+
 -- Der vollstaendige App-Zustand fuer die Synchronisierung zwischen Geraeten.
 -- Streng privat: niemand ausser dem Konto selbst kommt hier heran.
 create table if not exists public.user_state (
