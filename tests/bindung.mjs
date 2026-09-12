@@ -182,19 +182,19 @@ export async function run() {
 
   await runner.step('Lange Erklärungen bleiben zu, bis man sie antippt', async () => {
     await openTab(home.page, 'Rang');
-    const hint = home.page.locator('.hint', { hasText: 'Tiefe' });
-    if (await hint.count() === 0) throw new Error('Kein Hinweis zur Rangformel');
-    if (await hint.locator('.hint__detail').count() > 0) throw new Error('Detail war schon offen');
+    const toggle = home.page.locator('.formula-toggle');
+    if (await toggle.count() === 0) throw new Error('Kein Hinweis zur Rangformel');
+    if (await home.page.locator('.formula-detail').count() > 0) throw new Error('Detail war schon offen');
 
-    await hint.locator('.hint__toggle').click();
+    await toggle.click();
     await home.page.waitForTimeout(200);
-    const detail = hint.locator('.hint__detail');
+    const detail = home.page.locator('.formula-detail');
     if (await detail.count() === 0) throw new Error('Detail öffnete nicht');
     if (!/Grundübungen/.test(await detail.innerText())) throw new Error('Falscher Text im Detail');
 
-    await hint.locator('.hint__toggle').click();
+    await toggle.click();
     await home.page.waitForTimeout(200);
-    if (await hint.locator('.hint__detail').count() > 0) throw new Error('Detail schloss nicht wieder');
+    if (await home.page.locator('.formula-detail').count() > 0) throw new Error('Detail schloss nicht wieder');
   });
 
   await home.ctx.close();
