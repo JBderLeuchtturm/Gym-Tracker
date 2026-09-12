@@ -2,6 +2,51 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## UI/UX-Durchsicht mit dem ui-ux-pro-max-Skill
+
+*Branch `claude/ui-ux-durchsicht`*
+
+Angefragt war ein kompletter Neuentwurf der Oberfläche mit Hilfe des
+`ui-ux-pro-max`-Skills. Die Durchsicht der bestehenden `styles.css` zeigte
+aber: Die App hat bereits ein durchdachtes, eigenes Gestaltungssystem (siehe
+„Gestaltung" weiter unten) - warme Graustufen, ein einziger Akzent, Haarlinien
+statt Schatten, WCAG-AA-Kontraste, Fokusringe, Skip-Link,
+`prefers-reduced-motion`, Tabellenfassungen für Diagramme. Ein generischer
+Ersatz (Inter-Schrift, Slate-Hintergrund, Cyan-Akzent - der Vorschlag des
+Skills für „Dashboard, Dunkelmodus") hätte das gegen etwas Generischeres
+eingetauscht. Statt eines Neubaus lief deshalb eine Durchsicht gegen die 119
+UX-Regeln des Skills (Priorität: Bedienung > Touch-Ziele > Layout >
+Typografie/Farbe > Bewegung > Formulare > Navigation > Diagramme), mit dem
+Ziel, echte Lücken zu finden und die Gestaltung sonst unverändert zu lassen.
+
+**Gefunden und behoben:**
+
+- **Symbolknöpfe waren zu klein zum Treffen.** `.btn--icon` maß etwa 32×32 px -
+  unter dem empfohlenen Mindestmaß von 44×44 px für eine App, die mit
+  verschwitzten oder behandschuhten Fingern bedient wird. Jetzt 40×40 px (volle
+  44 px hätten die dichte Symbolzeile an einer Planzeile zum Umbruch
+  gezwungen - 40 px ist der Kompromiss, der dort noch passt).
+- **Die Pfeile der Tagesleiste** waren nur 26 px breit, obwohl sie zu den am
+  häufigsten angetippten Steuerelementen gehören. Jetzt 40 px.
+- **Die fünf Symbolknöpfe an einer Planübung** quetschten bei schmalen
+  Telefonen entweder den Übungsnamen oder sich selbst zusammen. Die Zeile
+  fällt jetzt bei Platzmangel in eine eigene Zeile unter den Namen
+  (`row--wrap`), statt beides zu stauchen - geprüft mit einem echten 375-px-
+  Layout, nicht nur überschlagen.
+- **Balken- und gestapelte Balkendiagramme reagierten nur auf Maus-Hover**, nie
+  auf Antippen - auf einer Oberfläche, die fast ausschließlich per Touch
+  bedient wird, waren die genauen Werte pro Balken damit für die meisten
+  Nutzenden unerreichbar. Beide Diagrammtypen tippen jetzt genauso wie das
+  Liniendiagramm es schon konnte.
+
+**Bewusst nicht verändert:** die Kachel-Wischgeste an einer Satzzeile bleibt
+ohne sichtbaren Hinweis (Chevron o. Ä.) - der Haken daneben deckt dieselbe
+Funktion sichtbar ab, und ein Hinweis nur für eine Bonus-Geste hätte die
+Zeile überfrachtet. Ebenso blieb die Bedienungsdichte im Planeditor
+(fünf Symbolknöpfe pro Übungszeile) erhalten, statt sie in ein
+Überlauf-Menü zu verschieben - das ist ein Bearbeitungsbildschirm, kein
+Bildschirm unter Zeitdruck im Studio.
+
 ## Bronze bis Elite: Ränge mit Divisionen, Verfall und eigenem Reiter
 
 *Branch `claude/rocket-raenge`*
