@@ -55,6 +55,12 @@ export async function run() {
   await runner.step('Umschalten auf Deutsch wirkt sofort', async () => {
     await page.locator('.nav__item').nth(5).click();
     await page.waitForTimeout(600);
+    // Sprache liegt seit der Umgestaltung hinter Settings -> General statt
+    // offen auf der Profilseite.
+    await page.locator('.big-link', { hasText: 'Settings' }).click();
+    await page.waitForTimeout(300);
+    await page.locator('.big-link', { hasText: 'General' }).click();
+    await page.waitForTimeout(300);
     const select = page.locator('select').filter({ hasText: 'Deutsch' }).first();
     await select.selectOption('de');
     await page.waitForTimeout(900);

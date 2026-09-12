@@ -14,12 +14,12 @@ import { GroupsSection } from './friends/GroupsSection';
 import { ChallengesSection } from './friends/ChallengesSection';
 import { notificationPermission, requestNotifications } from '../sync/notify';
 import { buildInviteLink } from '../sync/invite';
-import { formatClock, formatDateShort, formatDateTiny } from '../lib/date';
+import { formatClock, formatDateShort, formatDateTiny, todayISO } from '../lib/date';
 import { BarChart, LineChart, Sparkline } from '../components/charts/Charts';
 import { EmptyState, Modal, Stat, fmt, useToast } from '../components/ui';
 import {
-  IconBell, IconCheck, IconChevronRight, IconCopy, IconPlus, IconRefresh,
-  IconTrash, IconTrophy, IconUser, IconUsers, IconX,
+  IconBell, IconCheck, IconChevronRight, IconCopy, IconFlame, IconPlus, IconRefresh,
+  IconSearch, IconTrash, IconTrophy, IconUser, IconUsers, IconX,
 } from '../components/icons';
 import { FriendProfileCard } from '../components/ProfileCard';
 
@@ -435,11 +435,34 @@ function FriendsHome() {
   const [open, setOpen] = useState<Friend | null>(null);
   const [editing, setEditing] = useState(false);
   const [section, setSection] = useState<'feed' | 'friends' | 'groups' | 'challenges'>('feed');
+  const [query, setQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'rank' | 'active' | 'name'>('rank');
   const friendData = sync.friendData;
 
   const accepted = useMemo(() => sync.friends.filter((f) => f.state === 'accepted'), [sync.friends]);
   const incoming = useMemo(() => sync.friends.filter((f) => f.state === 'incoming'), [sync.friends]);
   const outgoing = useMemo(() => sync.friends.filter((f) => f.state === 'outgoing'), [sync.friends]);
+
+  /*
+   * Ab ein paar Freunden lohnt sich Suchen und Sortieren - bei zwei oder drei
+   * findet man ohnehin alles auf einen Blick, dann waere die Leiste nur
+   * Ballast.
+   */
+  const visibleFriends = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const filtered = needle
+      ? accepted.filter((friend) => (
+        friend.displayName.toLowerCase().includes(needle) || friend.handle.toLowerCase().includes(needle)
+      ))
+      : accepted;
+    const scoreOf = (friend: Friend) => sync.rankBoard.find((row) => row.user_id === friend.userId)?.score ?? -1;
+    const activeOf = (friend: Friend) => friendData[friend.userId]?.progress?.totals.lastWorkoutDate ?? '';
+    const sorted = [...filtered];
+    if (sortBy === 'rank') sorted.sort((a, b) => scoreOf(b) - scoreOf(a));
+    else if (sortBy === 'active') sorted.sort((a, b) => activeOf(b).localeCompare(activeOf(a)));
+    else sorted.sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'));
+    return sorted;
+  }, [accepted, query, sortBy, sync.rankBoard, friendData]);
 
   const myProgress = useMemo(
     () => buildProgressShare(state, getExercise),
@@ -691,11 +714,45 @@ function FriendsHome() {
             * zeigt Farbe, Zeichen, zwei Zeilen Text und die Dinge, auf die
             * jemand stolz ist.
             */}
-          <div className="section-label">{t('Freunde ({count})', { count: accepted.length })}</div>
+          <div className="row row--between" style={{ flexWrap: 'wrap', gap: 8 }}>
+            <div className="section-label">{t('Freunde ({count})', { count: accepted.length })}</div>
+            {accepted.length > 3 && (
+              <div className="row" style={{ gap: 6 }}>
+                <select
+                  className="select select--sm"
+                  aria-label={t('Sortieren nach')}
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
+                >
+                  <option value="rank">{t('Nach Rang')}</option>
+                  <option value="active">{t('Zuletzt aktiv')}</option>
+                  <option value="name">{t('Nach Name')}</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          {accepted.length > 3 && (
+            <div className="row" style={{ gap: 8 }}>
+              <IconSearch style={{ width: 15, height: 15, color: 'var(--text-dim)', flexShrink: 0 }} />
+              <input
+                className="input"
+                placeholder={t('Freund suchen …')}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
+          )}
+
+          {visibleFriends.length === 0 && (
+            <EmptyState title={t('Niemand gefunden')} hint={t('Anderen Suchbegriff versuchen.')} />
+          )}
+
           <div className="friend-cards">
-            {accepted.map((friend) => {
+            {visibleFriends.map((friend) => {
               const data = friendData[friend.userId];
               const last = data?.progress?.totals.lastWorkoutDate;
+              const trainedToday = last === todayISO();
               const board = sync.rankBoard.find((row) => row.user_id === friend.userId);
               return (
                 <button
@@ -704,6 +761,11 @@ function FriendsHome() {
                   onClick={() => setOpen(friend)}
                   aria-label={t('Profil von {name} öffnen', { name: friend.displayName })}
                 >
+                  {trainedToday && (
+                    <span className="friend-card__today">
+                      <IconFlame /> {t('heute trainiert')}
+                    </span>
+                  )}
                   <FriendProfileCard
                     friend={friend}
                     score={board?.score ?? null}
