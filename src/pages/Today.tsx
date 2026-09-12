@@ -102,6 +102,12 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
   const [record, setRecord] = useState<{ name: string; record: NewRecord } | null>(null);
   const [flashSet, setFlashSet] = useState<string | null>(null);
   const [decayDismissed, setDecayDismissed] = useState(false);
+  /**
+   * Wer eine Karte von Hand auf- oder zugeklappt hat, meint das so - erst
+   * ohne Eintrag hier folgt eine Karte dem berechneten Vorschlag (naechste
+   * offene Uebung), der sich beim Abhaken von selbst weiterschiebt.
+   */
+  const [openOverrides, setOpenOverrides] = useState<Record<string, boolean>>({});
   const [recap, setRecap] = useState<SessionRecap | null>(null);
   /* Wie viele Bestleistungen seit dem Start dieser Einheit - fuer den Abschluss. */
   const recordsThisSessionRef = useRef(0);
@@ -736,8 +742,27 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
         />
       )}
 
+      {/*
+        * Nur die naechste offene Uebung klappt beim Laden auf - sonst zeigt
+        * ein Trainingstag mit fuenf Uebungen fuenf volle Satztabellen auf
+        * einmal, bevor ueberhaupt ein Satz gemacht wurde. Ein Supersatz klappt
+        * als Gruppe auf, weil man beide Uebungen im selben Durchgang macht.
+        */}
+      {(() => {
+        const firstOpenIndex = rows.findIndex((row) => {
+          if (row.logged?.skipped) return false;
+          const done = row.sets.filter(countsAsWork).length;
+          const totalTarget = row.planExercise?.targetSets ?? row.sets.length;
+          return !(totalTarget > 0 && done >= totalTarget);
+        });
+        const activeGroupId = firstOpenIndex >= 0 ? rows[firstOpenIndex].groupId : null;
+
+        return (
       <div className="list">
         {rows.map((row, index) => {
+          const defaultOpen = index === firstOpenIndex
+            || (activeGroupId != null && row.groupId === activeGroupId);
+          const isOpen = openOverrides[row.key] ?? defaultOpen;
           // Beim Supersatz: in welchem Durchgang steht die Gruppe? Der Durchgang
           // ist so weit, wie die schwaechste Uebung der Gruppe abgehakt ist.
           const group = row.groupId ? rows.filter((item) => item.groupId === row.groupId) : null;
@@ -770,10 +795,14 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
             onStartRest={startRest}
             onMove={(direction) => moveRow(index, direction)}
             onToggleSuperset={() => toggleSuperset(index)}
+            open={isOpen}
+            onToggleOpen={() => setOpenOverrides((prev) => ({ ...prev, [row.key]: !isOpen }))}
           />
           );
         })}
       </div>
+        );
+      })()}
 
       <button className="btn btn--primary btn--block" onClick={() => setPickerOpen(true)}>
         <IconPlus /> {t('Übung hinzufügen')}
@@ -1007,6 +1036,7 @@ function WeekStrip({
 function ExerciseCard({
   row, rank, index, total, date, sortMode, groupedWithAbove, groupRound, groupTotal, flashSet,
   onToggleSet, onUpdate, onAddSet, onRemove, onToggleSkip, onOpenDetail, onSwap, onStartRest, onMove, onToggleSuperset,
+  open, onToggleOpen,
 }: {
   row: Row;
   /** Der Rang genau dieser Uebung - steht als Abzeichen an der Karte. */
@@ -1031,6 +1061,13 @@ function ExerciseCard({
   onToggleSuperset: () => void;
   /** Satz, an dem gerade eine Bestleistung passiert ist. */
   flashSet?: string | null;
+  /**
+   * Aufgeklappt oder nicht - vom Elternteil berechnet, damit sich das
+   * beim Abhaken von selbst zur naechsten offenen Uebung weiterschiebt,
+   * solange niemand von Hand etwas anderes eingestellt hat.
+   */
+  open: boolean;
+  onToggleOpen: () => void;
 }) {
   const { state, snapshot, replaceState } = useStore();
   const toast = useToast();
@@ -1045,7 +1082,6 @@ function ExerciseCard({
   );
 
   const doneSets = row.sets.filter(countsAsWork).length;
-  const [open, setOpen] = useState(doneSets === 0);
   /** Welcher Satz zeigt gerade seine Zusatzzeile (Notiz, Partner)? */
   const [openSet, setOpenSet] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -1246,7 +1282,7 @@ function ExerciseCard({
         </div>
       )}
 
-      <div className="exercise__head" onClick={() => setOpen(!open)}>
+      <div className="exercise__head" onClick={onToggleOpen}>
         {/*
           * Das Abzeichen der Uebung. Klein und ohne Text: Wer beim Training
           * darauf schaut, will es erkennen, nicht lesen.

@@ -2,6 +2,33 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Nur die nächste Übung klappt auf
+
+*Branch `claude/ui-informationsdichte`*
+
+Rückmeldung nach der letzten Durchsicht: Die Startseite wirkte trotzdem wie
+ein Prototyp - zu viel auf einmal, statt Informationen erst dann zu zeigen,
+wenn man sie sucht. Ein Blick mit echten Trainingsdaten (statt eines leeren
+Kontos) zeigte den Grund: Jede Übung, an der noch nichts abgehakt war, klappte
+beim Laden der Seite von selbst auf. An einem Trainingstag mit fünf Übungen
+bedeutete das fünf volle Satztabellen gleichzeitig - jede mit denselben
+Standardwerten in jeder Zeile ("6, 6, 6, 6"), bevor überhaupt ein Satz gemacht
+wurde.
+
+Jetzt klappt beim Laden nur die nächste offene Übung auf (bei einem Supersatz
+die ganze Gruppe); der Rest steht als kompakte Zeile mit Name, Zielwert und
+letzter Leistung darunter - alles, was man vorher sieht, ohne die Karte zu
+öffnen. Sobald die offene Übung fertig ist, rückt automatisch die nächste
+nach, ohne dass man sie von Hand aufklappen muss. Wer eine Karte trotzdem von
+Hand auf- oder zuklappt, dem bleibt das erhalten - die Automatik greift nur,
+solange niemand das Gegenteil eingestellt hat.
+
+Die übrigen Hauptseiten wurden mit denselben Daten mitgeprüft: Fortschritt,
+Profil/Einstellungen und die Kalorienseite gliedern bereits in benannte
+Abschnitte, verstecken Nebensächliches (Ausrüstung, eigene Übungen,
+Kalorienerfassung) hinter eigenen Unterseiten und zeigen die eine wichtige
+Zahl zuerst (Budget heute, Muskelkarte). Dort wurde nichts geändert.
+
 ## Ausdrückliche Null: mit dem eigenen Körpergewicht gearbeitet
 
 *Branch `claude/koerpergewicht-only`*
