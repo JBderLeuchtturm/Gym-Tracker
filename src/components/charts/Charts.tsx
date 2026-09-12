@@ -306,7 +306,17 @@ export function BarChart({
 
   return (
     <div ref={ref} style={{ position: 'relative', width: '100%' }}>
-      <svg width={width} height={height} aria-hidden="true" onMouseLeave={() => setHover(null)}>
+      <svg
+        width={width}
+        height={height}
+        aria-hidden="true"
+        onMouseLeave={() => setHover(null)}
+        onTouchStart={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const x = event.touches[0].clientX - rect.left - offset;
+          setHover(Math.min(points.length - 1, Math.max(0, Math.floor(x / slot))));
+        }}
+      >
         {ticks.map((tick) => (
           <g key={tick}>
             <line
@@ -447,7 +457,17 @@ export function StackedBarChart({
 
   return (
     <div ref={ref} style={{ position: 'relative', width: '100%' }}>
-      <svg width={width} height={height} aria-hidden="true" onMouseLeave={() => setHover(null)}>
+      <svg
+        width={width}
+        height={height}
+        aria-hidden="true"
+        onMouseLeave={() => setHover(null)}
+        onTouchStart={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const x = event.touches[0].clientX - rect.left - padding.left;
+          setHover(Math.min(points.length - 1, Math.max(0, Math.floor(x / slot))));
+        }}
+      >
         {ticks.map((tick) => (
           <g key={tick}>
             <line

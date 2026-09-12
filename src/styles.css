@@ -459,7 +459,13 @@ p { margin: 0 0 0.6em; }
   background: var(--accent-soft);
   border-style: solid;
 }
-.btn--icon { padding: 8px; border-radius: var(--radius-sm); }
+/*
+ * 40x40 statt 32x32 - kleine Symbolknoepfe sind der haeufigste Fehlgriff mit
+ * feuchten oder behandschuhten Fingern. Volle 44px wuerden die dichte Reihe an
+ * einer Planzeile (fuenf Symbolknoepfe nebeneinander) zum Umbruch zwingen;
+ * 40px ist der Kompromiss, der dort noch passt.
+ */
+.btn--icon { padding: 10px; min-width: 40px; min-height: 40px; border-radius: var(--radius-sm); }
 
 /* ---------------------------------------------------------------- Inputs */
 
@@ -825,7 +831,7 @@ p { margin: 0 0 0.6em; }
 /* Sieben Tage, links und rechts ein Pfeil fuer die Woche davor und danach. */
 .day-strip {
   display: grid;
-  grid-template-columns: 26px repeat(7, 1fr) 26px;
+  grid-template-columns: 40px repeat(7, 1fr) 40px;
   gap: 5px;
   /*
    * Sieben Tage brauchen auf einem breiten Fenster nicht mehr Platz als auf

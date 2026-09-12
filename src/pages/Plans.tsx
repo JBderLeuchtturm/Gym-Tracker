@@ -445,8 +445,15 @@ function PlanEditor({
                     const exercise = getExercise(planExercise.exerciseId);
                     return (
                       <div key={planExercise.id} className="card" style={{ background: 'var(--surface-2)', padding: 11 }}>
-                        <div className="row row--between">
-                          <div style={{ flex: 1, minWidth: 0 }}>
+                        {/*
+                          * Fuenf Symbolknoepfe brauchen mit ausreichend grosser
+                          * Trefferflaeche (40px) mehr Platz, als auf einem
+                          * schmalen Telefon neben dem Uebungsnamen frei bleibt.
+                          * "row--wrap" laesst sie dann in eine eigene Zeile
+                          * fallen, statt Namen oder Knoepfe zusammenzudruecken.
+                          */}
+                        <div className="row row--between row--wrap" style={{ rowGap: 8 }}>
+                          <div style={{ flex: 1, minWidth: 180 }}>
                             <div className="bold small">{exercise?.name ?? 'Unbekannte Übung'}</div>
                             <div className="tiny dim">
                               {exercise ? t(CATEGORY_LABELS[exercise.category]) : ''}
@@ -458,7 +465,7 @@ function PlanEditor({
                               {planExercise.restSec ? ` · ${planExercise.restSec}s Pause` : ''}
                             </div>
                           </div>
-                          <div className="row" style={{ gap: 3 }}>
+                          <div className="row" style={{ gap: 6 }}>
                             <button className="btn btn--ghost btn--icon btn--sm" onClick={() => move(index, -1)} disabled={index === 0} aria-label={t("Nach oben")}>
                               <IconChevronDown style={{ transform: 'rotate(180deg)' }} />
                             </button>
