@@ -28,7 +28,19 @@ export const isBodyweight = (kind: ExerciseKind | undefined): boolean =>
   kind === 'bodyweight';
 
 /**
- * "82,5 kg × 8", "9 Wdh", "+10 kg × 9".
+ * Wurde hier bewusst ohne Zusatzgewicht gearbeitet?
+ *
+ * Eine eingetragene Null ist etwas anderes als ein leeres Feld: Die Null sagt
+ * "Ausfallschritte nur mit meinem Koerpergewicht", das leere Feld sagt "steht
+ * nicht drin". Vorher sahen beide gleich aus.
+ */
+export const isOwnWeightOnly = (
+  weightKg: number | null | undefined,
+  kind?: ExerciseKind,
+): boolean => !isBodyweight(kind) && weightKg === 0;
+
+/**
+ * "82,5 kg × 8", "9 Wdh", "+10 kg × 9", "Körpergewicht × 12".
  * Ohne Wiederholungen bleibt nur das Gewicht stehen.
  */
 export function formatSet(
@@ -44,6 +56,11 @@ export function formatSet(
     return count > 0 ? `${count} Wdh` : '–';
   }
 
+  // Ausdrueckliche Null: mit dem eigenen Koerpergewicht gearbeitet.
+  if (isOwnWeightOnly(weightKg, kind)) {
+    return count > 0 ? `Körpergewicht × ${count}` : 'Körpergewicht';
+  }
+
   if (weight <= 0) return count > 0 ? `${count} Wdh` : '–';
   return count > 0 ? `${kg(weight)} × ${count}` : kg(weight);
 }
@@ -55,5 +72,6 @@ export function formatWeight(
 ): string {
   const weight = weightKg ?? 0;
   if (isBodyweight(kind)) return weight > 0 ? `+${kg(weight)}` : 'Körpergewicht';
+  if (isOwnWeightOnly(weightKg, kind)) return 'Körpergewicht';
   return weight > 0 ? kg(weight) : '–';
 }

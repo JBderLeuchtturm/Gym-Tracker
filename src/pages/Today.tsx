@@ -11,7 +11,7 @@ import {
 } from '../lib/ranks';
 import { RankBadge } from '../components/RankBadge';
 import { formatValue } from '../components/Ranks';
-import { formatSet } from '../lib/setFormat';
+import { formatSet, isOwnWeightOnly } from '../lib/setFormat';
 import { detectRecord, suggestWeight, warmupSets, type NewRecord } from '../lib/coaching';
 import { cycleLabel, cycleWeight, isDeload } from '../lib/cycle';
 import {
@@ -1197,6 +1197,12 @@ function ExerciseCard({
   const skipped = Boolean(row.logged?.skipped);
   const totalTarget = target?.targetSets ?? row.sets.length;
   const allDone = !skipped && doneSets >= totalTarget && totalTarget > 0;
+
+  /** Wurde hier bewusst ohne Zusatzgewicht gearbeitet? Dann steht das da. */
+  const ownWeightOnly = !isTimed && row.sets.some(
+    (set) => !set.isWarmup && isOwnWeightOnly(set.weightKg, row.exercise?.kind),
+  );
+
   const accent = row.exercise ? categoryColor(row.exercise.category) : 'var(--border)';
 
   return (
@@ -1298,6 +1304,13 @@ function ExerciseCard({
       <div className={`reveal ${open ? 'reveal--open' : ''}`}>
       <div className="reveal__inner">
         <div className="exercise__body">
+          {/* Ohne Zusatzgewicht gearbeitet - das ist eine Angabe, keine fehlende. */}
+          {ownWeightOnly && (
+            <div className="row row--wrap tiny" style={{ gap: 6, padding: '10px 0 0' }}>
+              <span className="chip chip--accent">{t('Körpergewicht')}</span>
+            </div>
+          )}
+
           {previous && (
             <div className="row row--wrap tiny" style={{ gap: 6, padding: '10px 0 2px' }}>
               <span className="chip">Letztes Mal: {summarizeSets(previous.sets, isTimed, row.exercise?.kind)}</span>
@@ -1446,9 +1459,16 @@ function ExerciseCard({
               <div className="set-steppers">
                 <div className="set-steppers__group">
                   <button className="set-steppers__btn" onClick={() => bumpSet(set, 'weightKg', -kgStep)} aria-label={t('Gewicht verringern')}>−</button>
+                  {/* Null heisst hier ausdruecklich: nur das eigene Gewicht. */}
                   <span className="set-steppers__val">
-                    {set.weightKg != null ? fmt(set.weightKg, set.weightKg % 1 ? 1 : 0) : '–'}
-                    <span className="set-steppers__unit"> kg</span>
+                    {isOwnWeightOnly(set.weightKg, row.exercise?.kind) ? (
+                      <span className="set-steppers__own">{t('Körpergewicht')}</span>
+                    ) : (
+                      <>
+                        {set.weightKg != null ? fmt(set.weightKg, set.weightKg % 1 ? 1 : 0) : '–'}
+                        <span className="set-steppers__unit"> kg</span>
+                      </>
+                    )}
                   </span>
                   <button className="set-steppers__btn" onClick={() => bumpSet(set, 'weightKg', kgStep)} aria-label={t('Gewicht erhöhen')}>+</button>
                 </div>

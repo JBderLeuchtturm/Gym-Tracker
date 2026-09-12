@@ -2,6 +2,24 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Ausdrückliche Null: mit dem eigenen Körpergewicht gearbeitet
+
+*Branch `claude/koerpergewicht-only`*
+
+Bei Übungen mit optionalem Zusatzgewicht (Ausfallschritte, Dips, Klimmzüge mit
+Gürtel) sah eine eingetragene Null bisher genauso aus wie ein leeres Feld -
+beides zeigte „–". Eine Null ist aber eine Angabe: „heute nur mit dem eigenen
+Körpergewicht", nicht „nichts eingetragen". Jetzt unterscheidet
+`isOwnWeightOnly()` in `setFormat.ts` die beiden Fälle einmal, und der
+Rechner sowie „Letztes Mal" zeigen „Körpergewicht" statt „0 kg".
+
+Portiert von `claude/erste-version`, wo diese Funktion zusammen mit einer
+eigenen Skip-Implementierung und einem `INTAKE_ENABLED=false`-Schalter
+entstanden war. Die beiden anderen Teile wurden nicht übernommen: Der
+Hauptbranch hat bereits eine eigene, andere Umsetzung von „Satz/Übung
+überspringen", und die Kalorienerfassung sollte laut Hauptbranch nicht
+abgeschaltet werden.
+
 ## UI/UX-Durchsicht mit dem ui-ux-pro-max-Skill
 
 *Branch `claude/ui-ux-durchsicht`*
