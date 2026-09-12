@@ -103,6 +103,12 @@ export async function run() {
   await runner.step('Wochenziele lassen sich im Profil ändern', async () => {
     await page.locator('.nav__item', { hasText: 'Profil' }).first().click();
     await page.waitForTimeout(600);
+    // Einstellungen stehen seit der Umgestaltung hinter einem eigenen Knopf
+    // mit Kategorien, nicht mehr offen auf der Profilseite.
+    await page.locator('.big-link', { hasText: 'Einstellungen' }).click();
+    await page.waitForTimeout(300);
+    await page.locator('.big-link', { hasText: 'Training & Studio' }).click();
+    await page.waitForTimeout(300);
     await page.locator('.btn', { hasText: 'Wochenziele je Muskelgruppe' }).click();
     await page.waitForSelector('.modal');
     await page.locator('.modal .row', { hasText: 'Brust' }).locator('input').first().fill('16');
@@ -112,6 +118,12 @@ export async function run() {
     if (state.settings.weeklySetTargets.chest !== 16) {
       throw new Error(JSON.stringify(state.settings.weeklySetTargets));
     }
+    // Zurueck auf die Profilseite, damit nachfolgende Schritte nicht in den
+    // Einstellungen-Unterseiten stehenbleiben.
+    await page.locator('.btn', { hasText: 'Zurück zu Einstellungen' }).click();
+    await page.waitForTimeout(200);
+    await page.locator('.btn', { hasText: 'Zurück zum Profil' }).click();
+    await page.waitForTimeout(300);
   });
 
   await runner.step('Körpermaße werden gespeichert', async () => {

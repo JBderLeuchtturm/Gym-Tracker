@@ -88,6 +88,11 @@ export async function run() {
   await runner.step('Export warnt, dass Fotos nicht mitkommen', async () => {
     await page.locator('.nav__item', { hasText: 'Profil' }).first().click();
     await page.waitForTimeout(600);
+    // Export liegt seit der Umgestaltung hinter Einstellungen -> Daten & Sicherung.
+    await page.locator('.big-link', { hasText: 'Einstellungen' }).click();
+    await page.waitForTimeout(300);
+    await page.locator('.big-link', { hasText: 'Daten & Sicherung' }).click();
+    await page.waitForTimeout(300);
     const text = await page.locator('.page').innerText();
     if (!/Fortschrittsfotos sind nicht dabei/.test(text)) throw new Error('Kein Hinweis beim Export');
   });

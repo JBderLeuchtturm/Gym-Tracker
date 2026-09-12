@@ -1493,4 +1493,28 @@ export const EN: Record<string, string> = {
   'Eine Messung, kein Urteil.': 'A measurement, not a verdict.',
   'Die Schwellen sind gerundete Richtwerte aus öffentlich verbreiteten Kraftstandard-Tabellen; sie schwanken je nach Quelle und sagen nichts über Technik, Hebelverhältnisse oder Alter. Sie taugen für „wo stehe ich ungefähr“ und für den Vergleich mit Leuten, die dieselbe Tabelle benutzen.': 'The thresholds are rounded estimates from publicly available strength-standard tables; they vary by source and say nothing about technique, leverage, or age. They\'re good for "roughly where do I stand" and for comparing with people using the same table.',
   'Für jede Bewegung wird das beste geschätzte Ein-Wiederholungs-Maximum durch dein Körpergewicht geteilt. Bei Klimmzügen und Dips zählt die Gesamtlast einschließlich des eigenen Körpers, bei Liegestützen die Wiederholungen, beim Unterarmstütz die Zeit.': 'For each movement, the best estimated one-rep max is divided by your body weight. For pull-ups and dips the total load including your own body counts, for push-ups the reps, for the plank the time.',
+
+  /* ------------------------------------------------- Einstellungen gebündelt */
+  'Sprache, Studio, Übungen, Erinnerungen, Daten': 'Language, gym gear, exercises, reminders, data',
+  'Zurück zu Einstellungen': 'Back to settings',
+  'Allgemein': 'General',
+  'Sprache, Erscheinungsbild, Übungsdatenbank': 'Language, appearance, exercise database',
+  'Training & Studio': 'Training & gym',
+  'Pausenuhr, Hantelstange, RIR/RPE, Wochenziele, Geräte': 'Rest timer, barbell, RIR/RPE, weekly targets, equipment',
+  'Eigene Übungen': 'Custom exercises',
+  'Selbst angelegte und aus wger geladene Übungen verwalten': 'Manage exercises you created or loaded from wger',
+  'Erinnerung & Wetter': 'Reminder & weather',
+  'Trainingstag-Erinnerung, Kalenderexport, Wetter draußen': 'Workout-day reminder, calendar export, weather outdoors',
+  'Daten & Sicherung': 'Data & backup',
+  'Export, Import, Sicherung am Konto, Zurücksetzen': 'Export, import, account backup, reset',
+
+  /* --------------------------------------------------------- Freunde-Liste */
+  'Sortieren nach': 'Sort by',
+  'Nach Rang': 'By rank',
+  'Zuletzt aktiv': 'Last active',
+  'Nach Name': 'By name',
+  'Freund suchen …': 'Search friends …',
+  'Niemand gefunden': 'No one found',
+  'Anderen Suchbegriff versuchen.': 'Try a different search term.',
+  'heute trainiert': 'trained today',
 };

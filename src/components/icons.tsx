@@ -158,3 +158,12 @@ export const IconBook = (p: IconProps) => (
 export const IconSkip = (p: IconProps) => (
   <Base {...p}><path d="M6 6l7 6-7 6zM17 5v14" /></Base>
 );
+/** Drei Regler statt eines Zahnrads - eindeutiger in wenigen Strichen. */
+export const IconSettings = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M3 7h9M17 7h4M3 12h3M11 12h10M3 17h12M19 17h2" />
+    <circle cx="13" cy="7" r="2.1" fill="currentColor" />
+    <circle cx="7" cy="12" r="2.1" fill="currentColor" />
+    <circle cx="15.5" cy="17" r="2.1" fill="currentColor" />
+  </Base>
+);

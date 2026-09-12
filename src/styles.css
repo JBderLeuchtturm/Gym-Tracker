@@ -3210,7 +3210,13 @@ button.home-strip__item:active { opacity: 0.6; }
 
 /* Freunde als Karten - eine Zeile mit Emoji sagt nichts darüber, wer da steht. */
 .friend-cards { display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 640px) {
+  /* Auf breiten Fenstern bleibt eine einzelne Karte in einer Zeile winzig
+     schmal - zwei Spalten nutzen die Breite, ohne die Karte selbst zu strecken. */
+  .friend-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+}
 .friend-card {
+  position: relative;
   display: block;
   width: 100%;
   padding: 0;
@@ -3220,8 +3226,9 @@ button.home-strip__item:active { opacity: 0.6; }
   text-align: left;
   cursor: pointer;
 }
-.friend-card .pcard { transition: border-color 0.15s var(--ease); }
+.friend-card .pcard { transition: border-color 0.15s var(--ease), transform 0.15s var(--ease); }
 .friend-card:hover .pcard { border-color: var(--accent); }
+.friend-card:active .pcard { transform: scale(0.985); }
 .friend-card__go {
   display: flex;
   align-items: center;
@@ -3232,6 +3239,25 @@ button.home-strip__item:active { opacity: 0.6; }
   color: var(--text-dim);
 }
 .friend-card__go svg { width: 13px; height: 13px; }
+/* Wer heute schon trainiert hat, traegt das sichtbar am Kartenrand - dieselbe
+   Farbe wie ueberall sonst fuer "gerade aktiv, nicht nur ueberhaupt schon mal". */
+.friend-card__today {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 88%, var(--bg));
+  color: var(--accent-ink);
+  font-size: 0.68rem;
+  font-weight: 640;
+  box-shadow: var(--shadow-sm);
+}
+.friend-card__today svg { width: 11px; height: 11px; }
 
 /* ===================================================================
    Rang-Abzeichen

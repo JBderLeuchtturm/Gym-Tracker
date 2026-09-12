@@ -230,6 +230,11 @@ export async function run() {
   await runner.step('Ort lässt sich über die Suche setzen', async () => {
     await page.locator('.nav__item', { hasText: 'Profil' }).first().click();
     await page.waitForTimeout(700);
+    // Wetter liegt seit der Umgestaltung hinter Einstellungen -> Erinnerung & Wetter.
+    await page.locator('.big-link', { hasText: 'Einstellungen' }).click();
+    await page.waitForTimeout(300);
+    await page.locator('.big-link', { hasText: 'Erinnerung & Wetter' }).click();
+    await page.waitForTimeout(300);
     const card = page.locator('.card', { hasText: 'Wetter beim Training draußen' });
     await card.locator('input[type="checkbox"]').first().check();
     await page.waitForTimeout(300);
@@ -263,6 +268,11 @@ export async function run() {
   await runner.step('RIR statt RPE dreht die Spalte um', async () => {
     await page.locator('.nav__item', { hasText: 'Profil' }).first().click();
     await page.waitForTimeout(700);
+    // "Im Studio" liegt seit der Umgestaltung hinter Einstellungen -> Training & Studio.
+    await page.locator('.big-link', { hasText: 'Einstellungen' }).click();
+    await page.waitForTimeout(300);
+    await page.locator('.big-link', { hasText: 'Training & Studio' }).click();
+    await page.waitForTimeout(300);
     await page.locator('.card', { hasText: 'Im Studio' })
       .locator('label', { hasText: 'RIR' }).locator('input').check();
     await page.waitForTimeout(300);

@@ -2,6 +2,64 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Einstellungen gebündelt, Freundesliste erweitert
+
+*Branch `claude/profil-einstellungen-freunde-ausbau`*
+
+**Profil: Einstellungen hinter einem Knopf mit Kategorien.** Die Profilseite
+bestand aus acht bis neun Karten hintereinander – Persönliche Daten,
+Gewichtsverlauf, Einstellungen, Im Studio, Wetter, Erinnerung, Daten – die
+meisten davon Dinge, die man einmal einstellt und danach kaum wieder ansieht.
+Jetzt steht dort nur noch, was man tatsächlich oft braucht (Profilkarte,
+Körperdaten, Kalorien-Link, Kennzahlen, Gewichtsverlauf), plus ein einziger
+„Einstellungen"-Knopf. Dahinter fünf Kategorien zum Antippen:
+
+- **Allgemein** – Sprache, Erscheinungsbild, Übungsdatenbank
+- **Training & Studio** – Pausenuhr, Hantelstange, RIR/RPE, Trainingspartner,
+  Wochenziele, Geräte
+- **Eigene Übungen** – selbst angelegte und aus wger geladene Übungen
+- **Erinnerung & Wetter** – Trainingstag-Erinnerung, Kalenderexport, Wetter
+- **Daten & Sicherung** – Export, Import, Sicherung am Konto, Zurücksetzen
+
+Technisch: `StudioSettings`, `WeatherSettingsCard`, `ReminderCard`,
+`CloudBackup`, `CustomExerciseManager`, `WeeklyTargetsDialog` und
+`EquipmentDialog` sind aus `Profile.tsx` in eine neue `Settings.tsx`
+gewandert; `Profile.tsx` schrumpft dadurch von rund 1060 auf 320 Zeilen.
+Ein neues Symbol (`IconSettings`, drei Regler statt eines Zahnrads –
+eindeutiger in wenigen Strichen) markiert den Einstiegspunkt.
+
+**Freunde: Karten in zwei Spalten, Suche, Sortierung, Aktivitätshinweis.**
+Die Kartenliste stand bisher immer einspaltig untereinander – auf breiten
+Fenstern verschenkte das viel Platz neben schmalen, hohen Karten. Ab 640px
+Breite stehen jetzt zwei Spalten nebeneinander.
+
+Neu, sichtbar erst ab vier Freunden (darunter sieht man ohnehin alles auf
+einen Blick, eine Such-/Sortierleiste wäre nur Ballast):
+
+- **Suche** nach Name oder Benutzername.
+- **Sortierung** nach Rang, zuletzt aktiv oder Name.
+- **„Heute trainiert"-Hinweis** direkt auf der Karte, wenn ein Freund am
+  aktuellen Tag schon eine Einheit eingetragen hat – nutzt Daten, die ohnehin
+  schon geteilt werden, zeigt sie nur zusätzlich prominent.
+
+**Bewusst nicht angefasst:** Aktivitätsfeed, Gruppen, Challenges und der
+Vergleich sind bereits umfangreich (Reaktionen, Kommentare, Wochenrückblick,
+gemeinsame Übungen nebeneinander) – dort wurden keine weiteren Funktionen
+ergänzt, um die Seite nicht wieder zu überladen.
+
+**Englische Übersetzungen ergänzt** für alle neuen Texte in `en.ts` – ohne
+das hätten sie im englischen Modus einfach auf Deutsch dagestanden.
+
+**Tests angepasst**: `features.mjs`, `robust.mjs`, `vierte.mjs` und
+`language.mjs` navigieren jetzt über Einstellungen → Kategorie, bevor sie
+Sprache, Studio-Optionen, Wetter oder den Datenexport-Hinweis prüfen, statt
+diese Inhalte direkt auf der Profilseite zu erwarten.
+
+**Nicht neu, aber bestätigt:** Die beiden vom letzten Mal bekannten
+UTC-vs-lokal-Testausfälle in `raenge.mjs` und `bindung.mjs` traten in dieser
+Sitzung erneut auf (weiterhin dasselbe Zeitfenster nach UTC-Mitternacht) –
+unverändert nicht behoben, siehe letzter Eintrag.
+
 ## Sichtbare Tiefe: Karten heben sich jetzt vom Grund ab
 
 *Branch `claude/ui-politur-schatten`*
