@@ -218,34 +218,7 @@ function Overview({ snapshot }: { snapshot: ReturnType<typeof rankSnapshot> }) {
       )}
 
       {/* ------------------------------------------------ Wie die Zahl entsteht */}
-      <Section title={t('Woraus sich der Gesamtrang ergibt')}>
-        <div className="formula">
-          <div className="formula__part">
-            <div className="formula__value mono">{fmt(overall.depth, 0)}</div>
-            <div className="tiny dim">{t('Tiefe')}</div>
-          </div>
-          <div className="formula__sign" aria-hidden="true">×</div>
-          <div className="formula__part">
-            <div className="formula__value mono">{fmt(overall.breadthFactor, 2)}</div>
-            <div className="tiny dim">{t('Breite')}</div>
-          </div>
-          <div className="formula__sign" aria-hidden="true">=</div>
-          <div className="formula__part formula__part--result">
-            <div className="formula__value mono">{fmt(overall.score, 0)}</div>
-            <div className="tiny dim">{t('Punkte')}</div>
-          </div>
-        </div>
-        <Hint
-          summary={t('Tiefe: wie stark. Breite: wie viel davon abgedeckt.')}
-          detail={t('Die Tiefe ist der gewichtete Schnitt über die Bewegungen, die du trainierst – die drei Grundübungen zählen voll, die weiteren Grundmuster drei Viertel, Beiwerk weniger. Die Breite sagt, wie viel davon überhaupt abgedeckt ist: Wer nur die drei Großen macht, kommt auf rund drei Viertel des Werts, wer alles abdeckt, auf den vollen.')}
-        />
-        <div className="tiny dim">
-          {t('Abgedeckt: {percent} % des möglichen Gewichts.', {
-            percent: fmt(overall.breadth * 100, 0),
-          })}
-        </div>
-      </Section>
-
+      <FormulaSection overall={overall} />
       {/* -------------------------------------------------- Stufenverteilung */}
       <Section title={t('Wie sich die Bewegungen verteilen')}>
         <div className="tier-bars">
@@ -300,6 +273,64 @@ function Overview({ snapshot }: { snapshot: ReturnType<typeof rankSnapshot> }) {
         />
       </Section>
     </>
+  );
+}
+
+/**
+ * Woraus sich der Gesamtrang ergibt - eingeklappt.
+ *
+ * "55 × 0,56 = 30" ist wahr, aber es ist eine Tabellenkalkulation, keine
+ * Rueckmeldung. Wer aufsteigt, soll das am Abzeichen sehen, nicht an einer
+ * Rechnung nachvollziehen muessen. Die Rechnung bleibt da - einen Tipper
+ * entfernt - fuer alle, die wissen wollen, woraus sich die Zahl ergibt.
+ */
+function FormulaSection({ overall }: { overall: ReturnType<typeof rankSnapshot>['overall'] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Section title={t('Woraus sich der Gesamtrang ergibt')}>
+      <button
+        type="button"
+        className="formula-toggle"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        <span className="tiny dim">
+          {t('Wie stark (Tiefe) mal wie viel abgedeckt (Breite).')}
+        </span>
+        <IconChevronDown
+          style={{ width: 16, height: 16, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.18s' }}
+        />
+      </button>
+
+      {open && (
+        <div className="formula-detail">
+          <div className="formula">
+            <div className="formula__part">
+              <div className="formula__value mono">{fmt(overall.depth, 0)}</div>
+              <div className="tiny dim">{t('Tiefe')}</div>
+            </div>
+            <div className="formula__sign" aria-hidden="true">×</div>
+            <div className="formula__part">
+              <div className="formula__value mono">{fmt(overall.breadthFactor, 2)}</div>
+              <div className="tiny dim">{t('Breite')}</div>
+            </div>
+            <div className="formula__sign" aria-hidden="true">=</div>
+            <div className="formula__part formula__part--result">
+              <div className="formula__value mono">{fmt(overall.score, 0)}</div>
+              <div className="tiny dim">{t('Punkte')}</div>
+            </div>
+          </div>
+          <div className="tiny dim">
+            {t('Die Tiefe ist der gewichtete Schnitt über die Bewegungen, die du trainierst – die drei Grundübungen zählen voll, die weiteren Grundmuster drei Viertel, Beiwerk weniger. Die Breite sagt, wie viel davon überhaupt abgedeckt ist: Wer nur die drei Großen macht, kommt auf rund drei Viertel des Werts, wer alles abdeckt, auf den vollen.')}
+          </div>
+          <div className="tiny dim">
+            {t('Abgedeckt: {percent} % des möglichen Gewichts.', {
+              percent: fmt(overall.breadth * 100, 0),
+            })}
+          </div>
+        </div>
+      )}
+    </Section>
   );
 }
 
@@ -420,10 +451,20 @@ function Exercises({ entries }: { entries: ExerciseRankEntry[] }) {
 function Movements({ snapshot }: { snapshot: ReturnType<typeof rankSnapshot> }) {
   const { state } = useStore();
   const [open, setOpen] = useState<string | null>(null);
+  /*
+   * Wer gerade anfaengt, sieht hier sonst einundzwanzig fast identische
+   * Karten, von denen fast jede "noch kein Eintrag" sagt - dieselbe
+   * Ueberladung wie eine Trainingsseite, auf der jede Uebung aufklappt,
+   * bevor ueberhaupt ein Satz gemacht wurde. Getrackte Bewegungen stehen
+   * immer da; der Rest faellt zusammen, bis man ihn ausdruecklich sehen will.
+   */
+  const [showEmpty, setShowEmpty] = useState(false);
   const rows = useMemo(
     () => allFamilyRows(snapshot.families, state.profile.weightKg, state.profile.sex),
     [snapshot.families, state.profile.weightKg, state.profile.sex],
   );
+  const tracked = rows.filter((row) => row.rank);
+  const untracked = rows.filter((row) => !row.rank);
 
   return (
     <Section
@@ -436,61 +477,88 @@ function Movements({ snapshot }: { snapshot: ReturnType<typeof rankSnapshot> }) 
         })}
       </div>
       <div className="list" style={{ gap: 6 }}>
-        {rows.map((row) => {
-          const isOpen = open === row.family;
-          return (
-            <div key={row.family} className={`move-row ${row.rank ? '' : 'move-row--empty'}`}>
-              <button
-                className="move-row__head"
-                onClick={() => setOpen(isOpen ? null : row.family)}
-                aria-expanded={isOpen}
-              >
-                {row.rank
-                  ? <RankBadge rank={row.rank.rank} size="sm" />
-                  : <RankBadge rank={rankOf(0)} size="sm" dim />}
-                <span className="move-row__name">
-                  <span className="small bold">{t(row.label)}</span>
-                  <span className="tiny dim">
-                    {row.rank
-                      ? `${formatValue(row.rank.best, row.basis)}${
-                        row.basis === 'load' || row.basis === 'bodyload'
-                          ? ` · ${fmt(row.rank.ratio, 2)}×` : ''}`
-                      : t('noch kein Eintrag')}
-                  </span>
-                </span>
-                <IconChevronDown />
-              </button>
+        {tracked.map((row) => (
+          <MoveRow key={row.family} row={row} isOpen={open === row.family} onToggle={setOpen} />
+        ))}
 
-              {isOpen && (
-                <div className="move-row__body">
-                  <div className="threshold-grid">
-                    {TIERS.map((tier, index) => (
-                      <div
-                        key={tier}
-                        className={`threshold ${row.rank && row.rank.score >= TIER_FLOOR[tier] ? 'is-reached' : ''}`}
-                      >
-                        <div className="tiny" style={{ color: TIER_COLOR[tier] }}>{t(TIER_LABELS[tier])}</div>
-                        <div className="small mono">
-                          {index === 0
-                            ? t('ab dem ersten Satz')
-                            : formatValue(row.thresholds[index] ?? 0, row.basis)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="tiny dim">
-                    {t('Gewicht im Gesamtrang: {weight}', { weight: fmt(row.weight, 2) })}
-                    {row.rank && ` · ${t('beste Übung: {name}', { name: row.rank.bestExerciseName })}`}
-                    {row.rank && row.rank.days > GRACE_DAYS
-                      && ` · ${t('zuletzt {date}', { date: formatDateShort(row.rank.lastDate) })}`}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {untracked.length > 0 && (
+          showEmpty ? (
+            untracked.map((row) => (
+              <MoveRow key={row.family} row={row} isOpen={open === row.family} onToggle={setOpen} />
+            ))
+          ) : (
+            <button
+              type="button"
+              className="move-row move-row--summary"
+              onClick={() => setShowEmpty(true)}
+            >
+              <span className="tiny dim">
+                {t('{count} weitere Bewegungen noch ohne Eintrag', { count: untracked.length })}
+              </span>
+              <IconChevronDown />
+            </button>
+          )
+        )}
       </div>
     </Section>
+  );
+}
+
+/** Eine Bewegung in der Liste - getrackt oder noch ohne Eintrag. */
+function MoveRow({ row, isOpen, onToggle }: {
+  row: ReturnType<typeof allFamilyRows>[number];
+  isOpen: boolean;
+  onToggle: (family: string | null) => void;
+}) {
+  return (
+    <div className={`move-row ${row.rank ? '' : 'move-row--empty'}`}>
+      <button
+        className="move-row__head"
+        onClick={() => onToggle(isOpen ? null : row.family)}
+        aria-expanded={isOpen}
+      >
+        {row.rank
+          ? <RankBadge rank={row.rank.rank} size="sm" />
+          : <RankBadge rank={rankOf(0)} size="sm" dim />}
+        <span className="move-row__name">
+          <span className="small bold">{t(row.label)}</span>
+          <span className="tiny dim">
+            {row.rank
+              ? `${formatValue(row.rank.best, row.basis)}${
+                row.basis === 'load' || row.basis === 'bodyload'
+                  ? ` · ${fmt(row.rank.ratio, 2)}×` : ''}`
+              : t('noch kein Eintrag')}
+          </span>
+        </span>
+        <IconChevronDown />
+      </button>
+
+      {isOpen && (
+        <div className="move-row__body">
+          <div className="threshold-grid">
+            {TIERS.map((tier, index) => (
+              <div
+                key={tier}
+                className={`threshold ${row.rank && row.rank.score >= TIER_FLOOR[tier] ? 'is-reached' : ''}`}
+              >
+                <div className="tiny" style={{ color: TIER_COLOR[tier] }}>{t(TIER_LABELS[tier])}</div>
+                <div className="small mono">
+                  {index === 0
+                    ? t('ab dem ersten Satz')
+                    : formatValue(row.thresholds[index] ?? 0, row.basis)}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="tiny dim">
+            {t('Gewicht im Gesamtrang: {weight}', { weight: fmt(row.weight, 2) })}
+            {row.rank && ` · ${t('beste Übung: {name}', { name: row.rank.bestExerciseName })}`}
+            {row.rank && row.rank.days > GRACE_DAYS
+              && ` · ${t('zuletzt {date}', { date: formatDateShort(row.rank.lastDate) })}`}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

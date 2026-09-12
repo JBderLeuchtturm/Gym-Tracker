@@ -2,6 +2,41 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Rangseite: die Rechnung eingeklappt, unberührte Bewegungen gebündelt
+
+*Branch `claude/rang-informationsdichte`*
+
+Angefragt war eine erneute Durchsicht des ganzen Rangsystems, Funktionen wie
+Oberfläche. Ein Test mit echten Trainingsdaten (statt eines leeren Kontos)
+zeigte: Die Mechanik selbst - Kraftstandards, Tiefe-mal-Breite-Formel,
+Verfall, Divisionen - ist bereits gründlich durchdacht und in mehreren
+früheren Runden mit eigenen Tests abgesichert. Was die Seite trotzdem wie
+einen Prototyp wirken ließ, war dieselbe Überladung wie zuletzt auf der
+Startseite: zu viel auf einmal, ungefiltert nach Wichtigkeit.
+
+**Die Rechnung stand ungefragt da.** „55 × 0,56 = 30" ist eine
+Tabellenkalkulation, keine Rückmeldung – niemand steigt eine Stufe auf, indem
+er eine Formel nachrechnet. Sie ist jetzt eine Zeile mit Klartext ("Wie stark
+mal wie viel abgedeckt") und einem Tipper; wer wissen will, woraus sich die
+Zahl ergibt, bekommt die Zahlen weiterhin – nur nicht mehr ungefragt.
+
+**Bewegungen ohne Eintrag verschwanden hinter einer Zeile.** Wer anfängt,
+sah einundzwanzig fast identische Karten, von denen fast jede "noch kein
+Eintrag" sagte – dieselbe Wand wie fünf voll aufgeklappte Übungskarten vor
+dem ersten Satz. Getrackte Bewegungen stehen weiterhin einzeln da; der Rest
+fällt zu "{n} weitere Bewegungen noch ohne Eintrag" zusammen und öffnet sich
+auf Wunsch.
+
+**Bewusst nicht verändert:** die Kraftstandard-Tabellen, die Verfallslogik,
+die Divisionsgrenzen, die Erfolge-Übersicht (dort ist jede Karte ein
+eigener, unterschiedlicher Fortschritt – kein Fall von Wand-aus-Leerzeilen)
+und das Aufstiegsfenster (kurz, klar, ohne Ballast).
+
+**Tests angepasst**, nicht gelockert: Die beiden betroffenen Prüfungen
+klappen die Formel bzw. die Bewegungsliste jetzt erst auf, bevor sie den
+Inhalt lesen – sie prüfen weiterhin denselben Inhalt, nur hinter demselben
+Tipper, den auch Nutzende brauchen.
+
 ## Nur die nächste Übung klappt auf
 
 *Branch `claude/ui-informationsdichte`*

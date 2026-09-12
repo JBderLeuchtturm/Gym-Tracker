@@ -269,15 +269,27 @@ export async function run() {
   /* ------------------------------------------------------- Die Vollansicht */
 
   await runner.step('Die Übersicht zeigt, woraus sich der Rang ergibt', async () => {
+    // Eingeklappt, bis man antippt - siehe "Lange Erklärungen bleiben zu" in bindung.mjs.
+    await solo.page.locator('.formula-toggle').click();
+    await solo.page.waitForTimeout(200);
     const formula = await solo.page.locator('.formula').innerText();
     for (const word of ['Tiefe', 'Breite', 'Punkte']) {
       if (!formula.includes(word)) throw new Error(`„${word}“ fehlt in der Rechnung`);
     }
+    await solo.page.locator('.formula-toggle').click();
+    await solo.page.waitForTimeout(200);
   });
 
   await runner.step('Jede Bewegung zeigt ihre sechs Schwellen in Kilogramm', async () => {
     await solo.page.locator('.seg__item', { hasText: 'Bewegungen' }).click();
     await solo.page.waitForTimeout(600);
+    // Ungetrackte Bewegungen fallen erst zu einer Zeile zusammen - "die
+    // naechste Uebung klappt auf" auch hier, siehe ui-informationsdichte.
+    const summary = solo.page.locator('.move-row--summary');
+    if (await summary.count() > 0) {
+      await summary.click();
+      await solo.page.waitForTimeout(300);
+    }
     const rows = await solo.page.locator('.move-row').count();
     if (rows !== 21) throw new Error(`${rows} Bewegungen statt 21`);
 
