@@ -2,6 +2,52 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Sichtbare Tiefe: Karten heben sich jetzt vom Grund ab
+
+*Branch `claude/ui-politur-schatten`*
+
+Dritte Rückmeldung zur Oberfläche: Sie wirke trotz der vorigen Durchsichten
+noch zu sehr nach Prototyp, nicht nach einer fertigen App aus dem
+Play Store. Diesmal ging es nicht um Informationsdichte (die war in den
+letzten beiden Runden das Thema), sondern um reine Anmutung – und hier
+lag tatsächlich eine bewusste, aber inzwischen zu strenge Entscheidung
+zugrunde: „Eine Karte schwebt nicht: dünne Kante, kein Schatten, kein
+Glanz." Auf einem sehr dunklen Grund liest sich reine Kantenführung schnell
+als unfertig, weil nichts sich sichtbar vom Hintergrund abhebt.
+
+**Karten bekommen echte Tiefe.** `.card`, `.exercise`, `.pcard`, `.budget`
+und der Rang-Kopf tragen jetzt einen weichen, doppelschichtigen Schatten
+(sanfter Streuschatten + enger Kontaktschatten) statt nur einer Haarlinie.
+Absichtlich *nicht* jede Fläche: Listenzeilen, Chips, Eingabefelder und
+Knöpfe bleiben flach – sonst wäre es das generische Karten-Kit, bei dem
+alles denselben Schatten trägt, ohne dass er etwas über Rang oder
+Wichtigkeit aussagt.
+
+**Auf dunklem Grund trägt Schatten allein kaum – Schwarz auf Schwarz zeigt
+kaum einen Unterschied.** Dazu kommt eine feine helle Innenkante oben
+(`--lift-edge`), wie Licht auf einer angehobenen Fläche. Im hellen Thema
+bleibt sie unsichtbar; dort trägt der ohnehin wärmere Schatten allein.
+
+**Der Hauptknopf bekommt einen warmen Schein** in der eigenen Akzentfarbe
+statt eines neutralen Grauschattens – eine bewusste, markenspezifische
+Wahl statt des generischen SaaS-Kartenschattens `rgba(0,0,0,.1)`.
+
+**Radien großzügiger**: 8→10px für Karten, 12→16px für große Flächen wie
+Profilkarte und Rang-Kopf – ein Stück näher an der Formensprache aktueller
+mobiler Apps, ohne die eckige Zurückhaltung ganz aufzugeben (kleine
+Bedienelemente bleiben bei 5px).
+
+**Nebenbei gefunden, nicht behoben:** `tests/raenge.mjs`, `bindung.mjs`,
+`friends.mjs`, `robust.mjs` und `vierte.mjs` berechnen „heute" für Test-Saat
+über `new Date().toISOString().slice(0, 10)` (UTC), während die App selbst
+lokale Datumswerte verwendet (`toISODate` in `lib/date.ts`). In Zeitzonen
+vor UTC (z. B. MESZ) klafft dadurch täglich ein zwei Stunden breites Fenster
+kurz nach Mitternacht UTC, in dem Tests den falschen Tag ansteuern und
+grundlos fehlschlagen – reproduziert und per Vergleich vor/nach diesem
+Branch als unabhängig von dieser Änderung bestätigt. Nicht behoben, weil
+es sechs Dateien beträfe und mit der eigentlichen Anfrage (Aussehen) nichts
+zu tun hat; wer mag, sollte das als eigene, kleine Aufräumrunde behandeln.
+
 ## Rangseite: die Rechnung eingeklappt, unberührte Bewegungen gebündelt
 
 *Branch `claude/rang-informationsdichte`*

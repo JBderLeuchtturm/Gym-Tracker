@@ -65,11 +65,23 @@
   --time: #6b8ca6;
   --time-soft: rgba(107, 140, 166, 0.16);
 
-  --radius: 8px;
+  --radius: 10px;
   --radius-sm: 5px;
-  --radius-lg: 12px;
-  --shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.22);
+  --radius-lg: 16px;
+  /*
+   * Zwei Schichten: ein weicher, weiter Schein fuer den Raum unter der Karte
+   * und ein enger, dunklerer Kontaktschatten direkt an der Kante - so wirkt
+   * eine Flaeche angehoben, nicht nur mit einem Rand versehen.
+   */
+  --shadow: 0 10px 24px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 4px 10px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.6), 0 3px 10px rgba(0, 0, 0, 0.5);
+  /*
+   * Auf dunklem Grund traegt ein Schatten allein kaum - schwarz auf schwarz
+   * ist kaum ein Unterschied. Eine helle Innenkante oben, wie Licht auf einer
+   * angehobenen Kante, macht die Flaeche zusaetzlich sichtbar abgehoben.
+   */
+  --lift-edge: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 
   --nav-height: 60px;
 
@@ -125,8 +137,11 @@
   --violet: #6b5f96;
   --time: #4a7392;
   --time-soft: rgba(74, 115, 146, 0.13);
-  --shadow: 0 2px 5px rgba(40, 34, 24, 0.09);
-  --shadow-sm: 0 1px 2px rgba(40, 34, 24, 0.06);
+  --shadow: 0 8px 20px rgba(40, 34, 24, 0.1), 0 1px 3px rgba(40, 34, 24, 0.1);
+  --shadow-sm: 0 2px 6px rgba(40, 34, 24, 0.07), 0 1px 2px rgba(40, 34, 24, 0.08);
+  --shadow-lg: 0 16px 40px rgba(40, 34, 24, 0.14), 0 2px 8px rgba(40, 34, 24, 0.1);
+  /* Papier braucht keine Lichtkante - der Schatten allein traegt hier schon. */
+  --lift-edge: inset 0 1px 0 rgba(255, 255, 255, 0);
 }
 
 * { box-sizing: border-box; }
@@ -283,6 +298,8 @@ p { margin: 0 0 0.6em; }
   background: color-mix(in srgb, var(--bg-soft) 96%, transparent);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--border-soft);
+  /* Die Leiste liegt ueber dem Inhalt, nicht daneben - ein Schein nach oben zeigt das. */
+  box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.18);
 }
 
 .nav__item {
@@ -335,7 +352,8 @@ p { margin: 0 0 0.6em; }
 
 /*
  * Eine Karte ist ein abgegrenzter Gegenstand - eine Uebung, ein Plan, ein
- * Freund. Sie schwebt nicht: duenne Kante, kein Schatten, kein Glanz.
+ * Freund. Sie liegt sichtbar auf dem Untergrund: duenne Kante fuer die
+ * Kontur, ein weicher Schatten fuer die Tiefe - kein Glanz, kein Verlauf.
  */
 .card {
   position: relative;
@@ -343,6 +361,7 @@ p { margin: 0 0 0.6em; }
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
   padding: 15px 16px;
+  box-shadow: var(--shadow-sm), var(--lift-edge);
 }
 .card--flush { padding: 0; overflow: hidden; }
 .card__header {
@@ -430,12 +449,17 @@ p { margin: 0 0 0.6em; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn svg { width: 16px; height: 16px; }
 
-/* Eine Flaeche, kein Verlauf, kein Schein. */
+/*
+ * Eine Flaeche, kein Verlauf - aber ein warmer Schein in der Akzentfarbe
+ * selbst, kein neutrales Grau. So hebt sich der eine Knopf, der etwas
+ * auslöst, spuerbar von der Flaeche ab, ohne zu leuchten wie eine Werbung.
+ */
 .btn--primary {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
   font-weight: 640;
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 38%, transparent);
 }
 .btn--primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
 .btn--success { background: var(--success); border-color: var(--success); color: #06251a; }
@@ -597,16 +621,16 @@ p { margin: 0 0 0.6em; }
 /* ---------------------------------------------------------------- Übung */
 
 /*
- * Uebungen sind Eintraege auf einem Blatt, keine schwebenden Kacheln.
- * Getrennt werden sie durch eine Linie und Luft, nicht durch Rahmen und
- * Schatten. Erledigtes bekommt links eine gruene Markierung - so sieht man
- * beim Durchblaettern sofort, was steht.
+ * Uebungen sind eigene Gegenstaende auf der Seite, mit spuerbarer Tiefe -
+ * dieselbe Anhebung wie jede Karte. Erledigtes bekommt links eine gruene
+ * Markierung - so sieht man beim Durchblaettern sofort, was steht.
  */
 .exercise {
   position: relative;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
   background: var(--surface);
+  box-shadow: var(--shadow-sm), var(--lift-edge);
   overflow: hidden;
 }
 .exercise--done { border-color: color-mix(in srgb, var(--success) 32%, var(--border-soft)); }
@@ -770,7 +794,7 @@ p { margin: 0 0 0.6em; }
   background: var(--bg-soft);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow), var(--lift-edge);
   animation: slide-up 0.22s cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 .modal__head {
@@ -893,7 +917,7 @@ p { margin: 0 0 0.6em; }
   border-radius: var(--radius);
   background: var(--accent);
   color: #fff;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow), var(--lift-edge);
   max-width: 620px;
   margin: 0 auto;
 }
@@ -913,7 +937,7 @@ p { margin: 0 0 0.6em; }
   border-radius: var(--radius);
   background: var(--surface-3);
   border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow), var(--lift-edge);
   font-size: 0.85rem;
   font-weight: 550;
   animation: fade 0.15s ease;
@@ -955,7 +979,7 @@ table.data tr:last-child td { border-bottom: 0; }
   background: var(--surface-3);
   border: 1px solid var(--border);
   font-size: 0.75rem;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow), var(--lift-edge);
   white-space: nowrap;
   z-index: 5;
 }
@@ -1268,7 +1292,7 @@ table.data tr:last-child td { border-bottom: 0; }
   color: var(--text);
   border: 1px solid color-mix(in srgb, var(--success) 45%, transparent);
   background: linear-gradient(135deg, color-mix(in srgb, var(--success) 22%, var(--surface)), var(--surface));
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow), var(--lift-edge);
   animation: slide-up 0.28s var(--ease);
 }
 .record-banner__icon { color: var(--success); display: flex; }
@@ -1797,6 +1821,7 @@ table.data tr:last-child td { border-bottom: 0; }
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
   padding: 16px;
+  box-shadow: var(--shadow), var(--lift-edge);
 }
 .budget__head {
   display: flex;
@@ -2698,6 +2723,7 @@ button.home-strip__item:active { opacity: 0.6; }
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-soft);
   background: linear-gradient(150deg, var(--surface), var(--bg-soft));
+  box-shadow: var(--shadow), var(--lift-edge);
 }
 .rank-hero__top {
   display: flex;
@@ -3027,6 +3053,7 @@ button.home-strip__item:active { opacity: 0.6; }
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
   background: var(--surface);
+  box-shadow: var(--shadow), var(--lift-edge);
   overflow: hidden;
 }
 .pcard__banner { height: 78px; }
