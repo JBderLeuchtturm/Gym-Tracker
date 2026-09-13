@@ -2,6 +2,59 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Passendes Logging für Burpees & Co., mehr Übungen, Wochen-Rückblick auf der Muskelkarte
+
+*Branch `claude/uebungen-logging-verlauf`*
+
+**Logging passt jetzt zur Übung.** Burpees, Mountain Climbers, Box Jumps,
+Sprünge und ein paar weitere Ganzkörper-Übungen standen im Katalog als
+`cardio` – dieselbe Einstufung wie Laufband oder Fahrrad-Ergometer. Beim
+Eintragen erschienen deshalb Felder für Sekunden und Kilometer, obwohl man
+bei Burpees eigentlich Wiederholungen zählt. Diese Übungen sind jetzt als
+`bodyweight` (Burpees, Mountain Climbers, Box Jumps, Sprünge) bzw. `strength`
+(Wall Balls, Devils Press, Man Maker – dort zählt das Gewicht des Balls oder
+der Kurzhanteln) eingestuft und zeigen Gewicht/Wiederholungen wie jede andere
+Kraftübung. Echte Ausdauer-Aktivitäten (Laufband, Rudergerät, Assault Bike,
+Sled Push/Drag, Bear Crawl, Battle Ropes …) blieben `cardio` – dort macht
+Dauer plus Distanz weiterhin Sinn.
+
+Ein verwandtes, bisher unbemerktes Detail: Halteübungen wie Plank oder
+Wandsitzen (`kind: 'time'`) zeigten dieselbe Distanzspalte wie Cardio-Geräte,
+obwohl eine Halteübung keine Kilometer hat. `Today.tsx` unterscheidet jetzt
+zwischen „zeitbasiert" (Dauer) und „hat eine sinnvolle Distanz" (nur echtes
+Cardio) – Halteübungen zeigen nur noch Sekunden.
+
+**80 → 244 Einträge im Katalog.** Damit die Suche beim Übung-Hinzufügen mehr
+hergibt, sind 27 neue Übungen dazugekommen: unter anderem Cossack Squat, Belt
+Squat, Cable Pull Through, Donkey Kicks, Fire Hydrant, Bus Driver, 21er-Curls,
+V-Ups, Dragon Flag, Medizinball-Slams und ein paar Mobility-Ergänzungen. Alle
+über die bestehende Pipeline (`catalogRaw.ts` → `npm run catalog` →
+`catalog.json`), keine Handarbeit an der generierten Datei.
+
+**Muskelkarte blickt jetzt auch zurück.** Die Belastungskarte auf der
+Fortschrittsseite kannte im Wochen-Modus bisher nur die laufende Kalenderwoche
+– „letzte Woche" oder „vor drei Wochen" waren nicht einsehbar, nur der
+gesamte gewählte Zeitraum als grobe Verteilung. Jetzt gibt es Pfeile links
+und rechts neben der Karte, die wochenweise zurück- und wieder vorblättern
+(„Diese Woche", „Letzte Woche", danach das Datum der jeweiligen Woche); der
+Pfeil nach vorn ist gesperrt, sobald man wieder bei der laufenden Woche
+angekommen ist. Antippen einer Region zeigt weiterhin die Übungen, die in der
+gerade gewählten Woche dorthin eingezahlt haben. Der „Diese Woche fehlt
+noch"-Hinweis bleibt auf die laufende Woche beschränkt – bei einer
+vergangenen Woche ist nichts mehr „offen", das wäre eine falsche Ansage.
+
+**Englische Übersetzungen ergänzt** für die neuen Wochen-Beschriftungen in
+`en.ts`.
+
+**Beim Testen aufgefallen, nicht behoben:** `muscles.mjs` schlägt beim ersten
+Schritt („Beinbizeps landet im Bein, nicht im Arm") mit einem Klick-Timeout
+fehl – bestätigt auch auf dem unveränderten Hauptzweig vor dieser Änderung,
+also unabhängig von der aktuellen Arbeit. `bindung.mjs` zeigte in dieser
+Sitzung erneut den bekannten UTC-vs-lokal-Ausfall bei „Verstanden" blendet
+die Warnung aus (Sitzung lief kurz nach UTC-Mitternacht in einer
+UTC+2-Zeitzone). Beides bereits aus früheren Runden bekannt, hier nur erneut
+bestätigt.
+
 ## Einstellungen gebündelt, Freundesliste erweitert
 
 *Branch `claude/profil-einstellungen-freunde-ausbau`*

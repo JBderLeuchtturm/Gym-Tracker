@@ -103,7 +103,7 @@ Beinheben liegend|Lying Leg Raise|core|bodyweight|Rumpf (unterer Teil)|Hüftbeug
 Russian Twist|Russian Twist|core|bodyweight|Rumpf (schräg)|Rumpf (gerade)|Medizinball|4|russian twist
 Bauchpresse am Kabel|Cable Crunch|core|strength|Rumpf (gerade)|-|Kabelzug;Seil|4|cable crunch
 Ab Wheel Rollout|Ab Wheel Rollout|core|bodyweight|Rumpf (gerade)|Latissimus;Schulter|Bauchroller|4.5|ab wheel;rollout
-Mountain Climbers|Mountain Climber|core|cardio|Rumpf|Schulter;Beine|Körpergewicht|8|mountain climber
+Mountain Climbers|Mountain Climber|core|bodyweight|Rumpf|Schulter;Beine|Körpergewicht|8|mountain climber
 Käfer (Dead Bug)|Dead Bug|core|bodyweight|Rumpf (tief)|Hüftbeuger|Körpergewicht|3|dead bug
 Bird Dog|Bird Dog|core|bodyweight|Rumpf;Rückenstrecker|Gesäß|Körpergewicht|3|bird dog
 Pallof Press|Pallof Press|core|strength|Rumpf (schräg)|Schulter|Kabelzug|3.5|pallof
@@ -116,16 +116,16 @@ Crosstrainer|Elliptical Trainer|cardio|cardio|Herz-Kreislauf|Beine;Arme|Crosstra
 Rudergerät|Rowing Machine|cardio|cardio|Herz-Kreislauf|Rücken;Beine|Rudergerät|7|rudern ergometer;rowing
 Stairmaster|Stair Climber|cardio|cardio|Herz-Kreislauf|Beine;Gesäß|Stairmaster|9|treppensteiger
 Seilspringen|Jump Rope|cardio|cardio|Herz-Kreislauf|Waden|Springseil|11|seilspringen;rope skipping
-Burpees|Burpee|fullbody|cardio|Ganzkörper|Brust;Beine|Körpergewicht|8|burpee
+Burpees|Burpee|fullbody|bodyweight|Ganzkörper|Brust;Beine|Körpergewicht|8|burpee
 Battle Ropes|Battle Ropes|fullbody|cardio|Schulter;Rumpf|Arme|Seile|9|battle rope
 Kettlebell Swing|Kettlebell Swing|fullbody|strength|Gesäß;Beinbizeps|Rumpf;Schulter|Kettlebell|9.8|kb swing;swings
 Clean and Press|Clean and Press|fullbody|strength|Ganzkörper|Schulter;Beine|Langhantel|7|clean and press
 Power Clean|Power Clean|fullbody|strength|Ganzkörper|Trapez;Beine|Langhantel|7|power clean
 Snatch|Snatch|fullbody|strength|Ganzkörper|Schulter;Beine|Langhantel|7|reißen
 Thruster|Thruster|fullbody|strength|Quadrizeps;Schulter|Rumpf;Trizeps|Langhantel;Kurzhanteln|8|thruster
-Wall Balls|Wall Ball|fullbody|cardio|Quadrizeps;Schulter|Rumpf|Medizinball|8|wall ball
-Box Jumps|Box Jump|legs|cardio|Quadrizeps;Waden|Gesäß|Box|8|box jump
-Sprünge (Jump Squat)|Jump Squat|legs|cardio|Quadrizeps;Gesäß|Waden|Körpergewicht|8|jump squat
+Wall Balls|Wall Ball|fullbody|strength|Quadrizeps;Schulter|Rumpf|Medizinball|8|wall ball
+Box Jumps|Box Jump|legs|bodyweight|Quadrizeps;Waden|Gesäß|Box|8|box jump
+Sprünge (Jump Squat)|Jump Squat|legs|bodyweight|Quadrizeps;Gesäß|Waden|Körpergewicht|8|jump squat
 Sled Push|Sled Push|fullbody|cardio|Beine;Gesäß|Rumpf|Schlitten|9|prowler
 Hüftbeuger-Dehnung|Hip Flexor Stretch|mobility|mobility|Hüftbeuger|Gesäß|Körpergewicht|2.3|hüftbeuger dehnen
 Brustdehnung an der Wand|Doorway Chest Stretch|mobility|mobility|Brust groß|Vordere Schulter|-|2.3|brust dehnen
@@ -209,9 +209,9 @@ Hüftheben am Barren|Captains Chair Leg Raise|core|bodyweight|Rumpf (unterer Tei
 Kurzhantel-Seitbeugen|Dumbbell Side Bend|core|strength|Rumpf (schräg)|Rückenstrecker|Kurzhantel|3.5|side bend
 Turkish Get-Up|Turkish Get-Up|fullbody|strength|Ganzkörper|Schulter;Rumpf|Kettlebell|6|tgu;get up
 Bear Crawl|Bear Crawl|fullbody|cardio|Rumpf;Schulter|Beine|Körpergewicht|7|bear crawl
-Devils Press|Devils Press|fullbody|cardio|Ganzkörper|Schulter|Kurzhanteln|9|devils press
+Devils Press|Devils Press|fullbody|strength|Ganzkörper|Schulter|Kurzhanteln|9|devils press
 Renegade Row|Renegade Row|fullbody|strength|Latissimus;Rumpf|Bizeps;Schulter|Kurzhanteln|6|renegade row
-Man Maker|Man Maker|fullbody|cardio|Ganzkörper|Schulter;Beine|Kurzhanteln|9|man maker
+Man Maker|Man Maker|fullbody|strength|Ganzkörper|Schulter;Beine|Kurzhanteln|9|man maker
 Sandsack-Träger|Sandbag Carry|fullbody|strength|Rumpf;Rücken|Beine|Sandsack|6.5|sandbag carry
 Yoke Walk|Yoke Walk|fullbody|strength|Rumpf;Beine|Trapez|Yoke|7|yoke walk
 Atlas Stone Lift|Atlas Stone|fullbody|strength|Rückenstrecker;Gesäß|Bizeps;Rumpf|Atlas Stone|7.5|atlas stone
@@ -221,4 +221,32 @@ Jefferson Curl|Jefferson Curl|mobility|mobility|Rückenstrecker;Beinbizeps|Rumpf
 Couch Stretch|Couch Stretch|mobility|mobility|Hüftbeuger;Quadrizeps|-|-|2.3|couch stretch
 Weltgrößte Dehnung|Worlds Greatest Stretch|mobility|mobility|Hüfte;Brustwirbelsäule|Beinbizeps|-|3|worlds greatest stretch
 Ausfallschritt im Gehen mit Rotation|Lunge with Twist|mobility|mobility|Hüfte;Rumpf (schräg)|Quadrizeps|-|3.5|lunge twist
+Svend Press|Svend Press|chest|strength|Brust groß|Vordere Schulter|Hantelscheibe|4|svend press
+Kabelzug-Fliegende von unten nach oben|Low to High Cable Fly|chest|strength|Brust groß (oberer Teil)|Vordere Schulter|Kabelzug|5|low to high fly
+Kreuzheben mit Zug (Pull Through)|Cable Pull Through|glutes|strength|Gesäß|Beinbizeps;Rückenstrecker|Kabelzug;Seil|5|pull through
+Einarmiges Landmine-Rudern|Single Arm Landmine Row|back|strength|Latissimus|Bizeps|Landmine|6|landmine row
+Kosakenkniebeuge|Cossack Squat|legs|strength|Adduktoren;Quadrizeps|Gesäß|Kurzhantel;Kettlebell|5.5|cossack squat
+Belt Squat|Belt Squat|legs|strength|Quadrizeps;Gesäß|Beinbizeps|Belt-Squat-Maschine|5.5|belt squat
+Radfahrer-Kniebeuge|Cyclist Squat|legs|strength|Quadrizeps|Gesäß|Langhantel|6|cyclist squat
+Wadenheben am Esel|Donkey Calf Raise|legs|strength|Wade|-|Maschine|4|donkey calf raise
+Donkey Kicks|Donkey Kick|glutes|bodyweight|Gesäß|Beinbizeps|Körpergewicht|3.5|donkey kick
+Fire Hydrant|Fire Hydrant|glutes|bodyweight|Gesäß (mittel)|Abduktoren|Körpergewicht|3|fire hydrant
+Bus Driver|Bus Driver|shoulders|strength|Vordere Schulter|Rumpf|Hantelscheibe|4|bus driver
+Ägyptisches Seitheben|Egyptian Lateral Raise|shoulders|strength|Seitliche Schulter|Trapez|Kabelzug|4.5|egyptian lateral raise
+Frontheben mit Scheibe|Plate Front Raise|shoulders|strength|Vordere Schulter|Rumpf|Hantelscheibe|4.5|plate raise
+21er-Curls|21s Bicep Curl|arms|strength|Bizeps|Unterarm|Langhantel|5|21s
+Waiter Curl|Waiter Curl|arms|strength|Bizeps|Unterarm|Kurzhantel|4|waiter curl
+Cross-Body-Hammercurls|Cross Body Hammer Curl|arms|strength|Bizeps;Brachialis|Unterarm|Kurzhanteln|4.5|cross body hammer
+V-Ups|V-Up|core|bodyweight|Rumpf (gerade)|Hüftbeuger|Körpergewicht|4|v ups
+Fahrrad-Crunches|Bicycle Crunch|core|bodyweight|Rumpf (schräg)|Rumpf (gerade)|Körpergewicht|4|bicycle crunch
+Umgekehrte Crunches|Reverse Crunch|core|bodyweight|Rumpf (unterer Teil)|Hüftbeuger|Körpergewicht|3.5|reverse crunch
+Dragon Flag|Dragon Flag|core|bodyweight|Rumpf (gerade)|Hüftbeuger|Bank|6|dragon flag
+Stir the Pot|Stir the Pot|core|strength|Rumpf|Schulter|Gymnastikball|4.5|stir the pot
+Medizinball-Slams|Medicine Ball Slam|fullbody|cardio|Rumpf;Schulter|Beine|Medizinball|8|ball slam;slam ball
+Versaclimber|VersaClimber|cardio|cardio|Herz-Kreislauf|Beine;Arme|VersaClimber|9|versaclimber
+Schattenboxen|Shadow Boxing|cardio|cardio|Herz-Kreislauf|Schulter;Rumpf|-|6|shadowboxing
+Laufband mit Steigung|Incline Treadmill Walk|cardio|cardio|Herz-Kreislauf|Beine;Gesäß|Laufband|6|incline walk
+Wall Walk|Wall Walk|fullbody|bodyweight|Schulter;Rumpf|Trizeps|Körpergewicht|6|wall walk
+Brustwirbelsäulen-Rotation|Thoracic Rotation|mobility|mobility|Brustwirbelsäule|Rumpf|-|2.5|thoracic rotation
+Sprunggelenk-Mobilisation|Ankle Dorsiflexion Stretch|mobility|mobility|Sprunggelenk|Wade|-|2|ankle mobility
 `;
