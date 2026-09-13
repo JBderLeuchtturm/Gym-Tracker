@@ -1089,6 +1089,8 @@ function ExerciseCard({
   const partnerName = state.settings.partnerName.trim();
   const useRir = state.settings.useRir;
   const isTimed = row.exercise?.kind === 'time' || row.exercise?.kind === 'cardio';
+  /** Distanz macht nur bei echten Ausdauer-Aktivitaeten Sinn, nicht bei Halteuebungen wie Plank. */
+  const showDistance = row.exercise?.kind === 'cardio';
 
   const target = row.planExercise;
   const targetText = target
@@ -1385,7 +1387,7 @@ function ExerciseCard({
           <div className="set-header">
             <span>#</span>
             <span>{isTimed ? t('Sek.') : t('kg')}</span>
-            <span>{isTimed ? t('km') : t('Wdh')}</span>
+            <span>{isTimed ? (showDistance ? t('km') : '') : t('Wdh')}</span>
             <span>{useRir ? t('RIR') : t('RPE')}</span>
             <span />
           </div>
@@ -1432,11 +1434,13 @@ function ExerciseCard({
                       />
                     )}
                   </div>
-                  <NumberInput
-                    value={set.distanceKm}
-                    ariaLabel={t('Distanz in Kilometern')}
-                    onChange={(value) => patchSet(set.id, { distanceKm: value })}
-                  />
+                  {showDistance ? (
+                    <NumberInput
+                      value={set.distanceKm}
+                      ariaLabel={t('Distanz in Kilometern')}
+                      onChange={(value) => patchSet(set.id, { distanceKm: value })}
+                    />
+                  ) : <span />}
                 </>
               ) : (
                 <>
@@ -1713,8 +1717,13 @@ function PlateHint({ exercise, weightKg }: { exercise: Exercise | undefined; wei
 function summarizeSets(sets: SetLog[], isTimed: boolean, kind?: Exercise['kind']): string {
   if (sets.length === 0) return '–';
   if (isTimed) {
+    const showDistance = kind === 'cardio';
     return sets
-      .map((set) => (set.durationSec ? formatClock(set.durationSec) : `${set.distanceKm ?? 0} km`))
+      .map((set) => {
+        if (set.durationSec) return formatClock(set.durationSec);
+        if (showDistance && set.distanceKm) return `${set.distanceKm} km`;
+        return '–';
+      })
       .slice(0, 4)
       .join(' · ');
   }

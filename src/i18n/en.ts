@@ -638,6 +638,10 @@ export const EN: Record<string, string> = {
   'Die eingetragenen Sätze bleiben stehen.': 'The sets you already logged stay.',
   'Diese Woche': 'This week',
   'Diese Woche fehlt noch': 'Still missing this week',
+  'Letzte Woche': 'Last week',
+  'Vorherige Woche': 'Previous week',
+  'Nächste Woche': 'Next week',
+  '{start} – {end}': '{start} – {end}',
   'Diesen Tag kopieren nach': 'Copy this day to',
   'Dieser Browser kann keine Bilder dauerhaft speichern.':
     'This browser cannot store pictures permanently.',

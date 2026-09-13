@@ -23,7 +23,7 @@ import { Block, EmptyState, Section, Stat, fmt, useToast } from '../components/u
 import { formatSet } from '../lib/setFormat';
 import { formatClock } from '../lib/date';
 import {
-  IconChevronRight, IconDownload, IconPrinter, IconSearch, IconShare, IconTrophy,
+  IconChevronLeft, IconChevronRight, IconDownload, IconPrinter, IconSearch, IconShare, IconTrophy,
 } from '../components/icons';
 import { renderWeekCard, shareOrDownload } from '../lib/shareCard';
 import {
@@ -113,12 +113,6 @@ export function ProgressPage() {
       ],
     });
   };
-
-  /** Trainings der laufenden Kalenderwoche - Grundlage fuer die Wochenziele. */
-  const weekWorkouts = useMemo(() => {
-    const monday = startOfWeek(todayISO());
-    return state.workouts.filter((workout) => workout.date >= monday);
-  }, [state.workouts]);
 
   const totals = useMemo(() => {
     const volume = workouts.reduce((sum, workout) => sum + workoutVolume(workout), 0);
@@ -451,7 +445,7 @@ export function ProgressPage() {
 
             <MuscleLoadCard
               workouts={workouts}
-              weekWorkouts={weekWorkouts}
+              allWorkouts={state.workouts}
               targets={state.settings.weeklySetTargets}
               getExercise={getExercise}
               allExercises={allExercises}
@@ -730,10 +724,10 @@ function ReviewCard({ review, label }: { review: ReturnType<typeof buildReview>;
  * drankam und schlaegt bei Luecken Uebungen vor.
  */
 function MuscleLoadCard({
-  workouts, weekWorkouts, getExercise, allExercises, rangeLabel, targets, onOpen,
+  workouts, allWorkouts, getExercise, allExercises, rangeLabel, targets, onOpen,
 }: {
   workouts: Workout[];
-  weekWorkouts: Workout[];
+  allWorkouts: Workout[];
   getExercise: (id: string) => Exercise | undefined;
   allExercises: Exercise[];
   rangeLabel: string;
@@ -742,8 +736,17 @@ function MuscleLoadCard({
 }) {
   const [selected, setSelected] = useState<MuscleRegion | null>(null);
   const [mode, setMode] = useState<'week' | 'range'>('week');
+  /** 0 = laufende Woche, -1 = letzte Woche, usw. - wird beim Wechsel der Woche mitgenommen. */
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const today = todayISO();
+  const weekStart = useMemo(() => addDays(startOfWeek(today), weekOffset * 7), [today, weekOffset]);
+  const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
+  const weekWorkouts = useMemo(
+    () => allWorkouts.filter((workout) => workout.date >= weekStart && workout.date <= weekEnd),
+    [allWorkouts, weekStart, weekEnd],
+  );
+
   const rangeLoad = useMemo(() => regionLoad(workouts, getExercise), [workouts, getExercise]);
   const weekLoad = useMemo(() => regionLoad(weekWorkouts, getExercise), [weekWorkouts, getExercise]);
   const load = mode === 'week' ? weekLoad : rangeLoad;
@@ -827,6 +830,38 @@ function MuscleLoadCard({
         </span>
       )}
     >
+      {mode === 'week' && (
+        <div className="row row--between" style={{ marginBottom: 10 }}>
+          <button
+            className="btn btn--icon btn--ghost"
+            aria-label={t('Vorherige Woche')}
+            onClick={() => setWeekOffset((value) => value - 1)}
+          >
+            <IconChevronLeft style={{ width: 16, height: 16 }} />
+          </button>
+          <button
+            className="tiny dim"
+            style={{ background: 'transparent', border: 0, cursor: weekOffset !== 0 ? 'pointer' : 'default' }}
+            onClick={() => weekOffset !== 0 && setWeekOffset(0)}
+            title={`${formatDateShort(weekStart)} – ${formatDateShort(weekEnd)}`}
+          >
+            {weekOffset === 0
+              ? t('Diese Woche')
+              : weekOffset === -1
+                ? t('Letzte Woche')
+                : t('{start} – {end}', { start: formatDateTiny(weekStart), end: formatDateTiny(weekEnd) })}
+          </button>
+          <button
+            className="btn btn--icon btn--ghost"
+            aria-label={t('Nächste Woche')}
+            disabled={weekOffset >= 0}
+            onClick={() => setWeekOffset((value) => Math.min(0, value + 1))}
+          >
+            <IconChevronRight style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+      )}
+
       <BodyMap
         size={150}
         selected={selected}
@@ -909,7 +944,7 @@ function MuscleLoadCard({
         </div>
       )}
 
-      {!selected && mode === 'week' && gaps.length > 0 && (
+      {!selected && mode === 'week' && weekOffset === 0 && gaps.length > 0 && (
         <div style={{ marginTop: 12 }}>
           <div className="section-label">{t("Diese Woche fehlt noch")}</div>
           <div className="list">
