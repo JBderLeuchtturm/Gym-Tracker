@@ -35,29 +35,52 @@ Kalorienverbrauch, nicht in Bestleistungen. Ein Haken auf einem ausgelassenen
 Satz holt ihn ohne Umweg zurück.
 
 **To-dos**
-Ein eigener Reiter für alles, was neben dem Training ansteht. Jede Aufgabe
-gehört genau einem Zeitraum an – **Tag, Woche, Monat, Jahr** oder „Später" für
-das, was keinen Termin hat – und man sieht immer nur einen davon. Die Woche ist
-dabei nicht die Summe ihrer Tage, sondern eine eigene Ebene: „diese Woche
-zweimal laufen" ist etwas anderes als „am Dienstag laufen".
+Ein eigener Reiter für alles, was neben dem Training ansteht – als eine Liste,
+nach Fälligkeit geordnet: *Überfällig, Heute, Morgen, Diese Woche, Diesen
+Monat, Dieses Jahr, Später, Ohne Datum*. Man schaltet nicht zwischen Ebenen um,
+sondern sieht immer alles; ein Abschnitt, in dem nichts steht, erscheint gar
+nicht erst. Der Zeitraum einer Aufgabe bleibt trotzdem erhalten: „diese Woche
+zweimal laufen" ist eine Wochenaufgabe und steht unter *Diese Woche*, „am
+Dienstag laufen" steht unter dem Tag. Welcher Korb es wird, entscheidet der
+letzte Tag des Zeitraums – eine Regel für alle Fälle.
 
-Dazu gibt es frei benennbare **Kategorien** mit Farbe und Zeichen (Training,
-Ernährung, Alltag, Arbeit, Gesundheit sind vorbelegt), **Prioritäten**, eine
-**Notiz** je Aufgabe und **Teilschritte** – daher auch das Halb-Abhaken: Das
-Kästchen füllt sich von unten so weit, wie die Teilschritte reichen, und der
-letzte Teilschritt hakt die Aufgabe mit ab. **Wiederkehrende Aufgaben**
-(täglich bis jährlich, auch „alle 3 Wochen") rücken beim Abhaken in ihren
-nächsten Zeitraum weiter und zählen mit, wie oft das am Stück geklappt hat.
+Eintragen geht in einer Zeile: Text tippen, Enter – die Aufgabe steht auf
+heute. Während des Tippens erscheinen *Morgen*, *Diese Woche*, *Diesen Monat*,
+*Ohne Datum* und *Details* als Ablagen daneben.
 
-Oben steht, wie weit der gewählte Zeitraum ist – angefangene Aufgaben zählen
-anteilig mit, damit der Ring nicht den ganzen Tag auf null steht – dazu offen,
-erledigt, überfällig und ein Wochenbalken aus erledigten und offenen
-Tagesaufgaben. Was an vergangenen Tagen offen geblieben ist, meldet sich und
-lässt sich mit einem Griff **auf heute holen**. Gesucht wird über Titel, Notiz,
-Teilschritte und Kategorie; sortiert nach Priorität, Kategorie oder eigener
-Reihenfolge. Erledigtes sammelt sich zugeklappt am Ende und lässt sich
-abräumen. Gelöschtes ist sieben Sekunden lang zurückzuholen, wie überall sonst
-in der App auch.
+**Was eine Aufgabe haben kann:** eine Kategorie (frei benennbar, mit Farbe und
+Zeichen), eine von drei Prioritäten, eine Notiz, Teilschritte mit einer Ebene
+Unterpunkte, Uhrzeit und Erinnerung, eine Wiederholung von täglich bis
+jährlich (auch „alle 3 Wochen"), Schlagworte, einen Ort, angehängte Bilder und
+eine Verknüpfung zu einer Übung aus dem Katalog.
+
+**Halb abhaken.** Das Kästchen füllt sich von unten so weit, wie die
+Teilschritte reichen; in der Zeile steht „2/5" mit einem kurzen Balken. Ein
+Unterpunkt zieht seinen Oberpunkt nach, der letzte Teilschritt hakt die Aufgabe
+mit ab. Der Fortschrittsbalken oben zählt Angefangenes anteilig mit – sonst
+stünde er den halben Tag auf null, obwohl Arbeit drinsteckt.
+
+**Wischen und Ziehen.** Nach rechts wischen hakt ab, nach links löscht (mit
+Rückgängig), und am Griff rechts lässt sich eine Zeile innerhalb ihres
+Abschnitts verschieben. Die Gesten laufen über Zeigerereignisse, funktionieren
+also mit Finger und Maus gleichermaßen.
+
+**Erinnerungen.** Eine Aufgabe mit Uhrzeit kann pünktlich, 10/30/60 Minuten
+oder einen Tag vorher erinnern. Das Band erscheint von jeder Seite aus, sobald
+die App offen ist; wer Systemmeldungen erlaubt, bekommt zusätzlich eine. Mehr
+kann eine Web-App nicht – deshalb gibt es daneben den Kalender-Export: alle
+Aufgaben mit Uhrzeit als `.ics`, samt Wiederholung, Ort und Voranmeldung.
+
+**Wiederkehrende Aufgaben** rücken beim Abhaken in ihren nächsten Zeitraum
+weiter, statt sich zu vermehren, und merken sich jeden erledigten Tag. Unter
+*Auswertung* steht daraus ein Raster über vier Monate je Gewohnheit, mit Serie,
+Bestwert und „22 von 30 Tagen" – dazu ein Wochenbalken aus erledigten und
+offenen Aufgaben und die letzten 30 Tage je Kategorie.
+
+**Und der Rest:** Suche über Titel, Notiz, Teilschritte und Kategorie; Filter je
+Kategorie; Sortierung innerhalb der Abschnitte nach Priorität, Kategorie oder
+eigener Reihenfolge; ein zugeklapptes Archiv der letzten vierzehn Tage; und
+liegen Gebliebenes meldet sich mit einem Griff *auf heute holen*.
 
 **Rechner für zwischen den Sätzen**
 Der *Rechner* an jeder Übung beantwortet die zwei Fragen, die man sonst im Kopf
@@ -299,6 +322,13 @@ erscheint die Farbe nur zweimal: als Punkt neben dem Kategorienamen und als
 schmaler Streifen an der linken Kante der Zeile. Neben dem Punkt steht immer der
 Name – Farbe allein trägt hier nie.
 
+**Die Aufgabenliste ist außerdem die dichteste Seite der App.** Eine Liste wird
+überflogen, nicht gelesen; je mehr Zeilen auf einen Blick passen, desto eher
+sieht man, was ansteht. Über der Liste stehen deshalb nur ein Fortschrittsbalken
+mit einer Zeile Zahlen, die Eingabezeile und die Filterreihe. Sortierung,
+Kategorien, Auswertung, Kalender-Export und das Aufräumen liegen hinter einem
+einzigen Knopf – sie werden selten gebraucht und kosten sonst jeden Tag Platz.
+
 **Auf breiten Fenstern stehen zwei Spalten**, links das Laufende und rechts das
 Nachschlagende. Sonst bleibt der Text auf Lesebreite: Eine Zeile ist bei etwa
 65 Zeichen am besten zu lesen, und eine Eingabemaske über den halben Monitor
@@ -356,8 +386,10 @@ node tests/unit.mjs              # nur die Rechnerei, ohne Browser
 ```
 
 Zuerst laufen die Prüfungen ohne Browser: Scheiben, 1RM, Kalorien, Statistik,
-Ränge, Erfolge, Belastung und das Zusammenführen zweier Geräte-Stände – in Sekunden statt
-Minuten, und die Fehlermeldung zeigt genau auf die Zeile. Die `.ts`-Dateien
+Ränge, Erfolge, Belastung, die Aufgaben-Rechnerei (Fälligkeits-Körbe,
+Wiederholungen, Gewohnheiten, Kalenderdatei) und das Zusammenführen zweier
+Geräte-Stände – in Sekunden statt Minuten, und die Fehlermeldung zeigt genau auf
+die Zeile. Die `.ts`-Dateien
 werden dafür einmal mit dem esbuild gebündelt, das ohnehin in Vite steckt.
 
 Fünfzehn Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,

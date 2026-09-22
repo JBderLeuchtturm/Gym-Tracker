@@ -16,8 +16,13 @@ import {
 } from '../src/lib/ranks';
 import { achievements, byGroup, earnedCount } from '../src/lib/achievements';
 import { mergeStates } from '../src/sync/merge';
+import {
+  bucketOf, completeTodo, createTodo, dueReminders, habitStats, periodEnd, periodOf,
+  removeStepIn, toggleStepIn,
+} from '../src/lib/todos';
+import { todosToIcs } from '../src/lib/todoIcs';
 import { createInitialState } from '../src/storage/defaults';
-import type { AppState, Exercise, SetLog, Workout } from '../src/types';
+import type { AppState, Exercise, SetLog, Todo, Workout } from '../src/types';
 
 let failed = 0;
 const results: string[] = [];
@@ -661,6 +666,129 @@ check('mergeStates: Einstellungen folgen ihrem eigenen Zeitstempel', () => {
   b.settings = { ...b.settings, restTimerSec: 180 };
   const merged = mergeStates(a, b);
   eq(merged.settings.restTimerSec, 90, 'die zuletzt geaenderte Einstellung');
+});
+
+
+/* ------------------------------------------------------------------ To-dos */
+
+const day = (offset: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() + offset);
+  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}-${`${date.getDate()}`.padStart(2, '0')}`;
+};
+
+const todo = (patch: Partial<Todo> = {}): Todo => createTodo(patch);
+
+check('Zeitraum: Woche endet am Sonntag, Monat am Monatsletzten', () => {
+  eq(periodEnd('week', '2026-09-21'), '2026-09-27', 'Woche ab Montag');
+  eq(periodEnd('month', '2026-02-01'), '2026-02-28', 'Februar 2026');
+  eq(periodEnd('year', '2026-01-01'), '2026-12-31', 'Jahr');
+  eq(periodOf('week', '2026-09-24'), '2026-09-21', 'Montag der Woche');
+});
+
+check('Körbe: alles landet dort, wo sein Zeitraum ausläuft', () => {
+  const today = day(0);
+  eq(bucketOf(todo({ scope: 'day', period: day(-3) }), today), 'overdue');
+  eq(bucketOf(todo({ scope: 'day', period: today }), today), 'today');
+  eq(bucketOf(todo({ scope: 'day', period: day(1) }), today), 'tomorrow');
+  eq(bucketOf(todo({ scope: 'someday', period: null }), today), 'none');
+  // Eine Wochenaufgabe der laufenden Woche laeuft am Sonntag aus - also
+  // spaetestens "Diese Woche", je nach Wochentag auch frueher.
+  const weekly = bucketOf(todo({ scope: 'week', period: periodOf('week', today) }), today);
+  if (!['week', 'today', 'tomorrow'].includes(weekly)) throw new Error(`Woche im Korb ${weekly}`);
+  const yearly = bucketOf(todo({ scope: 'year', period: `${today.slice(0, 4)}-01-01` }), today);
+  if (!['year', 'month', 'week', 'today', 'tomorrow'].includes(yearly)) throw new Error(`Jahr im Korb ${yearly}`);
+});
+
+check('Abhaken: einmalig bleibt erledigt, wiederkehrend rückt weiter', () => {
+  const once = todo({ scope: 'day', period: day(0) });
+  const afterOnce = completeTodo(once, new Date());
+  eq(afterOnce.done, true, 'einmalig');
+  eq((afterOnce.doneDates ?? []).length, 1, 'ein Verlaufseintrag');
+
+  const daily = todo({ scope: 'day', period: day(0), repeat: { every: 'day', interval: 1 }, streak: 2 });
+  const afterDaily = completeTodo(daily, new Date());
+  eq(afterDaily.done, false, 'wiederkehrend bleibt offen');
+  eq(afterDaily.period, day(1), 'ein Tag weiter');
+  eq(afterDaily.streak, 3, 'Serie');
+});
+
+check('Abhaken zählt denselben Tag nur einmal', () => {
+  const item = todo({ period: day(0), doneDates: [day(0)] });
+  const patch = completeTodo(item, new Date());
+  eq(patch.doneDates, [day(0)], 'kein doppelter Tag');
+});
+
+check('Teilschritte: Unterpunkte ziehen ihren Oberpunkt nach', () => {
+  const steps = [
+    { id: 'p', text: 'Oben', done: false, children: [
+      { id: 'c1', text: 'Unten 1', done: false },
+      { id: 'c2', text: 'Unten 2', done: false },
+    ] },
+  ];
+  const one = toggleStepIn(steps, 'c1');
+  eq(one[0].done, false, 'ein Unterpunkt reicht nicht');
+  const both = toggleStepIn(one, 'c2');
+  eq(both[0].done, true, 'alle Unterpunkte erledigt');
+  // Umgekehrt: den Oberpunkt abhaken erledigt die Unterpunkte mit.
+  const parent = toggleStepIn(steps, 'p');
+  eq(parent[0].children?.every((child) => child.done), true, 'Unterpunkte folgen');
+  eq(removeStepIn(steps, 'c1')[0].children?.length, 1, 'Unterpunkt entfernen');
+});
+
+check('Erinnerung meldet sich, sobald der Zeitpunkt erreicht ist', () => {
+  const now = new Date();
+  const time = `${`${now.getHours()}`.padStart(2, '0')}:${`${now.getMinutes()}`.padStart(2, '0')}`;
+  const due = todo({ scope: 'day', period: day(0), dueTime: time, remindMin: 0 });
+  const later = todo({ scope: 'day', period: day(1), dueTime: '08:00', remindMin: 0 });
+  const silent = todo({ scope: 'day', period: day(0), dueTime: time, remindMin: null });
+  const found = dueReminders([due, later, silent], now);
+  eq(found.length, 1, 'nur die fällige');
+  eq(found[0].id, due.id);
+  // Heute schon erinnert: kein zweites Mal.
+  eq(dueReminders([{ ...due, remindedOn: day(0) }], now).length, 0, 'nicht zweimal');
+});
+
+check('Gewohnheit: Serie, Bestwert und letzte 30 Tage', () => {
+  const days = [day(0), day(-1), day(-2), day(-5), day(-6)];
+  const stats = habitStats(todo({ repeat: { every: 'day', interval: 1 }, doneDates: days }), day(0));
+  eq(stats.streak, 3, 'drei am Stück');
+  eq(stats.best, 3, 'bester Lauf');
+  eq(stats.last30, 5, 'in den letzten 30 Tagen');
+});
+
+check('Kalenderdatei: nur Aufgaben mit Uhrzeit, mit Alarm und Wiederholung', () => {
+  const ics = todosToIcs([
+    todo({ title: 'Mit Zeit', scope: 'day', period: '2026-09-22', dueTime: '17:30', remindMin: 30,
+      repeat: { every: 'week', interval: 2 }, place: 'Studio' }),
+    todo({ title: 'Ohne Zeit', scope: 'day', period: '2026-09-22' }),
+    todo({ title: 'Erledigt', scope: 'day', period: '2026-09-22', dueTime: '10:00', done: true }),
+  ]);
+  if (!ics.startsWith('BEGIN:VCALENDAR')) throw new Error('kein Kalender');
+  eq((ics.match(/BEGIN:VEVENT/g) ?? []).length, 1, 'genau ein Termin');
+  if (!ics.includes('DTSTART:20260922T173000')) throw new Error('Startzeit fehlt');
+  if (!ics.includes('RRULE:FREQ=WEEKLY;INTERVAL=2')) throw new Error('Wiederholung fehlt');
+  if (!ics.includes('TRIGGER:-PT30M')) throw new Error('Alarm fehlt');
+  if (!ics.includes('LOCATION:Studio')) throw new Error('Ort fehlt');
+  if (!ics.trimEnd().endsWith('END:VCALENDAR')) throw new Error('nicht geschlossen');
+});
+
+check('mergeStates: Aufgaben werden je Aufgabe zusammengeführt', () => {
+  const a = stateWith([]);
+  a.updatedAt = '2026-02-10T00:00:00Z';
+  a.todos = [
+    { ...todo({ title: 'Gemeinsam' }), id: 'shared', updatedAt: '2026-02-09T00:00:00Z' },
+    { ...todo({ title: 'Nur hier' }), id: 'only-a' },
+  ];
+  const b = stateWith([]);
+  b.updatedAt = '2026-02-11T00:00:00Z';
+  b.todos = [
+    { ...todo({ title: 'Gemeinsam, neuer' }), id: 'shared', updatedAt: '2026-02-12T00:00:00Z' },
+    { ...todo({ title: 'Nur dort' }), id: 'only-b' },
+  ];
+  const merged = mergeStates(a, b);
+  eq(merged.todos.length, 3, 'nichts geht verloren');
+  eq(merged.todos.find((item) => item.id === 'shared')?.title, 'Gemeinsam, neuer', 'die jüngere Fassung');
 });
 
 export async function run(): Promise<number> {

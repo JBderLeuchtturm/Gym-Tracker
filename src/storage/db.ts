@@ -117,8 +117,16 @@ export function migrate(raw: unknown): AppState {
     doneAt: typeof todo.doneAt === 'string' ? todo.doneAt : null,
     repeat: isObject(todo.repeat) ? todo.repeat : null,
     streak: Number.isFinite(todo.streak) ? todo.streak : 0,
+    doneDates: asArray<string>(todo.doneDates).filter((date) => typeof date === 'string'),
     order: Number.isFinite(todo.order) ? todo.order : 0,
     categoryId: typeof todo.categoryId === 'string' ? todo.categoryId : null,
+    dueTime: typeof todo.dueTime === 'string' ? todo.dueTime : null,
+    remindMin: Number.isFinite(todo.remindMin) ? todo.remindMin : null,
+    remindedOn: typeof todo.remindedOn === 'string' ? todo.remindedOn : null,
+    tags: asArray<string>(todo.tags).filter((tag) => typeof tag === 'string'),
+    place: typeof todo.place === 'string' ? todo.place : '',
+    exerciseId: typeof todo.exerciseId === 'string' ? todo.exerciseId : null,
+    photoIds: asArray<string>(todo.photoIds).filter((id) => typeof id === 'string'),
   }));
 
   // Ohne Plaene waere die App unbenutzbar - dann lieber den Startplan anbieten.

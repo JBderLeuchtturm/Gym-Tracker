@@ -1,5 +1,7 @@
 import { t } from '../i18n';
-import type { ID, Todo, TodoCategory, TodoColor, TodoPriority, TodoRepeat, TodoScope } from '../types';
+import type {
+  ID, Todo, TodoCategory, TodoColor, TodoPriority, TodoRepeat, TodoScope, TodoStep,
+} from '../types';
 import {
   addDays, formatDateLong, formatDateTiny, locale, parseISODate, startOfWeek, todayISO, weekKey,
 } from './date';
@@ -195,7 +197,15 @@ export function createTodo(patch: Partial<Todo> = {}): Todo {
     doneAt: null,
     repeat: null,
     streak: 0,
+    doneDates: [],
     order: Date.now(),
+    dueTime: null,
+    remindMin: null,
+    remindedOn: null,
+    tags: [],
+    place: '',
+    exerciseId: null,
+    photoIds: [],
     createdAt: now,
     updatedAt: now,
     ...patch,
@@ -214,20 +224,32 @@ export const createStep = (text: string) => ({ id: uid('step'), text, done: fals
  * Moeglichkeit; sie fuellt die Liste mit Leichen, ohne mehr zu sagen.
  */
 export function completeTodo(todo: Todo, now = new Date()): Partial<Todo> {
+  const day = toISO(now);
+  /* Jeder erledigte Tag genau einmal - zweimal abhaken ist kein zweiter Tag. */
+  const doneDates = [...new Set([...(todo.doneDates ?? []), day])].sort().slice(-400);
+
   if (!todo.repeat || !todo.period) {
-    return { done: true, doneAt: now.toISOString() };
+    return { done: true, doneAt: now.toISOString(), doneDates };
   }
   const scope: TodoScope = todo.scope === 'someday' ? 'day' : todo.scope;
-  const steps = todo.steps.map((step) => ({ ...step, done: false }));
+  const steps = todo.steps.map(resetStep);
   return {
     period: repeatNext(todo.period, todo.repeat, scope),
     scope,
     steps,
     done: false,
     doneAt: now.toISOString(),
+    doneDates,
+    remindedOn: null,
     streak: (todo.streak ?? 0) + 1,
   };
 }
+
+const resetStep = (step: TodoStep): TodoStep => ({
+  ...step,
+  done: false,
+  ...(step.children ? { children: step.children.map(resetStep) } : {}),
+});
 
 /** Der naechste Termin einer Wiederholung. */
 export function repeatNext(period: string, repeat: TodoRepeat, scope: TodoScope): string {
@@ -413,4 +435,229 @@ export function nextColor(categories: TodoCategory[]): TodoColor {
 export function dueTodoCount(todos: Todo[], today = todayISO()): number {
   return todos.filter((todo) =>
     !todo.done && todo.scope === 'day' && todo.period !== null && todo.period <= today).length;
+}
+
+/* ------------------------------------------------------- Fälligkeits-Körbe */
+
+/**
+ * Wohin eine Aufgabe in der einen Liste gehoert.
+ *
+ * Der Umschalter Tag/Woche/Monat/Jahr ist weg - und mit ihm das Umschalten.
+ * Der Zeitraum bleibt trotzdem: Eine Wochenaufgabe ist weiterhin eine
+ * Wochenaufgabe, sie steht nur nicht mehr hinter einem eigenen Reiter,
+ * sondern unter "Diese Woche". Was man sieht, ist dadurch immer alles.
+ */
+export type TodoBucket =
+  | 'overdue' | 'today' | 'tomorrow' | 'week' | 'month' | 'year' | 'later' | 'none';
+
+export const BUCKET_LABELS: Record<TodoBucket, string> = {
+  overdue: 'Überfällig',
+  today: 'Heute',
+  tomorrow: 'Morgen',
+  week: 'Diese Woche',
+  month: 'Diesen Monat',
+  year: 'Dieses Jahr',
+  later: 'Später',
+  none: 'Ohne Datum',
+};
+
+const BUCKET_ORDER: TodoBucket[] = [
+  'overdue', 'today', 'tomorrow', 'week', 'month', 'year', 'later', 'none',
+];
+
+/**
+ * Der Korb einer Aufgabe - aus einer einzigen Regel.
+ *
+ * Entscheidend ist nicht die Art des Zeitraums, sondern sein letzter Tag: Eine
+ * Tagesaufgabe fuer Samstag und eine Wochenaufgabe fuer diese Woche laufen
+ * beide am Sonntag ab und stehen deshalb beide unter "Diese Woche". Das
+ * erspart acht Sonderfaelle und liest sich genau so, wie man es erwartet.
+ */
+export function bucketOf(todo: Todo, today = todayISO()): TodoBucket {
+  if (todo.scope === 'someday' || !todo.period) return 'none';
+  const end = periodEnd(todo.scope, todo.period);
+  if (end < today) return 'overdue';
+  if (end === today) return 'today';
+  if (end === addDays(today, 1)) return 'tomorrow';
+  if (end <= addDays(startOfWeek(today), 6)) return 'week';
+  if (end <= periodEnd('month', periodOf('month', today) ?? today)) return 'month';
+  if (end <= `${today.slice(0, 4)}-12-31`) return 'year';
+  return 'later';
+}
+
+/** Der Zeitpunkt, nach dem innerhalb eines Korbes sortiert wird. */
+export const dueKey = (todo: Todo): string =>
+  `${todo.period ?? '9999-99-99'} ${todo.dueTime ?? '99:99'}`;
+
+export interface TodoBucketGroup {
+  bucket: TodoBucket;
+  label: string;
+  todos: Todo[];
+}
+
+/**
+ * Teilt die offenen Aufgaben in die Faelligkeits-Koerbe.
+ *
+ * Innerhalb eines Korbes entscheidet die gewaehlte Sortierung; leere Koerbe
+ * fallen weg, damit die Liste nicht aus Ueberschriften besteht.
+ */
+export function bucketTodos(todos: Todo[], sort: TodoSort, today = todayISO()): TodoBucketGroup[] {
+  const map = new Map<TodoBucket, Todo[]>();
+  for (const todo of todos) {
+    const bucket = bucketOf(todo, today);
+    map.set(bucket, [...(map.get(bucket) ?? []), todo]);
+  }
+  return BUCKET_ORDER
+    .filter((bucket) => (map.get(bucket) ?? []).length > 0)
+    .map((bucket) => ({
+      bucket,
+      label: t(BUCKET_LABELS[bucket]),
+      todos: [...(map.get(bucket) ?? [])].sort((a, b) => {
+        const byOrder = compareTodos(a, b, sort);
+        if (byOrder !== 0) return byOrder;
+        return dueKey(a).localeCompare(dueKey(b));
+      }),
+    }));
+}
+
+/* ------------------------------------------------------------ Erinnerungen */
+
+/** Die Auswahl, die der Dialog anbietet - Minuten vor der Uhrzeit. */
+export const REMIND_CHOICES: Array<{ minutes: number; label: string }> = [
+  { minutes: 0, label: 'Pünktlich' },
+  { minutes: 10, label: '10 Minuten vorher' },
+  { minutes: 30, label: '30 Minuten vorher' },
+  { minutes: 60, label: '1 Stunde vorher' },
+  { minutes: 24 * 60, label: 'Einen Tag vorher' },
+];
+
+/** Datum und Uhrzeit einer Aufgabe als echter Zeitpunkt, sofern beides da ist. */
+export function dueAt(todo: Todo): Date | null {
+  if (!todo.period || !todo.dueTime) return null;
+  const [hour, minute] = todo.dueTime.split(':').map(Number);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  const date = parseISODate(todo.period);
+  date.setHours(hour, minute, 0, 0);
+  return date;
+}
+
+/**
+ * Aufgaben, an die jetzt zu erinnern ist.
+ *
+ * "Jetzt" heisst: Der Erinnerungszeitpunkt ist erreicht und heute wurde noch
+ * nicht erinnert. Eine Aufgabe, deren Uhrzeit laengst vorbei ist, meldet sich
+ * trotzdem einmal - wer die App erst am Abend oeffnet, will wissen, was er
+ * verpasst hat, und nicht, dass nichts war.
+ */
+export function dueReminders(todos: Todo[], now = new Date()): Todo[] {
+  const today = toISO(now);
+  return todos.filter((todo) => {
+    if (todo.done || todo.remindMin == null || todo.remindedOn === today) return false;
+    const at = dueAt(todo);
+    if (!at) return false;
+    return now.getTime() >= at.getTime() - todo.remindMin * 60000;
+  });
+}
+
+/* --------------------------------------------------------- Teilschritte */
+
+/** Alle Teilschritte flach - beide Ebenen, in Anzeigereihenfolge. */
+export function flatSteps(steps: TodoStep[]): TodoStep[] {
+  return steps.flatMap((step) => [step, ...(step.children ?? [])]);
+}
+
+/**
+ * Setzt einen Teilschritt und zieht die Ebenen nach.
+ *
+ * Ein Unterpunkt haengt an seinem Oberpunkt: Sind alle Unterpunkte erledigt,
+ * ist der Oberpunkt es auch; wird ein Oberpunkt abgehakt, gilt das fuer seine
+ * Unterpunkte mit. Alles andere waere ein Haken, der etwas anderes behauptet
+ * als die Zeilen darunter.
+ */
+export function toggleStepIn(steps: TodoStep[], id: ID): TodoStep[] {
+  return steps.map((step) => {
+    if (step.id === id) {
+      const done = !step.done;
+      return { ...step, done, ...(step.children ? { children: step.children.map((child) => ({ ...child, done })) } : {}) };
+    }
+    if (!step.children?.some((child) => child.id === id)) return step;
+    const children = step.children.map((child) => (child.id === id ? { ...child, done: !child.done } : child));
+    return { ...step, children, done: children.every((child) => child.done) };
+  });
+}
+
+export function removeStepIn(steps: TodoStep[], id: ID): TodoStep[] {
+  return steps
+    .filter((step) => step.id !== id)
+    .map((step) => (step.children
+      ? { ...step, children: step.children.filter((child) => child.id !== id) }
+      : step));
+}
+
+export function editStepIn(steps: TodoStep[], id: ID, text: string): TodoStep[] {
+  return steps.map((step) => {
+    if (step.id === id) return { ...step, text };
+    if (!step.children) return step;
+    return { ...step, children: step.children.map((child) => (child.id === id ? { ...child, text } : child)) };
+  });
+}
+
+/* ------------------------------------------------------------ Gewohnheiten */
+
+export interface HabitStats {
+  /** Serie bis heute, in Zeiträumen der Wiederholung. */
+  streak: number;
+  /** Die längste je erreichte Serie. */
+  best: number;
+  /** Wie viele der letzten 30 Tage abgehakt wurden. */
+  last30: number;
+  /** Erledigt-Tage, aufsteigend. */
+  days: string[];
+}
+
+/**
+ * Was aus dem Verlauf einer wiederkehrenden Aufgabe abzulesen ist.
+ *
+ * Die Serie wird gerechnet und nicht gespeichert - ein gemerkter Zaehler laeuft
+ * zwischen zwei Geraeten auseinander, ein abgeleiteter nie. Der gespeicherte
+ * `streak` bleibt trotzdem: Er zaehlt auch das, was vor dem Verlauf lag.
+ */
+export function habitStats(todo: Todo, today = todayISO()): HabitStats {
+  const days = [...new Set(todo.doneDates ?? [])].sort();
+  const set = new Set(days);
+  const stepDays = todo.repeat?.every === 'week' ? 7 : 1;
+
+  let streak = 0;
+  for (let cursor = today; ; cursor = addDays(cursor, -stepDays)) {
+    if (set.has(cursor)) streak += 1;
+    else if (cursor !== today) break;
+    else continue;
+  }
+
+  let best = 0;
+  let run = 0;
+  let previous: string | null = null;
+  for (const day of days) {
+    run = previous && addDays(previous, stepDays) === day ? run + 1 : 1;
+    best = Math.max(best, run);
+    previous = day;
+  }
+
+  const from = addDays(today, -29);
+  return { streak, best, last30: days.filter((day) => day >= from && day <= today).length, days };
+}
+
+/** Wie oft je Kategorie erledigt wurde - für die Auswertung. */
+export function doneByCategory(
+  todos: Todo[], categories: TodoCategory[], from: string, to: string,
+): Array<{ category: TodoCategory | null; count: number }> {
+  const inRange = (todo: Todo) => (todo.doneDates ?? []).filter((day) => day >= from && day <= to).length;
+  const rows: Array<{ category: TodoCategory | null; count: number }> = categories.map((category) => ({
+    category,
+    count: todos.filter((todo) => todo.categoryId === category.id).reduce((sum, todo) => sum + inRange(todo), 0),
+  }));
+  const loose = todos.filter((todo) => !categories.some((c) => c.id === todo.categoryId))
+    .reduce((sum, todo) => sum + inRange(todo), 0);
+  if (loose > 0) rows.push({ category: null, count: loose });
+  return rows.filter((row) => row.count > 0).sort((a, b) => b.count - a.count);
 }

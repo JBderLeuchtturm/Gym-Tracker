@@ -1,36 +1,42 @@
-import { t } from '../i18n';
-import { useMemo, useRef, useState } from 'react';
+import { exerciseName, t } from '../i18n';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ID, Todo, TodoCategory, TodoColor, TodoPriority, TodoScope, TodoStep } from '../types';
 import { useStore } from '../storage/store';
 import { uid } from '../storage/defaults';
-import { WEEKDAY_SHORT, addDays, startOfWeek, todayISO } from '../lib/date';
+import { WEEKDAY_SHORT, addDays, formatDateTiny, startOfWeek, todayISO } from '../lib/date';
 import {
-  PRIORITY_LABELS, REPEAT_LABELS, SCOPE_LABELS, SCOPE_NAMES, SORT_LABELS, TODO_SCOPES,
-  type TodoSort, carryOverCandidates, categoryById, compareTodos, completeTodo, createStep,
-  createTodo, doneOnDay, groupTodos, isOverdue, isPartlyDone, matchesSearch, nextColor,
-  overdueDays, periodDate, periodLabel, periodOf, shiftPeriod, stepProgress, tally,
+  PRIORITY_LABELS, REMIND_CHOICES, REPEAT_LABELS, SCOPE_NAMES, SORT_LABELS, TODO_SCOPES,
+  type TodoSort, bucketTodos, carryOverCandidates, categoryById, completeTodo, createStep,
+  createTodo, doneByCategory, doneOnDay, editStepIn, habitStats, isOverdue, isPartlyDone,
+  matchesSearch, nextColor, overdueDays, periodDate, periodLabel, periodOf, removeStepIn,
+  stepProgress, tally, toggleStepIn,
 } from '../lib/todos';
-import { ConfirmDialog, DateInput, EmptyState, Modal, Section, useToast } from '../components/ui';
+import { todosToIcs } from '../lib/todoIcs';
+import { addTodoPhoto, deleteTodoPhoto, loadTodoPhotos, todoFilesAvailable } from '../storage/todoFiles';
+import { ConfirmDialog, DateInput, EmptyState, Modal, TimeInput, fmt, useToast } from '../components/ui';
+import { ExercisePicker } from '../components/ExercisePicker';
 import {
-  IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconEdit, IconFlag,
-  IconNote, IconPlus, IconRefresh, IconSearch, IconTrash, IconX,
+  IconBell, IconCalendar, IconChart, IconCheck, IconChevronDown, IconChevronLeft, IconClock,
+  IconDrag, IconDumbbell, IconEdit, IconFlag, IconNote, IconPlus, IconRefresh, IconSearch,
+  IconSettings, IconTrash, IconX,
 } from '../components/icons';
 
 /*
  * Die Aufgabenseite.
  *
- * Eine Trainingsapp fuehrt ohnehin schon Buch darueber, was man sich vornimmt
- * und was man davon tut - nur bisher ausschliesslich fuer Saetze und
- * Wiederholungen. Das Gleiche fuer alles andere: "Proteinpulver bestellen",
- * "diese Woche zweimal laufen", "dieses Jahr den Klimmzug schaffen".
+ * Eine Trainingsapp fuehrt ohnehin Buch darueber, was man sich vornimmt und was
+ * man davon tut - bisher nur fuer Saetze und Wiederholungen. Hier fuer alles
+ * andere.
  *
- * Der Aufbau folgt einer Beobachtung: Eine Aufgabenliste scheitert fast immer
- * daran, dass alles in einem Topf landet. Deshalb hat jede Aufgabe genau einen
- * Zeitraum - Tag, Woche, Monat, Jahr oder gar keinen - und man sieht immer nur
- * einen davon. Die Woche ist nicht die Summe ihrer Tage, sondern eine eigene
- * Ebene: Was man sich fuer die Woche vornimmt, ist etwas anderes als das, was
- * am Dienstag ansteht.
+ * Eine Liste, nach Faelligkeit geordnet: Ueberfaellig, Heute, Morgen, Diese
+ * Woche, Diesen Monat, Dieses Jahr, Spaeter, Ohne Datum. Der Zeitraum einer
+ * Aufgabe (Tag, Woche, Monat, Jahr) bleibt erhalten und bestimmt, in welchem
+ * Korb sie landet - aber man schaltet nicht mehr zwischen Ebenen um, sondern
+ * sieht immer alles. Das war der Fehler der ersten Fassung: Vier Reiter, von
+ * denen drei immer versteckt waren, sind drei Listen, die man vergisst.
  */
+
+type View = 'list' | 'stats';
 
 /* ------------------------------------------------------------------ Seite */
 
@@ -39,8 +45,7 @@ export function TodosPage() {
   const toast = useToast();
   const today = todayISO();
 
-  const [scope, setScope] = useState<TodoScope>('day');
-  const [period, setPeriod] = useState<string | null>(today);
+  const [view, setView] = useState<View>('list');
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterCategory, setFilterCategory] = useState<ID | null>(null);
@@ -48,47 +53,29 @@ export function TodosPage() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [expanded, setExpanded] = useState<Record<ID, boolean>>({});
   const [doneOpen, setDoneOpen] = useState(false);
-  const [editing, setEditing] = useState<Todo | null>(null);
+  const [editing, setEditing] = useState<ID | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
 
   const categories = state.todoCategories;
   const todos = state.todos;
 
-  /* Der Zeitraum, der gerade auf dem Bildschirm steht. */
-  const inPeriod = useMemo(
-    () => todos.filter((todo) => todo.scope === scope
-      && (scope === 'someday' ? true : todo.period === period)),
-    [todos, scope, period],
-  );
-
-  const visible = useMemo(() => inPeriod.filter((todo) =>
+  const visible = useMemo(() => todos.filter((todo) =>
     (filterCategory === null || todo.categoryId === filterCategory)
     && matchesSearch(todo, search, categoryById(categories, todo.categoryId))),
-  [inPeriod, filterCategory, search, categories]);
+  [todos, filterCategory, search, categories]);
 
-  const open = visible.filter((todo) => !todo.done);
-  const done = visible.filter((todo) => todo.done)
-    .sort((a, b) => (b.doneAt ?? '').localeCompare(a.doneAt ?? ''));
-  const groups = useMemo(() => groupTodos(open, sort, categories), [open, sort, categories]);
+  const open = useMemo(() => visible.filter((todo) => !todo.done), [visible]);
+  /* Erledigtes der letzten zwei Wochen - aelteres ist Archiv, kein Zustand. */
+  const done = useMemo(() => visible
+    .filter((todo) => todo.done && (todo.doneAt ?? '').slice(0, 10) >= addDays(today, -14))
+    .sort((a, b) => (b.doneAt ?? '').localeCompare(a.doneAt ?? '')), [visible, today]);
 
-  const counts = useMemo(() => tally(inPeriod, today), [inPeriod, today]);
+  const groups = useMemo(() => bucketTodos(open, sort, today), [open, sort, today]);
+  const counts = useMemo(() => tally([...open, ...done], today), [open, done, today]);
   const carry = useMemo(() => carryOverCandidates(todos, today), [todos, today]);
-
-  const atCurrent = scope === 'someday' || period === periodOf(scope, today);
-
-  /* Zeitraumart wechseln: der neue Zeitraum ist immer der laufende. */
-  const chooseScope = (next: TodoScope) => {
-    setScope(next);
-    setPeriod(periodOf(next, today));
-    setDoneOpen(false);
-  };
-
-  const step = (direction: -1 | 1) => {
-    if (scope === 'someday' || !period) return;
-    setPeriod(shiftPeriod(scope, period, direction));
-    setDoneOpen(false);
-  };
+  const editingTodo = todos.find((todo) => todo.id === editing) ?? null;
 
   /* ------------------------------------------------------------ Handgriffe */
 
@@ -97,45 +84,33 @@ export function TodosPage() {
       updateTodo(todo.id, { done: false, doneAt: null });
       return;
     }
-    const patch = completeTodo(todo);
-    updateTodo(todo.id, patch);
-    /*
-     * Eine wiederkehrende Aufgabe verschwindet beim Abhaken aus dem Blickfeld -
-     * sie steht ja jetzt im naechsten Zeitraum. Ohne Rueckmeldung sieht das aus
-     * wie ein Fehler, deshalb sagt die Meldung, wohin sie gewandert ist.
-     */
+    const before = { ...todo };
+    updateTodo(todo.id, completeTodo(todo));
     if (todo.repeat) {
-      const previous = { ...todo };
       toast.show(
         t('Erledigt – steht wieder am {date}', {
-          date: periodLabel(patch.scope ?? todo.scope, patch.period ?? null, today),
+          date: periodLabel(todo.scope === 'someday' ? 'day' : todo.scope,
+            completeTodo(todo).period ?? null, today),
         }),
-        { label: t('Rückgängig'), run: () => updateTodo(todo.id, previous) },
+        { label: t('Rückgängig'), run: () => updateTodo(todo.id, before) },
       );
     }
   };
 
   const toggleStep = (todo: Todo, stepId: ID) => {
-    const steps = todo.steps.map((item) =>
-      (item.id === stepId ? { ...item, done: !item.done } : item));
+    const steps = toggleStepIn(todo.steps, stepId);
     const all = steps.length > 0 && steps.every((item) => item.done);
     /*
      * Der letzte Teilschritt hakt die Aufgabe mit ab. Wer alle fuenf Schritte
      * abgehakt hat und danach noch einmal die Aufgabe selbst abhaken muesste,
      * fragt sich zu Recht, wofuer die Schritte gut waren.
      */
-    updateTodo(todo.id, all
-      ? { steps, done: true, doneAt: new Date().toISOString() }
-      : { steps });
+    updateTodo(todo.id, all ? { steps, ...completeTodo({ ...todo, steps }) } : { steps });
   };
 
-  const addQuick = (title: string) => {
+  const addQuick = (title: string, period: string | null, scope: TodoScope) => {
     const todo = createTodo({
-      title,
-      scope,
-      period: scope === 'someday' ? null : period,
-      categoryId: filterCategory,
-      order: Date.now(),
+      title, scope, period, categoryId: filterCategory, order: Date.now(),
     });
     addTodo(todo);
     return todo;
@@ -144,17 +119,15 @@ export function TodosPage() {
   const removeTodo = (todo: Todo) => {
     deleteTodo(todo.id);
     setEditing(null);
-    toast.show(t('Gelöscht'), { label: t('Rückgängig'), run: () => addTodo(todo) });
+    toast.show(t('„{title}" gelöscht', { title: todo.title || t('Aufgabe') }),
+      { label: t('Rückgängig'), run: () => addTodo(todo) });
   };
 
   const takeOver = () => {
-    const ids = carry.map((todo) => todo.id);
     const before = carry.map((todo) => ({ ...todo }));
-    updateTodos(ids, { period: today, scope: 'day' });
-    setScope('day');
-    setPeriod(today);
+    updateTodos(before.map((todo) => todo.id), { period: today, scope: 'day' });
     toast.show(
-      ids.length === 1 ? t('1 Aufgabe übernommen') : t('{count} Aufgaben übernommen', { count: ids.length }),
+      before.length === 1 ? t('1 Aufgabe übernommen') : t('{count} Aufgaben übernommen', { count: before.length }),
       { label: t('Rückgängig'), run: () => before.forEach((todo) => updateTodo(todo.id, todo)) },
     );
   };
@@ -163,67 +136,42 @@ export function TodosPage() {
     const removed = done.map((todo) => ({ ...todo }));
     deleteTodos(removed.map((todo) => todo.id));
     setConfirmClear(false);
-    toast.show(
-      t('{count} erledigte Aufgaben entfernt', { count: removed.length }),
-      { label: t('Rückgängig'), run: () => removed.forEach((todo) => addTodo(todo)) },
-    );
+    toast.show(t('{count} erledigte Aufgaben entfernt', { count: removed.length }),
+      { label: t('Rückgängig'), run: () => removed.forEach((todo) => addTodo(todo)) });
   };
 
-  const move = (todo: Todo, direction: -1 | 1) => {
-    const list = [...open].sort((a, b) => compareTodos(a, b, 'manual'));
-    const index = list.findIndex((item) => item.id === todo.id);
-    const other = list[index + direction];
-    if (!other) return;
-    updateTodo(todo.id, { order: other.order });
-    updateTodo(other.id, { order: todo.order });
+  /**
+   * Verschieben innerhalb eines Korbes.
+   *
+   * Nur die Reihenfolge wandert, nicht das Datum: Wer in "Diese Woche" etwas
+   * nach oben zieht, will es zuerst sehen und nicht auf einen anderen Tag
+   * legen.
+   */
+  const reorder = (list: Todo[], from: number, to: number) => {
+    if (from === to) return;
+    const moved = [...list];
+    const [item] = moved.splice(from, 1);
+    moved.splice(to, 0, item);
+    const base = Date.now();
+    moved.forEach((todo, index) => updateTodo(todo.id, { order: base + index }));
+    if (sort !== 'manual') setSort('manual');
   };
+
+  if (view === 'stats') {
+    return <TodoStats todos={todos} categories={categories} today={today} onBack={() => setView('list')} />;
+  }
 
   /* ------------------------------------------------------------- Anzeige */
 
   return (
     <>
-      <TodoOverview counts={counts} todos={todos} today={today} />
-
-      <div className="todo-controls">
-      <div className="todo-scopes" role="tablist" aria-label={t('Zeitraum')}>
-        {TODO_SCOPES.map((item) => (
-          <button
-            key={item}
-            role="tab"
-            aria-selected={scope === item}
-            className={`todo-scopes__item ${scope === item ? 'todo-scopes__item--on' : ''}`}
-            onClick={() => chooseScope(item)}
-          >
-            {t(SCOPE_LABELS[item])}
-          </button>
-        ))}
-      </div>
-
-      {scope !== 'someday' && (
-        <div className="todo-period">
-          <button className="btn btn--sm btn--icon" onClick={() => step(-1)} aria-label={t('Zeitraum zurück')}>
-            <IconChevronLeft />
-          </button>
-          <div className="todo-period__label">
-            <div className="todo-period__name">{periodLabel(scope, period, today)}</div>
-            <div className="tiny dim">{periodDate(scope, period)}</div>
-          </div>
-          <button className="btn btn--sm btn--icon" onClick={() => step(1)} aria-label={t('Zeitraum weiter')}>
-            <IconChevronRight />
-          </button>
-          {!atCurrent && (
-            <button className="btn btn--sm" onClick={() => setPeriod(periodOf(scope, today))}>
-              {t('Jetzt')}
-            </button>
-          )}
-        </div>
-      )}
+      <TodoHead counts={counts} />
 
       <QuickAdd
-        categories={categories}
-        activeCategory={filterCategory}
+        category={categoryById(categories, filterCategory)}
+        today={today}
         onAdd={addQuick}
-        onDetails={(todo) => setEditing(todo)}
+        onDetails={(todo) => setEditing(todo.id)}
       />
 
       <div className="todo-tools">
@@ -240,10 +188,10 @@ export function TodosPage() {
             className={`chip chip--button ${filterCategory === null ? 'chip--accent' : ''}`}
             onClick={() => setFilterCategory(null)}
           >
-            {t('Alle')} <span className="mono dim">{inPeriod.filter((todo) => !todo.done).length}</span>
+            {t('Alle')} <span className="mono dim">{open.length}</span>
           </button>
           {categories.map((category) => {
-            const count = inPeriod.filter((todo) => !todo.done && todo.categoryId === category.id).length;
+            const count = todos.filter((todo) => !todo.done && todo.categoryId === category.id).length;
             return (
               <button
                 key={category.id}
@@ -257,20 +205,10 @@ export function TodosPage() {
               </button>
             );
           })}
-          <button className="chip chip--button" onClick={() => setCategoriesOpen(true)}>
-            <IconEdit style={{ width: 12, height: 12 }} /> {t('Kategorien')}
-          </button>
         </div>
-        <select
-          className="select todo-sort"
-          value={sort}
-          onChange={(event) => setSort(event.target.value as TodoSort)}
-          aria-label={t('Sortierung')}
-        >
-          {(Object.keys(SORT_LABELS) as TodoSort[]).map((key) => (
-            <option key={key} value={key}>{t(SORT_LABELS[key])}</option>
-          ))}
-        </select>
+        <button className="btn btn--sm btn--icon" onClick={() => setMenuOpen(true)} aria-label={t('Mehr')}>
+          <IconSettings />
+        </button>
       </div>
 
       {searchOpen && (
@@ -283,82 +221,46 @@ export function TodosPage() {
           aria-label={t('Suchen')}
         />
       )}
-      </div>
 
-      {scope === 'day' && atCurrent && carry.length > 0 && (
-        <div className="todo-carry" role="status">
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="bold small">
-              {carry.length === 1
-                ? t('1 Aufgabe ist liegen geblieben')
-                : t('{count} Aufgaben sind liegen geblieben', { count: carry.length })}
-            </div>
-            <div className="tiny dim">{t('Aus vergangenen Tagen, noch offen.')}</div>
-          </div>
-          <button className="btn btn--sm" onClick={takeOver}>{t('Auf heute holen')}</button>
-        </div>
+      {carry.length > 0 && !search && (
+        <button className="todo-carry" onClick={takeOver}>
+          <span className="todo-carry__text">
+            {carry.length === 1
+              ? t('1 Aufgabe ist liegen geblieben')
+              : t('{count} Aufgaben sind liegen geblieben', { count: carry.length })}
+          </span>
+          <span className="todo-carry__action">{t('Auf heute holen')}</span>
+        </button>
       )}
 
       {open.length === 0 && done.length === 0 ? (
         <EmptyState
-          title={search || filterCategory
-            ? t('Nichts gefunden')
-            : t('Hier ist noch nichts vorgemerkt')}
+          title={search || filterCategory ? t('Nichts gefunden') : t('Noch nichts vorgemerkt')}
           hint={search || filterCategory
             ? t('Andere Kategorie oder anderer Suchbegriff.')
-            : t('Trag oben ein, was in diesem Zeitraum anstehen soll – ein Stichwort reicht.')}
+            : t('Trag oben ein, was ansteht – ein Stichwort reicht. Datum, Kategorie und Teilschritte kommen später dazu.')}
         />
       ) : (
         <div className="todo-groups">
-          {groups.map((group) => {
-            const isOpen = !collapsed[group.key];
-            return (
-              <div key={group.key} className="todo-group">
-                {group.label && (
-                  <button
-                    className="todo-group__head"
-                    aria-expanded={isOpen}
-                    onClick={() => setCollapsed((value) => ({ ...value, [group.key]: isOpen }))}
-                  >
-                    <IconChevronDown
-                      className="todo-group__chevron"
-                      style={isOpen ? undefined : { transform: 'rotate(-90deg)' }}
-                    />
-                    {group.priority && <span className={`todo-group__pip todo-group__pip--${group.priority}`} />}
-                    {group.color && (
-                      <span
-                        className="todo-chip__dot"
-                        style={{ '--cat': `var(--todo-cat-${group.color})` } as React.CSSProperties}
-                      />
-                    )}
-                    <span className="todo-group__name">{group.icon} {group.label}</span>
-                    <span className="todo-group__count mono">{group.todos.length}</span>
-                  </button>
-                )}
-                {isOpen && (
-                  <div className="list">
-                    {group.todos.map((todo, index) => (
-                      <TodoRow
-                        key={todo.id}
-                        todo={todo}
-                        category={categoryById(categories, todo.categoryId)}
-                        today={today}
-                        expanded={expanded[todo.id] === true}
-                        sortable={sort === 'manual'}
-                        first={index === 0}
-                        last={index === group.todos.length - 1}
-                        onToggle={() => toggleDone(todo)}
-                        onToggleStep={(stepId) => toggleStep(todo, stepId)}
-                        onExpand={() => setExpanded((value) => ({ ...value, [todo.id]: !value[todo.id] }))}
-                        onEdit={() => setEditing(todo)}
-                        onMove={(direction) => move(todo, direction)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {groups.map((group) => (
+            <TodoGroup
+              key={group.bucket}
+              label={group.label}
+              bucket={group.bucket}
+              todos={group.todos}
+              categories={categories}
+              today={today}
+              openState={collapsed[group.bucket] !== true}
+              expanded={expanded}
+              onCollapse={() => setCollapsed((value) => ({ ...value, [group.bucket]: !value[group.bucket] }))}
+              onToggle={toggleDone}
+              onToggleStep={toggleStep}
+              onExpand={(id) => setExpanded((value) => ({ ...value, [id]: !value[id] }))}
+              onEdit={(id) => setEditing(id)}
+              onDelete={removeTodo}
+              onReorder={reorder}
+            />
+          ))}
 
           {done.length > 0 && (
             <div className="todo-group">
@@ -376,7 +278,7 @@ export function TodosPage() {
                 <span className="todo-group__count mono">{done.length}</span>
               </button>
               {doneOpen && (
-                <div className="list">
+                <div className="todo-list">
                   {done.map((todo) => (
                     <TodoRow
                       key={todo.id}
@@ -384,14 +286,11 @@ export function TodosPage() {
                       category={categoryById(categories, todo.categoryId)}
                       today={today}
                       expanded={expanded[todo.id] === true}
-                      sortable={false}
-                      first
-                      last
                       onToggle={() => toggleDone(todo)}
                       onToggleStep={(stepId) => toggleStep(todo, stepId)}
                       onExpand={() => setExpanded((value) => ({ ...value, [todo.id]: !value[todo.id] }))}
-                      onEdit={() => setEditing(todo)}
-                      onMove={() => undefined}
+                      onEdit={() => setEditing(todo.id)}
+                      onDelete={() => removeTodo(todo)}
                     />
                   ))}
                   <button className="btn btn--sm btn--flush" onClick={() => setConfirmClear(true)}>
@@ -404,17 +303,27 @@ export function TodosPage() {
         </div>
       )}
 
-      {editing && (
+      {menuOpen && (
+        <TodoMenu
+          sort={sort}
+          hasDone={done.length > 0}
+          onSort={setSort}
+          onCategories={() => { setMenuOpen(false); setCategoriesOpen(true); }}
+          onStats={() => { setMenuOpen(false); setView('stats'); }}
+          onClearDone={() => { setMenuOpen(false); setConfirmClear(true); }}
+          onClose={() => setMenuOpen(false)}
+          todos={todos}
+        />
+      )}
+
+      {editingTodo && (
         <TodoEditor
-          todo={editing}
+          todo={editingTodo}
           categories={categories}
           today={today}
-          onChange={(patch) => {
-            updateTodo(editing.id, patch);
-            setEditing({ ...editing, ...patch });
-          }}
+          onChange={(patch) => updateTodo(editingTodo.id, patch)}
           onManageCategories={() => setCategoriesOpen(true)}
-          onDelete={() => removeTodo(editing)}
+          onDelete={() => removeTodo(editingTodo)}
           onClose={() => setEditing(null)}
         />
       )}
@@ -424,7 +333,7 @@ export function TodosPage() {
       {confirmClear && (
         <ConfirmDialog
           title={t('Erledigte entfernen?')}
-          message={t('Die {count} abgehakten Aufgaben dieses Zeitraums werden gelöscht. Rückgängig geht direkt danach.', { count: done.length })}
+          message={t('Die {count} abgehakten Aufgaben werden gelöscht. Rückgängig geht direkt danach.', { count: done.length })}
           onConfirm={clearDone}
           onCancel={() => setConfirmClear(false)}
         />
@@ -433,167 +342,201 @@ export function TodosPage() {
   );
 }
 
-/* --------------------------------------------------------------- Überblick */
+/* ------------------------------------------------------------------- Kopf */
 
 /**
- * Der Kopf der Seite: wie weit der gewaehlte Zeitraum ist, und wie die Woche
- * bisher lief.
+ * Der Kopf: ein Balken und eine Zeile.
  *
- * Der Ring zaehlt angefangene Aufgaben anteilig mit (siehe `tally`). Der
- * Wochenbalken daneben ist die einzige Stelle, an der die Seite ueber ihren
- * Zeitraum hinausblickt - er beantwortet die Frage, die eine Tagesliste nie
- * beantworten kann: "War das eine gute Woche?"
+ * Vorher stand hier eine Karte mit Ring, Wochenbalken und Legende - zusammen
+ * mit dem Zeitraum-Umschalter ein halber Bildschirm, bevor die erste Aufgabe
+ * kam. Alles, was man beim Hinsehen wissen will, sind zwei Dinge: wie weit man
+ * ist und ob etwas brennt. Der Rest steht jetzt unter "Auswertung".
  */
-function TodoOverview({
-  counts, todos, today,
-}: {
-  counts: ReturnType<typeof tally>;
-  todos: Todo[];
-  today: string;
-}) {
-  const monday = startOfWeek(today);
-  const week = useMemo(() => Array.from({ length: 7 }, (_, index) => {
-    const date = addDays(monday, index);
-    return {
-      date,
-      index,
-      done: doneOnDay(todos, date),
-      open: todos.filter((todo) => !todo.done && todo.scope === 'day' && todo.period === date).length,
-    };
-  }), [todos, monday]);
-
-  const peak = Math.max(1, ...week.map((day) => day.done + day.open));
+function TodoHead({ counts }: { counts: ReturnType<typeof tally> }) {
   const percent = counts.total === 0 ? 0 : Math.round((counts.weighted / counts.total) * 100);
-  const weekDone = week.reduce((sum, day) => sum + day.done, 0);
-
   return (
-    <div className="card todo-overview">
-      <div className="todo-overview__top">
-        <ProgressRing percent={percent} muted={counts.total === 0} />
-        <div className="todo-overview__facts">
-          <div className="todo-fact">
-            <span className="todo-fact__value mono">{counts.open}</span>
-            <span className="todo-fact__label">{t('offen')}</span>
-          </div>
-          <div className="todo-fact">
-            <span className="todo-fact__value mono" style={{ color: counts.done > 0 ? 'var(--success)' : undefined }}>
-              {counts.done}
-            </span>
-            <span className="todo-fact__label">{t('erledigt')}</span>
-          </div>
-          <div className="todo-fact">
-            <span className="todo-fact__value mono" style={{ color: counts.overdue > 0 ? 'var(--danger)' : undefined }}>
-              {counts.overdue}
-            </span>
-            <span className="todo-fact__label">{t('überfällig')}</span>
-          </div>
-        </div>
+    <div className="todo-head">
+      <div className="todo-head__bar" role="img" aria-label={t('{percent} % erledigt', { percent })}>
+        <div className="todo-head__fill" style={{ width: `${percent}%` }} />
       </div>
-
-      <div className="todo-week" role="img" aria-label={t('{count} Aufgaben in dieser Woche erledigt', { count: weekDone })}>
-        {week.map((day) => (
-          <div key={day.date} className="todo-week__col" title={t('{weekday}: {done} erledigt, {open} offen', {
-            weekday: t(WEEKDAY_SHORT[day.index]), done: day.done, open: day.open,
-          })}>
-            <div className="todo-week__stack">
-              {day.open > 0 && (
-                <div className="todo-week__bar todo-week__bar--open" style={{ height: `${(day.open / peak) * 100}%` }} />
-              )}
-              {day.done > 0 && (
-                <div className="todo-week__bar todo-week__bar--done" style={{ height: `${(day.done / peak) * 100}%` }} />
-              )}
-            </div>
-            <div className={`todo-week__day ${day.date === today ? 'todo-week__day--today' : ''}`}>
-              {t(WEEKDAY_SHORT[day.index])}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="todo-legend tiny dim">
-        <span><span className="todo-legend__swatch todo-legend__swatch--done" /> {t('erledigt')}</span>
-        <span><span className="todo-legend__swatch todo-legend__swatch--open" /> {t('offen')}</span>
-        <span className="spacer" />
-        <span>{t('Diese Woche: {count} erledigt', { count: weekDone })}</span>
+      <div className="todo-head__line">
+        <span className="mono bold">{percent} %</span>
+        <span className="dim">·</span>
+        <span>{t('{count} offen', { count: counts.open })}</span>
+        {counts.done > 0 && <span className="pos">{t('{count} erledigt', { count: counts.done })}</span>}
+        {counts.overdue > 0 && <span className="neg bold">{t('{count} überfällig', { count: counts.overdue })}</span>}
       </div>
     </div>
   );
 }
 
-/** Der Fortschrittsring. Reine Anzeige - deshalb der Erledigt-Ton, kein Akzent. */
-function ProgressRing({ percent, muted }: { percent: number; muted: boolean }) {
-  const radius = 26;
-  const circumference = 2 * Math.PI * radius;
-  const filled = (Math.min(100, Math.max(0, percent)) / 100) * circumference;
-  return (
-    <svg className="todo-ring" viewBox="0 0 64 64" width={64} height={64} aria-hidden="true">
-      <circle cx="32" cy="32" r={radius} fill="none" stroke="var(--surface-3)" strokeWidth="6" />
-      <circle
-        cx="32" cy="32" r={radius}
-        fill="none"
-        stroke={muted ? 'var(--border)' : 'var(--success)'}
-        strokeWidth="6"
-        strokeLinecap="round"
-        strokeDasharray={`${filled} ${circumference - filled}`}
-        transform="rotate(-90 32 32)"
-      />
-      <text x="32" y="33" className="todo-ring__text" textAnchor="middle" dominantBaseline="middle">
-        {percent}
-      </text>
-      <text x="32" y="44" className="todo-ring__unit" textAnchor="middle" dominantBaseline="middle">%</text>
-    </svg>
-  );
-}
-
 /* -------------------------------------------------------------- Schnelleingabe */
 
-/**
- * Eine Zeile, ein Feld, Enter.
- *
- * Alles Weitere - Kategorie, Prioritaet, Teilschritte - kommt spaeter oder gar
- * nicht. Wer eine Aufgabe notieren will, waehrend ihm einfaellt, dass er sie
- * hat, darf dafuer nicht erst ein Formular ausfuellen muessen.
- */
 function QuickAdd({
-  categories, activeCategory, onAdd, onDetails,
+  category, today, onAdd, onDetails,
 }: {
-  categories: TodoCategory[];
-  activeCategory: ID | null;
-  onAdd: (title: string) => Todo;
+  category: TodoCategory | undefined;
+  today: string;
+  onAdd: (title: string, period: string | null, scope: TodoScope) => Todo;
   onDetails: (todo: Todo) => void;
 }) {
   const [text, setText] = useState('');
   const input = useRef<HTMLInputElement>(null);
-  const category = categoryById(categories, activeCategory);
 
-  const submit = (openDetails: boolean) => {
+  const submit = (period: string | null, scope: TodoScope, openDetails = false) => {
     const title = text.trim();
     if (!title) return;
-    const todo = onAdd(title);
+    const todo = onAdd(title, period, scope);
     setText('');
     if (openDetails) onDetails(todo);
     else input.current?.focus();
   };
 
   return (
-    <div className="todo-add">
-      <IconPlus className="todo-add__icon" />
-      <input
-        ref={input}
-        className="todo-add__field"
-        value={text}
-        placeholder={category
-          ? t('Neue Aufgabe in {category} …', { category: category.name })
-          : t('Neue Aufgabe …')}
-        aria-label={t('Neue Aufgabe')}
-        onChange={(event) => setText(event.target.value)}
-        onKeyDown={(event) => { if (event.key === 'Enter') submit(false); }}
-      />
+    <div className="todo-add-wrap">
+      <div className="todo-add">
+        <IconPlus className="todo-add__icon" />
+        <input
+          ref={input}
+          className="todo-add__field"
+          value={text}
+          placeholder={category
+            ? t('Neue Aufgabe in {category} …', { category: category.name })
+            : t('Neue Aufgabe …')}
+          aria-label={t('Neue Aufgabe')}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Enter') submit(today, 'day'); }}
+        />
+        {text.trim() && (
+          <button className="btn btn--sm btn--primary" onClick={() => submit(today, 'day')}>
+            {t('Heute')}
+          </button>
+        )}
+      </div>
+      {/*
+        * Die Ablagen erscheinen erst beim Tippen. Vier Knoepfe ueber einer
+        * leeren Liste sind Ballast; vier Knoepfe, waehrend man tippt, sind
+        * die Antwort auf die Frage "wann denn?".
+        */}
       {text.trim() && (
-        <>
-          <button className="btn btn--sm" onClick={() => submit(true)}>{t('Details')}</button>
-          <button className="btn btn--sm btn--primary" onClick={() => submit(false)}>{t('Hinzufügen')}</button>
-        </>
+        <div className="chip-scroll todo-add__when">
+          <button className="chip chip--button" onClick={() => submit(addDays(today, 1), 'day')}>
+            {t('Morgen')}
+          </button>
+          <button className="chip chip--button" onClick={() => submit(periodOf('week', today), 'week')}>
+            {t('Diese Woche')}
+          </button>
+          <button className="chip chip--button" onClick={() => submit(periodOf('month', today), 'month')}>
+            {t('Diesen Monat')}
+          </button>
+          <button className="chip chip--button" onClick={() => submit(null, 'someday')}>
+            {t('Ohne Datum')}
+          </button>
+          <button className="chip chip--button" onClick={() => submit(today, 'day', true)}>
+            <IconEdit style={{ width: 12, height: 12 }} /> {t('Details')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ Gruppe */
+
+/**
+ * Ein Faelligkeits-Korb mit seinen Zeilen.
+ *
+ * Das Ziehen lebt hier und nicht in der Zeile: Nur die Gruppe kennt ihre
+ * Nachbarn, und verschoben wird immer nur innerhalb eines Korbes - eine
+ * Aufgabe von "Heute" nach "Morgen" zu ziehen waere eine Datumsaenderung, die
+ * man nicht aus Versehen macht.
+ */
+function TodoGroup({
+  label, bucket, todos, categories, today, openState, expanded,
+  onCollapse, onToggle, onToggleStep, onExpand, onEdit, onDelete, onReorder,
+}: {
+  label: string;
+  bucket: string;
+  todos: Todo[];
+  categories: TodoCategory[];
+  today: string;
+  openState: boolean;
+  expanded: Record<ID, boolean>;
+  onCollapse: () => void;
+  onToggle: (todo: Todo) => void;
+  onToggleStep: (todo: Todo, stepId: ID) => void;
+  onExpand: (id: ID) => void;
+  onEdit: (id: ID) => void;
+  onDelete: (todo: Todo) => void;
+  onReorder: (list: Todo[], from: number, to: number) => void;
+}) {
+  const [drag, setDrag] = useState<{ index: number; dy: number; height: number } | null>(null);
+  const list = useRef<HTMLDivElement>(null);
+
+  const startDrag = (index: number, event: React.PointerEvent) => {
+    const row = (event.currentTarget as HTMLElement).closest('.todo-item') as HTMLElement | null;
+    const height = (row?.offsetHeight ?? 56) + 8;
+    const startY = event.clientY;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    setDrag({ index, dy: 0, height });
+
+    const move = (moveEvent: PointerEvent) => setDrag((current) =>
+      (current ? { ...current, dy: moveEvent.clientY - startY } : current));
+    const end = (endEvent: PointerEvent) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      const steps = Math.round((endEvent.clientY - startY) / height);
+      const target = Math.min(todos.length - 1, Math.max(0, index + steps));
+      setDrag(null);
+      if (target !== index) onReorder(todos, index, target);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+  };
+
+  /** Um wie viele Plaetze eine Zeile beiseite rueckt, solange gezogen wird. */
+  const shiftOf = (index: number): number => {
+    if (!drag) return 0;
+    const target = Math.min(todos.length - 1, Math.max(0, drag.index + Math.round(drag.dy / drag.height)));
+    if (index === drag.index) return 0;
+    if (drag.index < target && index > drag.index && index <= target) return -drag.height;
+    if (drag.index > target && index < drag.index && index >= target) return drag.height;
+    return 0;
+  };
+
+  return (
+    <div className="todo-group">
+      <button className="todo-group__head" aria-expanded={openState} onClick={onCollapse}>
+        <IconChevronDown
+          className="todo-group__chevron"
+          style={openState ? undefined : { transform: 'rotate(-90deg)' }}
+        />
+        <span className={`todo-group__pip todo-group__pip--${bucket}`} />
+        <span className="todo-group__name">{label}</span>
+        <span className="todo-group__count mono">{todos.length}</span>
+      </button>
+      {openState && (
+        <div className="todo-list" ref={list}>
+          {todos.map((todo, index) => (
+            <TodoRow
+              key={todo.id}
+              todo={todo}
+              category={categoryById(categories, todo.categoryId)}
+              today={today}
+              expanded={expanded[todo.id] === true}
+              dragging={drag?.index === index}
+              offset={drag?.index === index ? drag.dy : shiftOf(index)}
+              onDragStart={(event) => startDrag(index, event)}
+              onToggle={() => onToggle(todo)}
+              onToggleStep={(stepId) => onToggleStep(todo, stepId)}
+              onExpand={() => onExpand(todo.id)}
+              onEdit={() => onEdit(todo.id)}
+              onDelete={() => onDelete(todo)}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
@@ -601,27 +544,72 @@ function QuickAdd({
 
 /* -------------------------------------------------------------------- Zeile */
 
+/** Ab hier gilt ein Wischen als Handlung und nicht als verrutschter Finger. */
+const SWIPE_TRIGGER = 88;
+
 function TodoRow({
-  todo, category, today, expanded, sortable, first, last,
-  onToggle, onToggleStep, onExpand, onEdit, onMove,
+  todo, category, today, expanded, dragging = false, offset = 0,
+  onDragStart, onToggle, onToggleStep, onExpand, onEdit, onDelete,
 }: {
   todo: Todo;
   category: TodoCategory | undefined;
   today: string;
   expanded: boolean;
-  sortable: boolean;
-  first: boolean;
-  last: boolean;
+  dragging?: boolean;
+  offset?: number;
+  onDragStart?: (event: React.PointerEvent) => void;
   onToggle: () => void;
   onToggleStep: (stepId: ID) => void;
   onExpand: () => void;
   onEdit: () => void;
-  onMove: (direction: -1 | 1) => void;
+  onDelete: () => void;
 }) {
+  const [swipe, setSwipe] = useState(0);
+  const gesture = useRef<{ x: number; y: number; active: boolean } | null>(null);
+  const swiped = useRef(false);
+
   const progress = stepProgress(todo);
   const overdue = isOverdue(todo, today);
   const days = overdueDays(todo, today);
-  const hasDetail = todo.steps.length > 0 || todo.note.trim().length > 0;
+  const hasDetail = todo.steps.length > 0 || todo.note.trim().length > 0 || todo.photoIds.length > 0;
+
+  /*
+   * Wischen mit Zeigergeraeten statt nur mit dem Finger: Dieselbe Geste
+   * funktioniert dann auch mit der Maus - und laesst sich pruefen.
+   */
+  const onPointerDown = (event: React.PointerEvent) => {
+    if ((event.target as HTMLElement).closest('button, input, textarea, select, a')) return;
+    gesture.current = { x: event.clientX, y: event.clientY, active: false };
+  };
+  const onPointerMove = (event: React.PointerEvent) => {
+    const start = gesture.current;
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (!start.active) {
+      if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { gesture.current = null; return; }
+      if (Math.abs(dx) < 10) return;
+      start.active = true;
+      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    }
+    setSwipe(dx);
+  };
+  const onPointerUp = () => {
+    const start = gesture.current;
+    gesture.current = null;
+    if (!start?.active) { setSwipe(0); return; }
+    const distance = swipe;
+    setSwipe(0);
+    /* Ein Wischen ist kein Antippen - der Klick danach darf nichts oeffnen. */
+    swiped.current = true;
+    window.setTimeout(() => { swiped.current = false; }, 60);
+    if (distance >= SWIPE_TRIGGER) onToggle();
+    else if (distance <= -SWIPE_TRIGGER) onDelete();
+  };
+
+  const openEditor = () => { if (!swiped.current) onEdit(); };
+
+  const armed = Math.abs(swipe) >= SWIPE_TRIGGER;
 
   return (
     <div
@@ -631,10 +619,32 @@ function TodoRow({
         overdue ? 'todo-item--overdue' : '',
         isPartlyDone(todo) ? 'todo-item--partly' : '',
         `todo-item--${todo.priority}`,
+        dragging ? 'todo-item--dragging' : '',
       ].filter(Boolean).join(' ')}
-      style={category ? ({ '--cat': `var(--todo-cat-${category.color})` } as React.CSSProperties) : undefined}
+      style={{
+        ...(category ? { '--cat': `var(--todo-cat-${category.color})` } : {}),
+        ...(offset ? { transform: `translateY(${offset}px)` } : {}),
+        ...(dragging || offset ? { transition: dragging ? 'none' : undefined } : {}),
+      } as React.CSSProperties}
     >
-      <div className="todo-item__main">
+      {/* Was beim Wischen darunter zum Vorschein kommt. */}
+      <div className={`todo-item__behind ${armed ? 'todo-item__behind--armed' : ''}`} aria-hidden="true">
+        <span className="todo-item__behind-left">
+          <IconCheck /> {todo.done ? t('Öffnen') : t('Erledigt')}
+        </span>
+        <span className="todo-item__behind-right">
+          {t('Löschen')} <IconTrash />
+        </span>
+      </div>
+
+      <div
+        className="todo-item__main"
+        style={swipe ? { transform: `translateX(${swipe}px)`, transition: 'none' } : undefined}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
         <button
           className={`todo-check ${todo.done ? 'todo-check--on' : ''}`}
           role="checkbox"
@@ -648,51 +658,65 @@ function TodoRow({
           )}
         </button>
 
-        <button className="todo-item__body" onClick={onEdit}>
+        {/*
+          * Der Rumpf ist ein Knopf seiner Rolle nach, aber kein <button>:
+          * Ein echter Knopf verschluckt die Wischgeste (siehe onPointerDown -
+          * dort wird alles ignoriert, was in einem Bedienelement beginnt), und
+          * dann liesse sich nur in der Luecke neben dem Kaestchen wischen.
+          */}
+        <span
+          className="todo-item__body"
+          role="button"
+          tabIndex={0}
+          onClick={openEditor}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onEdit(); }
+          }}
+        >
           <span className="todo-item__title">{todo.title}</span>
-          <span className="todo-item__meta">
-            {category && (
-              <span className="todo-item__cat">
-                <span className="todo-chip__dot" />
-                {category.icon} {category.name}
-              </span>
-            )}
-            {progress && (
-              <span className="mono">{progress.done}/{progress.total}</span>
-            )}
-            {todo.priority === 'high' && !todo.done && (
-              <span className="todo-item__prio"><IconFlag style={{ width: 11, height: 11 }} /> {t('Hoch')}</span>
-            )}
-            {todo.repeat && (
-              <span className="todo-item__repeat">
-                <IconRefresh style={{ width: 11, height: 11 }} />
-                {todo.streak > 0 ? t('{count}×', { count: todo.streak }) : t(REPEAT_LABELS[todo.repeat.every])}
-              </span>
-            )}
-            {todo.note.trim() && <IconNote style={{ width: 11, height: 11 }} />}
-            {overdue && (
-              <span className="todo-item__late">
-                {days === 1 ? t('1 Tag über') : t('{count} Tage über', { count: days })}
-              </span>
-            )}
-          </span>
-          {progress && !todo.done && (
-            <span className="todo-item__meter" aria-hidden="true">
-              <span className="todo-item__meter-fill" style={{ width: `${progress.ratio * 100}%` }} />
+          {(category || todo.dueTime || progress || todo.priority === 'high' || todo.repeat
+            || todo.note.trim() || overdue || todo.tags.length > 0 || todo.place) && (
+            <span className="todo-item__meta">
+              {todo.dueTime && (
+                <span className={overdue ? 'todo-item__late' : 'todo-item__time'}>
+                  <IconClock style={{ width: 11, height: 11 }} /> {todo.dueTime}
+                  {todo.remindMin != null && <IconBell style={{ width: 10, height: 10 }} />}
+                </span>
+              )}
+              {overdue && (
+                <span className="todo-item__late">
+                  {days === 1 ? t('1 Tag über') : t('{count} Tage über', { count: days })}
+                </span>
+              )}
+              {category && (
+                <span className="todo-item__cat">
+                  <span className="todo-chip__dot" />
+                  {category.icon} {category.name}
+                </span>
+              )}
+              {progress && (
+                <span className="todo-item__steps mono">
+                  {progress.done}/{progress.total}
+                  <span className="todo-item__meter">
+                    <span className="todo-item__meter-fill" style={{ width: `${progress.ratio * 100}%` }} />
+                  </span>
+                </span>
+              )}
+              {todo.priority === 'high' && !todo.done && (
+                <span className="todo-item__prio"><IconFlag style={{ width: 11, height: 11 }} /></span>
+              )}
+              {todo.repeat && (
+                <span className="todo-item__repeat">
+                  <IconRefresh style={{ width: 11, height: 11 }} />
+                  {todo.streak > 0 ? t('{count}×', { count: todo.streak }) : ''}
+                </span>
+              )}
+              {todo.tags.map((tag) => <span key={tag} className="todo-item__tag">#{tag}</span>)}
+              {todo.place && <span className="dim">{todo.place}</span>}
+              {todo.note.trim() && <IconNote style={{ width: 11, height: 11 }} />}
             </span>
           )}
-        </button>
-
-        {sortable && (
-          <span className="todo-item__sort">
-            <button className="btn btn--sm btn--icon" disabled={first} onClick={() => onMove(-1)} aria-label={t('Nach oben')}>
-              <IconChevronDown style={{ transform: 'rotate(180deg)' }} />
-            </button>
-            <button className="btn btn--sm btn--icon" disabled={last} onClick={() => onMove(1)} aria-label={t('Nach unten')}>
-              <IconChevronDown />
-            </button>
-          </span>
-        )}
+        </span>
 
         {hasDetail && (
           <button
@@ -704,26 +728,172 @@ function TodoRow({
             <IconChevronDown style={expanded ? { transform: 'rotate(180deg)' } : undefined} />
           </button>
         )}
+
+        {onDragStart && (
+          <span
+            className="todo-item__grip"
+            role="button"
+            tabIndex={-1}
+            aria-label={t('Verschieben')}
+            onPointerDown={onDragStart}
+          >
+            <IconDrag />
+          </span>
+        )}
       </div>
 
       {expanded && hasDetail && (
         <div className="todo-item__detail">
           {todo.note.trim() && <p className="small muted todo-item__note">{todo.note}</p>}
-          {todo.steps.map((item) => (
-            <button
-              key={item.id}
-              className={`todo-step ${item.done ? 'todo-step--done' : ''}`}
-              role="checkbox"
-              aria-checked={item.done}
-              onClick={() => onToggleStep(item.id)}
-            >
-              <span className="todo-step__box">{item.done && <IconCheck />}</span>
-              <span className="todo-step__text">{item.text}</span>
-            </button>
+          {todo.steps.map((step) => (
+            <div key={step.id}>
+              <StepRow step={step} onToggle={() => onToggleStep(step.id)} />
+              {step.children?.map((child) => (
+                <StepRow key={child.id} step={child} nested onToggle={() => onToggleStep(child.id)} />
+              ))}
+            </div>
           ))}
+          {todo.photoIds.length > 0 && <TodoPhotos ids={todo.photoIds} />}
         </div>
       )}
     </div>
+  );
+}
+
+function StepRow({ step, nested = false, onToggle }: { step: TodoStep; nested?: boolean; onToggle: () => void }) {
+  return (
+    <button
+      className={`todo-step ${step.done ? 'todo-step--done' : ''} ${nested ? 'todo-step--nested' : ''}`}
+      role="checkbox"
+      aria-checked={step.done}
+      onClick={onToggle}
+    >
+      <span className="todo-step__box">{step.done && <IconCheck />}</span>
+      <span className="todo-step__text">{step.text}</span>
+    </button>
+  );
+}
+
+/** Angehaengte Bilder. Sie liegen im Geraet, deshalb werden sie hier geladen. */
+function TodoPhotos({ ids }: { ids: string[] }) {
+  const [urls, setUrls] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    const made: string[] = [];
+    void loadTodoPhotos(ids).then((photos) => {
+      if (!alive) return;
+      for (const photo of photos) made.push(URL.createObjectURL(photo.blob));
+      setUrls(made);
+    });
+    return () => {
+      alive = false;
+      made.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [ids]);
+
+  if (urls.length === 0) return null;
+  return (
+    <div className="todo-shots">
+      {urls.map((url) => <img key={url} src={url} alt="" loading="lazy" />)}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------- Menü */
+
+function TodoMenu({
+  sort, hasDone, todos, onSort, onCategories, onStats, onClearDone, onClose,
+}: {
+  sort: TodoSort;
+  hasDone: boolean;
+  todos: Todo[];
+  onSort: (sort: TodoSort) => void;
+  onCategories: () => void;
+  onStats: () => void;
+  onClearDone: () => void;
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const dated = todos.filter((todo) => !todo.done && todo.period && todo.dueTime);
+
+  const exportIcs = () => {
+    const blob = new Blob([todosToIcs(todos)], { type: 'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'gym-tracker-aufgaben.ics';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    onClose();
+  };
+
+  const askNotifications = async () => {
+    try {
+      const result = await Notification.requestPermission();
+      toast.show(result === 'granted' ? t('Meldungen erlaubt') : t('Meldungen bleiben aus'));
+    } catch {
+      toast.show(t('Dieser Browser kann das nicht'));
+    }
+    onClose();
+  };
+
+  const canAsk = typeof Notification !== 'undefined' && Notification.permission === 'default';
+
+  return (
+    <Modal title={t('Aufgabenliste')} onClose={onClose}>
+      <div className="list">
+        <div className="field">
+          <span className="field__label">{t('Sortierung innerhalb der Abschnitte')}</span>
+          <div className="row" style={{ gap: 6 }}>
+            {(Object.keys(SORT_LABELS) as TodoSort[]).map((key) => (
+              <button
+                key={key}
+                className={`chip chip--button ${sort === key ? 'chip--accent' : ''}`}
+                onClick={() => onSort(key)}
+              >
+                {t(SORT_LABELS[key])}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="divider" />
+
+        <button className="link-row" onClick={onStats}>
+          <IconChart /> <span style={{ flex: 1 }}>{t('Auswertung & Gewohnheiten')}</span>
+        </button>
+        <button className="link-row" onClick={onCategories}>
+          <IconEdit /> <span style={{ flex: 1 }}>{t('Kategorien')}</span>
+        </button>
+        <button className="link-row" onClick={exportIcs} disabled={dated.length === 0}>
+          <IconCalendar />
+          <span style={{ flex: 1 }}>
+            {t('In den Kalender exportieren')}
+            <span className="tiny dim" style={{ display: 'block' }}>
+              {dated.length === 0
+                ? t('Dafür braucht eine Aufgabe Datum und Uhrzeit.')
+                : t('{count} Aufgaben mit Uhrzeit', { count: dated.length })}
+            </span>
+          </span>
+        </button>
+        {canAsk && (
+          <button className="link-row" onClick={askNotifications}>
+            <IconBell />
+            <span style={{ flex: 1 }}>
+              {t('Meldungen erlauben')}
+              <span className="tiny dim" style={{ display: 'block' }}>
+                {t('Nur solange die App offen ist – mehr kann eine Web-App nicht.')}
+              </span>
+            </span>
+          </button>
+        )}
+        {hasDone && (
+          <button className="link-row" onClick={onClearDone}>
+            <IconTrash /> <span style={{ flex: 1 }}>{t('Erledigte entfernen')}</span>
+          </button>
+        )}
+      </div>
+    </Modal>
   );
 }
 
@@ -740,25 +910,50 @@ function TodoEditor({
   onDelete: () => void;
   onClose: () => void;
 }) {
+  const { getExercise } = useStore();
   const [stepText, setStepText] = useState('');
+  const [subFor, setSubFor] = useState<ID | null>(null);
+  const [subText, setSubText] = useState('');
+  const [tagText, setTagText] = useState('');
   const [confirm, setConfirm] = useState(false);
+  const [pickExercise, setPickExercise] = useState(false);
+  const [more, setMore] = useState(
+    () => todo.tags.length > 0 || todo.place !== '' || todo.exerciseId !== null || todo.photoIds.length > 0,
+  );
 
-  const setSteps = (steps: TodoStep[]) => onChange({ steps });
+  const anchor = todo.period ?? today;
+  const linked = todo.exerciseId ? getExercise(todo.exerciseId) : undefined;
+
   const addStep = () => {
     const text = stepText.trim();
     if (!text) return;
-    setSteps([...todo.steps, createStep(text)]);
+    onChange({ steps: [...todo.steps, createStep(text)] });
     setStepText('');
   };
 
-  /*
-   * Der Zeitraum wird ueber ein gewoehnliches Datumsfeld gewaehlt, auch fuer
-   * Woche, Monat und Jahr: Man tippt einen Tag an, und die Aufgabe landet in
-   * der Woche, dem Monat oder dem Jahr, in dem dieser Tag liegt. Ein eigener
-   * Wochen- und Monatswaehler waere drei Bedienelemente fuer eine Frage, die
-   * ein Kalender schon beantwortet.
-   */
-  const anchor = todo.period ?? today;
+  const addSub = (parentId: ID) => {
+    const text = subText.trim();
+    if (!text) return;
+    onChange({
+      steps: todo.steps.map((step) => (step.id === parentId
+        ? { ...step, done: false, children: [...(step.children ?? []), createStep(text)] }
+        : step)),
+    });
+    setSubText('');
+  };
+
+  const addTag = () => {
+    const tag = tagText.trim().replace(/^#/, '');
+    if (!tag || todo.tags.includes(tag)) { setTagText(''); return; }
+    onChange({ tags: [...todo.tags, tag] });
+    setTagText('');
+  };
+
+  const pickPhoto = async (file: File | undefined) => {
+    if (!file) return;
+    const id = await addTodoPhoto(todo.id, file);
+    if (id) onChange({ photoIds: [...todo.photoIds, id] });
+  };
 
   return (
     <Modal title={t('Aufgabe')} onClose={onClose}>
@@ -803,70 +998,11 @@ function TodoEditor({
                 {category.icon} {category.name}
               </button>
             ))}
-            <button className="chip chip--button" onClick={onManageCategories}>
+            <button className="chip chip--button" onClick={onManageCategories} aria-label={t('Kategorien')}>
               <IconPlus style={{ width: 12, height: 12 }} />
             </button>
           </div>
         </div>
-
-        <div className="grid-2">
-          <label className="field">
-            <span className="field__label">{t('Zeitraum')}</span>
-            <select
-              className="select"
-              value={todo.scope}
-              onChange={(event) => {
-                const scope = event.target.value as TodoScope;
-                onChange({ scope, period: periodOf(scope, anchor) });
-              }}
-            >
-              {TODO_SCOPES.map((scope) => (
-                <option key={scope} value={scope}>{t(SCOPE_NAMES[scope])}</option>
-              ))}
-            </select>
-          </label>
-
-          {todo.scope !== 'someday' && (
-            <div className="field">
-              <span className="field__label">
-                {todo.scope === 'day' ? t('Tag') : t('Ein Tag darin')}
-              </span>
-              <DateInput
-                value={anchor}
-                ariaLabel={t('Tag')}
-                onChange={(value) => { if (value) onChange({ period: periodOf(todo.scope, value) }); }}
-              />
-            </div>
-          )}
-        </div>
-
-        {todo.scope !== 'someday' && (
-          <>
-            {todo.scope !== 'day' && (
-              <p className="tiny dim" style={{ margin: 0 }}>{periodDate(todo.scope, todo.period)}</p>
-            )}
-            <div className="chip-scroll">
-              <button className="chip chip--button" onClick={() => onChange({ scope: 'day', period: today })}>
-                {t('Heute')}
-              </button>
-              <button className="chip chip--button" onClick={() => onChange({ scope: 'day', period: addDays(today, 1) })}>
-                {t('Morgen')}
-              </button>
-              <button
-                className="chip chip--button"
-                onClick={() => onChange({ scope: 'week', period: periodOf('week', addDays(today, 7)) })}
-              >
-                {t('Nächste Woche')}
-              </button>
-              <button
-                className="chip chip--button"
-                onClick={() => onChange({ scope: 'month', period: periodOf('month', today) })}
-              >
-                {t('Dieser Monat')}
-              </button>
-            </div>
-          </>
-        )}
 
         <div className="field">
           <span className="field__label">{t('Priorität')}</span>
@@ -883,11 +1019,112 @@ function TodoEditor({
           </div>
         </div>
 
+        <div className="divider" />
+
+        <div className="grid-2">
+          <label className="field">
+            <span className="field__label">{t('Zeitraum')}</span>
+            <select
+              className="select"
+              aria-label={t('Zeitraum')}
+              value={todo.scope}
+              onChange={(event) => {
+                const scope = event.target.value as TodoScope;
+                onChange({
+                  scope,
+                  period: periodOf(scope, anchor),
+                  ...(scope !== 'day' ? { dueTime: null, remindMin: null } : {}),
+                });
+              }}
+            >
+              {TODO_SCOPES.map((scope) => (
+                <option key={scope} value={scope}>{t(SCOPE_NAMES[scope])}</option>
+              ))}
+            </select>
+          </label>
+
+          {todo.scope !== 'someday' && (
+            <div className="field">
+              <span className="field__label">{todo.scope === 'day' ? t('Tag') : t('Ein Tag darin')}</span>
+              <DateInput
+                value={anchor}
+                ariaLabel={t('Tag')}
+                onChange={(value) => { if (value) onChange({ period: periodOf(todo.scope, value) }); }}
+              />
+            </div>
+          )}
+        </div>
+
+        {todo.scope !== 'someday' && todo.scope !== 'day' && (
+          <p className="tiny dim" style={{ margin: 0 }}>{periodDate(todo.scope, todo.period)}</p>
+        )}
+
+        {/*
+          * Uhrzeit nur bei einer Tagesaufgabe: "diese Woche um 17 Uhr" ist
+          * keine Uhrzeit, sondern ein Missverstaendnis.
+          */}
+        {todo.scope === 'day' && (
+          <div className="grid-2">
+            <div className="field">
+              <span className="field__label">{t('Uhrzeit')}</span>
+              {todo.dueTime ? (
+                <div className="row" style={{ gap: 6 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <TimeInput
+                      value={todo.dueTime}
+                      ariaLabel={t('Uhrzeit')}
+                      onChange={(value) => onChange({ dueTime: value || null })}
+                    />
+                  </div>
+                  <button
+                    className="btn btn--ghost btn--icon"
+                    aria-label={t('Uhrzeit entfernen')}
+                    onClick={() => onChange({ dueTime: null, remindMin: null })}
+                  >
+                    <IconX />
+                  </button>
+                </div>
+              ) : (
+                <button className="btn btn--sm" onClick={() => onChange({ dueTime: '18:00' })}>
+                  <IconClock /> {t('Uhrzeit setzen')}
+                </button>
+              )}
+            </div>
+
+            {todo.dueTime && (
+              <label className="field">
+                <span className="field__label">{t('Erinnerung')}</span>
+                <select
+                  className="select"
+                  aria-label={t('Erinnerung')}
+                  value={todo.remindMin ?? ''}
+                  onChange={(event) => onChange({
+                    remindMin: event.target.value === '' ? null : Number(event.target.value),
+                    remindedOn: null,
+                  })}
+                >
+                  <option value="">{t('Keine')}</option>
+                  {REMIND_CHOICES.map((choice) => (
+                    <option key={choice.minutes} value={choice.minutes}>{t(choice.label)}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+        )}
+
+        {todo.scope === 'day' && todo.dueTime && todo.remindMin != null && (
+          <p className="tiny dim" style={{ margin: 0 }}>
+            {t('Die Erinnerung erscheint, sobald die App offen ist. Für alles andere gibt es den Kalender-Export.')}
+          </p>
+        )}
+
         <div className="grid-2">
           <label className="field">
             <span className="field__label">{t('Wiederholung')}</span>
             <select
               className="select"
+              aria-label={t('Wiederholung')}
               value={todo.repeat?.every ?? ''}
               onChange={(event) => {
                 const value = event.target.value;
@@ -921,65 +1158,236 @@ function TodoEditor({
           )}
         </div>
 
-        {todo.repeat && todo.streak > 0 && (
-          <p className="tiny dim" style={{ margin: 0 }}>
-            {t('{count}× am Stück erledigt.', { count: todo.streak })}
-          </p>
+        {todo.repeat && todo.doneDates.length > 0 && (
+          <HabitStrip todo={todo} today={today} />
         )}
 
-        <Section title={t('Teilschritte')} note={todo.steps.length > 0
-          ? t('{done} von {total}', {
-              done: todo.steps.filter((step) => step.done).length,
-              total: todo.steps.length,
-            })
-          : undefined}>
-          <div className="list">
-            {todo.steps.map((step, index) => (
-              <div key={step.id} className="row" style={{ gap: 6 }}>
+        <div className="divider" />
+
+        <div className="row row--between">
+          <span className="section-label">{t('Teilschritte')}</span>
+          {todo.steps.length > 0 && (
+            <span className="tiny dim">
+              {t('{done} von {total}', {
+                done: todo.steps.filter((step) => step.done).length,
+                total: todo.steps.length,
+              })}
+            </span>
+          )}
+        </div>
+
+        {todo.steps.map((step) => (
+          <div key={step.id} className="todo-edit-step">
+            <div className="row" style={{ gap: 6 }}>
+              <button
+                className={`todo-step__box todo-step__box--wide ${step.done ? 'todo-step__box--on' : ''}`}
+                role="checkbox"
+                aria-checked={step.done}
+                aria-label={step.done ? t('Wieder öffnen') : t('Abhaken')}
+                onClick={() => onChange({ steps: toggleStepIn(todo.steps, step.id) })}
+              >
+                {step.done && <IconCheck />}
+              </button>
+              <input
+                className="input"
+                value={step.text}
+                aria-label={t('Teilschritt')}
+                onChange={(event) => onChange({ steps: editStepIn(todo.steps, step.id, event.target.value) })}
+              />
+              <button
+                className="btn btn--ghost btn--icon"
+                aria-label={t('Unterpunkt hinzufügen')}
+                onClick={() => { setSubFor(subFor === step.id ? null : step.id); setSubText(''); }}
+              >
+                <IconPlus />
+              </button>
+              <button
+                className="btn btn--ghost btn--icon"
+                aria-label={t('Teilschritt entfernen')}
+                onClick={() => onChange({ steps: removeStepIn(todo.steps, step.id) })}
+              >
+                <IconX />
+              </button>
+            </div>
+
+            {step.children?.map((child) => (
+              <div key={child.id} className="row todo-edit-step__child" style={{ gap: 6 }}>
                 <button
-                  className={`todo-step__box todo-step__box--wide ${step.done ? 'todo-step__box--on' : ''}`}
+                  className={`todo-step__box ${child.done ? 'todo-step__box--on' : ''}`}
                   role="checkbox"
-                  aria-checked={step.done}
-                  aria-label={step.done ? t('Wieder öffnen') : t('Abhaken')}
-                  onClick={() => setSteps(todo.steps.map((item, position) =>
-                    (position === index ? { ...item, done: !item.done } : item)))}
+                  aria-checked={child.done}
+                  aria-label={child.done ? t('Wieder öffnen') : t('Abhaken')}
+                  onClick={() => onChange({ steps: toggleStepIn(todo.steps, child.id) })}
                 >
-                  {step.done && <IconCheck />}
+                  {child.done && <IconCheck />}
                 </button>
                 <input
-                  className="input"
-                  value={step.text}
-                  onChange={(event) => setSteps(todo.steps.map((item, position) =>
-                    (position === index ? { ...item, text: event.target.value } : item)))}
+                  className="input input--sm"
+                  value={child.text}
+                  aria-label={t('Unterpunkt')}
+                  onChange={(event) => onChange({ steps: editStepIn(todo.steps, child.id, event.target.value) })}
                 />
                 <button
                   className="btn btn--ghost btn--icon"
                   aria-label={t('Teilschritt entfernen')}
-                  onClick={() => setSteps(todo.steps.filter((_, position) => position !== index))}
+                  onClick={() => onChange({ steps: removeStepIn(todo.steps, child.id) })}
                 >
                   <IconX />
                 </button>
               </div>
             ))}
-            <div className="row" style={{ gap: 6 }}>
+
+            {subFor === step.id && (
+              <div className="row todo-edit-step__child" style={{ gap: 6 }}>
+                <input
+                  className="input input--sm"
+                  autoFocus
+                  value={subText}
+                  placeholder={t('Unterpunkt …')}
+                  aria-label={t('Unterpunkt')}
+                  onChange={(event) => setSubText(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === 'Enter') addSub(step.id); }}
+                />
+                <button className="btn btn--sm" onClick={() => addSub(step.id)}>{t('Hinzufügen')}</button>
+              </div>
+            )}
+          </div>
+        ))}
+
+        <div className="row" style={{ gap: 6 }}>
+          <input
+            className="input"
+            value={stepText}
+            placeholder={t('Teilschritt hinzufügen …')}
+            aria-label={t('Teilschritt hinzufügen')}
+            onChange={(event) => setStepText(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Enter') addStep(); }}
+          />
+          <button className="btn btn--icon" onClick={addStep} aria-label={t('Teilschritt hinzufügen')}>
+            <IconPlus />
+          </button>
+        </div>
+
+        <div className="divider" />
+
+        {/*
+          * Alles Weitere liegt hinter einem Knopf: Die meisten Aufgaben
+          * brauchen weder Schlagwort noch Ort noch Foto, und ein Dialog, in
+          * dem man an sieben leeren Feldern vorbeiscrollt, erzieht dazu, ihn
+          * gar nicht erst zu oeffnen.
+          */}
+        {!more ? (
+          <button className="btn btn--sm btn--flush" onClick={() => setMore(true)}>
+            {t('Schlagworte, Ort, Übung, Bilder …')}
+          </button>
+        ) : (
+          <>
+            <div className="field">
+              <span className="field__label">{t('Schlagworte')}</span>
+              <div className="row row--wrap" style={{ gap: 6 }}>
+                {todo.tags.map((tag) => (
+                  <button
+                    key={tag}
+                    className="chip chip--button"
+                    aria-label={t('Schlagwort {tag} entfernen', { tag })}
+                    onClick={() => onChange({ tags: todo.tags.filter((item) => item !== tag) })}
+                  >
+                    #{tag} <IconX style={{ width: 11, height: 11 }} />
+                  </button>
+                ))}
+              </div>
+              <div className="row" style={{ gap: 6, marginTop: 6 }}>
+                <input
+                  className="input input--sm"
+                  value={tagText}
+                  placeholder={t('Schlagwort …')}
+                  aria-label={t('Schlagwort')}
+                  onChange={(event) => setTagText(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === 'Enter') addTag(); }}
+                />
+                <button className="btn btn--sm" onClick={addTag}>{t('Hinzufügen')}</button>
+              </div>
+            </div>
+
+            <label className="field">
+              <span className="field__label">{t('Ort')}</span>
               <input
                 className="input"
-                value={stepText}
-                placeholder={t('Teilschritt hinzufügen …')}
-                onChange={(event) => setStepText(event.target.value)}
-                onKeyDown={(event) => { if (event.key === 'Enter') addStep(); }}
+                value={todo.place}
+                placeholder={t('Studio, Rewe, zu Hause …')}
+                onChange={(event) => onChange({ place: event.target.value })}
               />
-              <button className="btn btn--icon" onClick={addStep} aria-label={t('Teilschritt hinzufügen')}>
-                <IconPlus />
-              </button>
+            </label>
+
+            <div className="field">
+              <span className="field__label">{t('Gehört zu einer Übung')}</span>
+              {linked ? (
+                <div className="row" style={{ gap: 6 }}>
+                  <span className="chip chip--accent" style={{ flex: 1, minWidth: 0 }}>
+                    <IconDumbbell style={{ width: 12, height: 12 }} /> {exerciseName(linked)}
+                  </span>
+                  <button
+                    className="btn btn--ghost btn--icon"
+                    aria-label={t('Verknüpfung lösen')}
+                    onClick={() => onChange({ exerciseId: null })}
+                  >
+                    <IconX />
+                  </button>
+                </div>
+              ) : (
+                <button className="btn btn--sm" onClick={() => setPickExercise(true)}>
+                  <IconDumbbell /> {t('Übung wählen')}
+                </button>
+              )}
             </div>
-          </div>
-        </Section>
+
+            {todoFilesAvailable() && (
+              <div className="field">
+                <span className="field__label">{t('Bilder')}</span>
+                {todo.photoIds.length > 0 && <TodoPhotos ids={todo.photoIds} />}
+                <div className="row" style={{ gap: 6, marginTop: 6 }}>
+                  <label className="btn btn--sm">
+                    <IconPlus /> {t('Bild anhängen')}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={(event) => { void pickPhoto(event.target.files?.[0]); event.target.value = ''; }}
+                    />
+                  </label>
+                  {todo.photoIds.length > 0 && (
+                    <button
+                      className="btn btn--sm btn--ghost"
+                      onClick={() => {
+                        const last = todo.photoIds[todo.photoIds.length - 1];
+                        void deleteTodoPhoto(last);
+                        onChange({ photoIds: todo.photoIds.slice(0, -1) });
+                      }}
+                    >
+                      {t('Letztes entfernen')}
+                    </button>
+                  )}
+                </div>
+                <span className="field__hint">
+                  {t('Bilder bleiben auf diesem Gerät – sie wandern weder in die Sicherung noch zu Freunden.')}
+                </span>
+              </div>
+            )}
+          </>
+        )}
 
         <button className="btn btn--danger btn--block" onClick={() => setConfirm(true)}>
           <IconTrash /> {t('Aufgabe löschen')}
         </button>
       </div>
+
+      {pickExercise && (
+        <ExercisePicker
+          title={t('Übung verknüpfen')}
+          onPick={(exercise) => { onChange({ exerciseId: exercise.id }); setPickExercise(false); }}
+          onClose={() => setPickExercise(false)}
+        />
+      )}
 
       {confirm && (
         <ConfirmDialog
@@ -990,6 +1398,177 @@ function TodoEditor({
         />
       )}
     </Modal>
+  );
+}
+
+/* ------------------------------------------------------- Auswertung */
+
+/**
+ * Vier Monate einer Gewohnheit als Raster - eine Spalte je Woche.
+ *
+ * Acht Wochen waren zu wenig: Bei etwas Monatlichem stand dort ein leeres
+ * Feld mit zwei Punkten, und genau daran sieht man keine Gewohnheit. Sechzehn
+ * Wochen zeigen den Rhythmus und passen noch auf ein Handy.
+ */
+const HABIT_WEEKS = 16;
+
+function HabitStrip({ todo, today }: { todo: Todo; today: string }) {
+  const stats = habitStats(todo, today);
+  const done = new Set(stats.days);
+  const start = addDays(startOfWeek(today), -7 * (HABIT_WEEKS - 1));
+  const weeks = Array.from({ length: HABIT_WEEKS }, (_, week) =>
+    Array.from({ length: 7 }, (_, day) => addDays(start, week * 7 + day)));
+
+  return (
+    <div className="habit">
+      <div className="habit__grid" role="img" aria-label={t('{count} Tage erledigt', { count: stats.days.length })}>
+        {weeks.map((week) => (
+          <div key={week[0]} className="habit__week">
+            {week.map((day) => (
+              <span
+                key={day}
+                title={`${formatDateTiny(day)}${done.has(day) ? ` · ${t('erledigt')}` : ''}`}
+                className={[
+                  'habit__cell',
+                  done.has(day) ? 'habit__cell--on' : '',
+                  day > today ? 'habit__cell--future' : '',
+                  day === today ? 'habit__cell--today' : '',
+                ].filter(Boolean).join(' ')}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="tiny dim habit__legend">
+        {t('{streak} am Stück · bestens {best} · {last30} von 30 Tagen', {
+          streak: stats.streak, best: stats.best, last30: stats.last30,
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TodoStats({
+  todos, categories, today, onBack,
+}: {
+  todos: Todo[];
+  categories: TodoCategory[];
+  today: string;
+  onBack: () => void;
+}) {
+  const monday = startOfWeek(today);
+  const week = useMemo(() => Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(monday, index);
+    return {
+      date,
+      index,
+      done: doneOnDay(todos, date),
+      open: todos.filter((todo) => !todo.done && todo.scope === 'day' && todo.period === date).length,
+    };
+  }), [todos, monday]);
+
+  const peak = Math.max(1, ...week.map((day) => day.done + day.open));
+  const weekDone = week.reduce((sum, day) => sum + day.done, 0);
+  const habits = todos.filter((todo) => todo.repeat);
+  const byCategory = useMemo(
+    () => doneByCategory(todos, categories, addDays(today, -29), today),
+    [todos, categories, today],
+  );
+  const total = byCategory.reduce((sum, row) => sum + row.count, 0);
+  const allDone = todos.reduce((sum, todo) => sum + (todo.doneDates?.length ?? 0), 0);
+
+  return (
+    <>
+      <div className="row">
+        <button className="btn btn--sm" onClick={onBack}><IconChevronLeft /> {t('Zur Liste')}</button>
+      </div>
+
+      <div className="card">
+        <div className="card__header">
+          <div className="card__title">{t('Diese Woche')}</div>
+          <span className="tiny dim">{t('{count} erledigt', { count: weekDone })}</span>
+        </div>
+        <div className="todo-week">
+          {week.map((day) => (
+            <div
+              key={day.date}
+              className="todo-week__col"
+              title={t('{weekday}: {done} erledigt, {open} offen', {
+                weekday: t(WEEKDAY_SHORT[day.index]), done: day.done, open: day.open,
+              })}
+            >
+              <div className="todo-week__stack">
+                {day.open > 0 && (
+                  <div className="todo-week__bar todo-week__bar--open" style={{ height: `${(day.open / peak) * 100}%` }} />
+                )}
+                {day.done > 0 && (
+                  <div className="todo-week__bar todo-week__bar--done" style={{ height: `${(day.done / peak) * 100}%` }} />
+                )}
+              </div>
+              <div className={`todo-week__day ${day.date === today ? 'todo-week__day--today' : ''}`}>
+                {t(WEEKDAY_SHORT[day.index])}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="todo-legend tiny dim">
+          <span><span className="todo-legend__swatch todo-legend__swatch--done" /> {t('erledigt')}</span>
+          <span><span className="todo-legend__swatch todo-legend__swatch--open" /> {t('offen')}</span>
+          <span className="spacer" />
+          <span>{t('{count} insgesamt erledigt', { count: allDone })}</span>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card__header">
+          <div className="card__title">{t('Letzte 30 Tage je Kategorie')}</div>
+          <span className="tiny dim">{t('{count} erledigt', { count: total })}</span>
+        </div>
+        {byCategory.length === 0 ? (
+          <p className="tiny dim" style={{ margin: 0 }}>{t('Noch nichts abgehakt.')}</p>
+        ) : (
+          <div className="todo-bars">
+            {byCategory.map((row) => (
+              <div
+                key={row.category?.id ?? 'none'}
+                className="todo-bars__row"
+                style={{ '--cat': row.category ? `var(--todo-cat-${row.category.color})` : 'var(--border)' } as React.CSSProperties}
+              >
+                <span className="todo-bars__label">
+                  <span className="todo-chip__dot" />
+                  {row.category ? `${row.category.icon} ${row.category.name}` : t('Ohne Kategorie')}
+                </span>
+                <span className="todo-bars__track">
+                  <span className="todo-bars__fill" style={{ width: `${(row.count / (byCategory[0]?.count || 1)) * 100}%` }} />
+                </span>
+                <span className="todo-bars__value mono">{fmt(row.count)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="card__title" style={{ marginBottom: 10 }}>{t('Gewohnheiten')}</div>
+        {habits.length === 0 ? (
+          <p className="tiny dim" style={{ margin: 0 }}>
+            {t('Noch keine wiederkehrende Aufgabe. Stell im Dialog einer Aufgabe eine Wiederholung ein – dann steht hier, wie oft sie geklappt hat.')}
+          </p>
+        ) : (
+          <div className="list">
+            {habits.map((todo) => (
+              <div key={todo.id} className="todo-habit">
+                <div className="row row--between">
+                  <span className="bold small">{todo.title}</span>
+                  <span className="tiny dim">{t(REPEAT_LABELS[todo.repeat!.every])}</span>
+                </div>
+                <HabitStrip todo={todo} today={today} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -1008,14 +1587,10 @@ function CategoryManager({ onClose }: { onClose: () => void }) {
     const trimmed = name.trim();
     if (!trimmed) return;
     const category: TodoCategory = {
-      id: uid('tcat'),
-      name: trimmed,
-      color: nextColor(categories),
-      icon: '',
+      id: uid('tcat'), name: trimmed, color: nextColor(categories), icon: '',
     };
     upsertTodoCategory(category);
     setName('');
-    // Gleich das Aussehen anbieten - sonst sind alle neuen Kategorien grau-grün.
     setOpen(category.id);
   };
 

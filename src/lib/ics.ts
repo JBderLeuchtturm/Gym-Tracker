@@ -21,7 +21,7 @@ const ICAL_DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
  * Zeilen duerfen nach RFC 5545 hoechstens 75 Oktette lang sein; laengere
  * werden umgebrochen und mit einem Leerzeichen fortgesetzt.
  */
-function fold(line: string): string {
+export function fold(line: string): string {
   if (line.length <= 73) return line;
   const parts: string[] = [];
   let rest = line;
@@ -36,7 +36,7 @@ function fold(line: string): string {
 }
 
 /** Sonderzeichen, die in iCalendar-Werten maskiert werden muessen. */
-const escape = (value: string): string =>
+export const escape = (value: string): string =>
   value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 
 const pad = (value: number): string => String(value).padStart(2, '0');
@@ -53,11 +53,11 @@ function nextOccurrence(weekday: number, hour: number, minute: number): Date {
   return start;
 }
 
-const localStamp = (date: Date): string =>
+export const localStamp = (date: Date): string =>
   `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`
   + `T${pad(date.getHours())}${pad(date.getMinutes())}00`;
 
-const utcStamp = (date: Date): string =>
+export const utcStamp = (date: Date): string =>
   `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}`
   + `T${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}Z`;
 

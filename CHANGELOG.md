@@ -2,6 +2,79 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## To-do-Tab überarbeitet: eine Liste nach Fälligkeit, Wischen, Erinnerungen, Gewohnheiten
+
+*Branch `claude/todo-tab-kategorien-6d4uj0`*
+
+Nachgefragt, was an der ersten Fassung stört – die Antwort betraf alles vier:
+Aufbau, Optik, den zu großen Kopf und fehlende Funktionen. Entsprechend ist der
+Reiter umgebaut, nicht nachgebessert.
+
+**Der Zeitraum-Umschalter ist weg.** Vier Reiter (Tag/Woche/Monat/Jahr/Später),
+von denen drei immer versteckt waren, sind drei Listen, die man vergisst. An
+seiner Stelle steht **eine Liste, nach Fälligkeit geordnet**: Überfällig, Heute,
+Morgen, Diese Woche, Diesen Monat, Dieses Jahr, Später, Ohne Datum. Leere
+Abschnitte erscheinen gar nicht erst.
+
+Der Zeitraum selbst bleibt erhalten – eine Wochenaufgabe ist weiterhin eine
+Wochenaufgabe, sie steht nur nicht mehr hinter einem eigenen Reiter. In welchen
+Korb sie fällt, entscheidet **eine einzige Regel**: der letzte Tag ihres
+Zeitraums. Eine Tagesaufgabe für Samstag und eine Wochenaufgabe für diese Woche
+laufen beide am Sonntag ab und stehen deshalb beide unter „Diese Woche". Das
+erspart acht Sonderfälle und liest sich genau so, wie man es erwartet.
+
+**Der Kopf ist von einer Karte auf zwei Zeilen geschrumpft** – ein
+Fortschrittsbalken und „18 % · 10 offen · 1 erledigt · 1 überfällig". Ring,
+Wochenbalken und Legende sind unter *Auswertung* gewandert. Zusammen mit dem
+weggefallenen Umschalter stehen jetzt fünf Aufgaben auf dem ersten Bildschirm
+statt zwei. Sortierung, Kategorien, Auswertung, Kalender-Export und das
+Aufräumen liegen hinter einem Knopf statt in der Leiste.
+
+**Wischen und Ziehen.** Nach rechts wischen hakt ab, nach links löscht (mit
+Rückgängig), am Griff rechts lässt sich eine Zeile innerhalb ihres Abschnitts
+verschieben – mit den Nachbarn, die live beiseite rücken. Umgesetzt über
+Zeigerereignisse statt Touch-Ereignisse: dieselbe Geste funktioniert dann mit
+Finger und Maus, und sie lässt sich prüfen. Dafür musste der Zeilenrumpf vom
+`<button>` zu einem `role="button"` werden – ein echter Knopf verschluckt die
+Geste, und dann ließe sich nur in der Lücke neben dem Kästchen wischen.
+
+**Uhrzeit und Erinnerung.** Eine Tagesaufgabe kann eine Uhrzeit haben und
+pünktlich, 10/30/60 Minuten oder einen Tag vorher erinnern. Das Band erscheint
+von jeder Seite aus, sobald die App offen ist; wer Systemmeldungen erlaubt,
+bekommt zusätzlich eine. Mehr kann eine Web-App nicht – deshalb daneben der
+**Kalender-Export**: alle Aufgaben mit Uhrzeit als `.ics`, samt Wiederholung
+(`RRULE`), Ort und Voranmeldung (`VALARM`). Die RFC-5545-Helfer aus `ics.ts`
+sind dafür exportiert und werden geteilt, statt ein zweites Mal geschrieben.
+
+**Mehr an der einzelnen Aufgabe:** Unterpunkte eine Ebene tief (ein Unterpunkt
+zieht seinen Oberpunkt nach, ein abgehakter Oberpunkt seine Unterpunkte),
+Schlagworte neben der einen Kategorie, ein Ort, angehängte Bilder und eine
+Verknüpfung zu einer Übung aus dem Katalog. Alles Seltene liegt hinter einem
+„Schlagworte, Ort, Übung, Bilder …" – ein Dialog, in dem man an sieben leeren
+Feldern vorbeiscrollt, erzieht dazu, ihn gar nicht erst zu öffnen. Die Bilder
+liegen wie die Fortschrittsfotos in einer eigenen IndexedDB des Geräts
+(`storage/todoFiles.ts`) und wandern weder in die Sicherung noch auf den Server.
+
+**Auswertung & Gewohnheiten** als zweite Ansicht: ein Raster über vier Monate je
+wiederkehrender Aufgabe mit Serie, Bestwert und „22 von 30 Tagen", dazu der
+Wochenbalken aus erledigten und offenen Aufgaben und die letzten 30 Tage je
+Kategorie. Grundlage ist ein neues Feld `doneDates` – ein Zähler sagt „zwölf am
+Stück", die Liste sagt, an welchen zwölf und an welchen nicht. Gekappt bei 400
+Einträgen.
+
+**Technisch:** `Todo` hat `dueTime`, `remindMin`, `remindedOn`, `tags`, `place`,
+`exerciseId`, `photoIds` und `doneDates` dazubekommen, `TodoStep` ein
+`children`. Die Fälligkeits-Körbe, die Erinnerungslogik, die Teilschritt-Ebenen
+und die Gewohnheits-Statistik stehen in `src/lib/todos.ts`, die Kalenderdatei in
+`src/lib/todoIcs.ts`, das Erinnerungsband in `src/components/TodoReminder.tsx`.
+Die Migration zieht alte Aufgaben auf die neuen Felder.
+
+**Tests:** neun neue Prüfungen ohne Browser (Körbe, Wiederholung, doppeltes
+Abhaken, Teilschritt-Ebenen, Erinnerung, Gewohnheiten, Kalenderdatei,
+Zusammenführen zweier Stände) und ein umgeschriebener Browserlauf mit siebzehn
+Schritten – darunter beide Wischrichtungen, das Ziehen und die Auswertung. Alle
+siebzehn Läufe grün.
+
 ## Neuer Reiter „To-dos": eine Aufgabenliste in der App
 
 *Branch `claude/todo-tab-kategorien-6d4uj0`*

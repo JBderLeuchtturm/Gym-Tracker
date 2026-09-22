@@ -25,6 +25,7 @@ import { PageSkeleton } from './components/ui';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RankUpWatcher } from './components/RankUp';
 import { Onboarding } from './components/Onboarding';
+import { TodoReminder } from './components/TodoReminder';
 import {
   IconCalendar, IconChart, IconChecklist, IconDumbbell, IconTrophy, IconUser, IconUsers,
 } from './components/icons';
@@ -137,8 +138,8 @@ export function App() {
         ? activePlan ? t('Aktiv: {name}', { name: activePlan.name }) : t('Kein Plan aktiv')
         : tab === 'todos'
           ? openTodos > 0
-            ? t('{count} offen – Tag, Woche, Monat, Jahr', { count: openTodos })
-            : t('Tag, Woche, Monat, Jahr')
+            ? t('{count} fällig bis heute', { count: openTodos })
+            : t('Nichts mehr für heute')
           : tab === 'progress' && workoutCount > 0
             ? t('{count} Einheiten aufgezeichnet', { count: workoutCount })
             : tab === 'rank' ? t('Bronze bis Elite, je drei Divisionen')
@@ -215,6 +216,12 @@ export function App() {
       <Onboarding />
 
       <TrainingReminder onOpen={() => { setTab('today'); setHistoryOpen(false); }} />
+
+      {/*
+        * Faellige Aufgaben melden sich von jeder Seite aus - eine Erinnerung,
+        * die man nur auf der Aufgabenseite sieht, erinnert niemanden.
+        */}
+      <TodoReminder onOpen={() => { setTab('todos'); setHistoryOpen(false); }} />
 
       {updateReady && (
         <div className="update-banner" role="status">

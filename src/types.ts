@@ -263,11 +263,18 @@ export type TodoPriority = 'high' | 'normal' | 'low';
  */
 export type TodoColor = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
-/** Ein Teilschritt - dafuer, dass man eine Aufgabe auch halb abhaken kann. */
+/**
+ * Ein Teilschritt - dafuer, dass man eine Aufgabe auch halb abhaken kann.
+ *
+ * Genau eine Ebene tiefer, nicht beliebig viele: Wer den dritten Unterpunkt
+ * des zweiten Unterpunkts braucht, hat keine Aufgabe mehr, sondern ein
+ * Projekt - und dafuer legt man besser zwei Aufgaben an.
+ */
 export interface TodoStep {
   id: ID;
   text: string;
   done: boolean;
+  children?: TodoStep[];
 }
 
 export interface TodoCategory {
@@ -307,8 +314,51 @@ export interface Todo {
   repeat: TodoRepeat | null;
   /** Wie oft die Wiederholung am Stueck erledigt wurde. */
   streak: number;
+  /**
+   * Alle Tage, an denen diese Aufgabe erledigt wurde, aufsteigend.
+   *
+   * Nur so laesst sich eine Gewohnheit ueberhaupt ansehen: Ein Zaehler sagt
+   * "zwoelf am Stueck", die Liste sagt, an welchen zwoelf - und an welchen
+   * nicht. Gekappt bei 400 Eintraegen; wer laenger zurueckschaut als ein Jahr,
+   * schaut nicht mehr auf eine Gewohnheit, sondern auf ein Archiv.
+   */
+  doneDates: string[];
   /** Eigene Reihenfolge innerhalb des Zeitraums, aufsteigend. */
   order: number;
+
+  /**
+   * Uhrzeit als "HH:MM". Nur mit festem Tag sinnvoll - eine Wochenaufgabe
+   * "bis Freitag 17 Uhr" waere eine Frist und keine Uhrzeit.
+   */
+  dueTime: string | null;
+  /**
+   * Erinnerung: so viele Minuten vor der Uhrzeit. null = keine.
+   *
+   * Eine Web-App kann sich nicht selbst wecken, solange sie zu ist - die
+   * Erinnerung greift, sobald die App offen ist, und fuer alles andere gibt
+   * es den Kalender-Export. Ehrlicher als ein Versprechen, das nur manchmal
+   * gehalten wird.
+   */
+  remindMin: number | null;
+  /** An diesem Tag wurde zuletzt erinnert - damit es nicht zweimal kommt. */
+  remindedOn: string | null;
+
+  /**
+   * Freie Schlagworte neben der einen Kategorie. Die Kategorie sagt, wohin
+   * etwas gehoert; ein Schlagwort sagt, was es ausserdem noch ist.
+   */
+  tags: string[];
+  /** Wo das stattfindet ("Rewe", "Studio", "Zuhause"). Leer = egal. */
+  place: string;
+  /** Verknuepfte Uebung aus dem Katalog - "Klimmzug schaffen" zeigt dann dorthin. */
+  exerciseId: ID | null;
+  /**
+   * Angehaengte Bilder. Gespeichert wird nur die ID; die Bilder selbst liegen
+   * wie die Fortschrittsfotos in der Bilddatenbank des Geraets und wandern
+   * weder in die Sicherung noch auf den Server.
+   */
+  photoIds: string[];
+
   createdAt: string;
   updatedAt: string;
 }

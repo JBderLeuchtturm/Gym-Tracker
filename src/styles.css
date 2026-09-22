@@ -3428,141 +3428,38 @@ button.home-strip__item:active { opacity: 0.6; }
 /*
  * Die Aufgabenseite.
  *
- * Sie hat mehr Struktur als die uebrigen Seiten - Zeitraum, Filter, Gruppen,
- * Zeilen mit eigenem Innenleben - und muss sie trotzdem ruhig halten. Dafuer
- * gilt hier durchgehend: Die Kategorie traegt Farbe (ein Punkt, ein Streifen
- * an der Kante), alles andere bleibt Papier. Und jede Zeile hat genau eine
- * farbige Stelle; zwei waeren schon eine zu viel.
+ * Leitgedanke nach der ersten Runde: dicht. Eine Aufgabenliste wird
+ * ueberflogen, nicht gelesen - je mehr Zeilen auf einen Blick passen, desto
+ * eher sieht man, was ansteht. Alles, was nicht jede Zeile braucht, ist
+ * entweder weggefallen (der grosse Kopf, der Zeitraum-Umschalter) oder liegt
+ * hinter einem Knopf (Sortierung, Kategorien, Auswertung, Export).
+ *
+ * Farbe traegt hier Identitaet und nicht Bedeutung - jede Zeile hat genau eine
+ * farbige Stelle, den Streifen an der linken Kante, und daneben immer den
+ * Namen der Kategorie im Klartext.
  */
 
-.todo-overview { padding: 14px 16px 12px; }
-.todo-overview__top { display: flex; align-items: center; gap: 16px; }
-
-.todo-ring { flex-shrink: 0; }
-.todo-ring__text {
-  fill: var(--text);
-  font-size: 19px;
-  font-weight: 640;
-  font-variant-numeric: tabular-nums;
-}
-.todo-ring__unit { fill: var(--text-dim); font-size: 8px; font-weight: 600; }
-
-.todo-overview__facts {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-.todo-fact { display: flex; flex-direction: column; min-width: 0; }
-.todo-fact__value { font-size: 1.28rem; font-weight: 620; line-height: 1.1; }
-.todo-fact__label { font-size: 0.71rem; color: var(--text-dim); }
-
-/*
- * Der Wochenbalken: je Tag erledigt (voll) und offen (schraffiert) uebereinander,
- * getrennt durch eine Fuge in der Kartenfarbe - ohne sie verschmelzen zwei
- * Abschnitte zu einem und man liest die falsche Hoehe.
- */
-.todo-week {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-  margin-top: 14px;
-}
-.todo-week__col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.todo-week__stack {
-  height: 44px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 2px;
-}
-.todo-week__bar { border-radius: 3px 3px 0 0; min-height: 3px; }
-.todo-week__bar--done { background: var(--success); border-radius: 3px; }
-.todo-week__bar--open {
-  background: color-mix(in srgb, var(--time) 45%, transparent);
-  border: 1px solid color-mix(in srgb, var(--time) 60%, transparent);
-}
-.todo-week__day {
-  font-size: 0.64rem;
-  text-align: center;
-  color: var(--text-dim);
-  border-top: 1px solid var(--border-soft);
-  padding-top: 3px;
-}
-.todo-week__day--today { color: var(--text); font-weight: 650; border-top-color: var(--accent); }
-
-.todo-legend { display: flex; align-items: center; gap: 12px; margin-top: 9px; }
-.todo-legend > span { display: inline-flex; align-items: center; gap: 5px; }
-.todo-legend__swatch { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
-.todo-legend__swatch--done { background: var(--success); }
-.todo-legend__swatch--open {
-  background: color-mix(in srgb, var(--time) 45%, transparent);
-  border: 1px solid color-mix(in srgb, var(--time) 60%, transparent);
-}
-
-/*
- * Der Zeitraum-Umschalter. Kein Kasten je Knopf, sondern eine Leiste mit einer
- * verschobenen Flaeche darin - so sieht man fuenf Moeglichkeiten und eine
- * Entscheidung, nicht fuenf einzelne Knoepfe.
- */
-.todo-scopes {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 2px;
-  padding: 3px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-}
-.todo-scopes__item {
-  padding: 8px 4px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  font-weight: 580;
-  cursor: pointer;
-  white-space: nowrap;
+/* Kopf: ein Balken, eine Zeile. Zusammen keine 40 Pixel. */
+.todo-head { display: flex; flex-direction: column; gap: 6px; }
+.todo-head__bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-3);
   overflow: hidden;
-  text-overflow: ellipsis;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
 }
-.todo-scopes__item--on {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow-sm), var(--lift-edge);
+.todo-head__fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--success);
+  transition: width 0.35s var(--ease);
 }
-.todo-scopes__item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-
-/*
- * Zeitraum-Umschalter, Zeitraum, Eingabe und Filter stehen naeher beieinander
- * als die uebrigen Abschnitte der Seite: Sie sind eine Bedienleiste und kein
- * Inhalt. Mit dem normalen Abschnittsabstand haette man auf dem Handy vier
- * Bedienelemente gesehen und zwei Aufgaben.
- */
-.todo-controls { display: flex; flex-direction: column; gap: 10px; }
-
-.todo-period { display: flex; align-items: center; gap: 6px; }
-/* Die Pfeile bleiben gross genug zum Treffen, treten aber optisch zurueck. */
-.todo-period .btn--icon {
-  background: transparent;
-  border-color: transparent;
-  color: var(--text-muted);
-}
-.todo-period .btn--icon:hover { background: var(--surface-2); color: var(--text); }
-.todo-period__label { flex: 1; min-width: 0; text-align: center; }
-.todo-period__name { font-weight: 640; font-size: 0.98rem; letter-spacing: -0.012em; }
-
-.todo-carry {
+.todo-head__line {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
-  border-radius: var(--radius);
-  background: var(--warn-soft);
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
 
 /*
@@ -3570,11 +3467,12 @@ button.home-strip__item:active { opacity: 0.6; }
  * Formular darueber: Wer etwas notieren will, soll es dort hineinschreiben,
  * wo es gleich stehen wird.
  */
+.todo-add-wrap { display: flex; flex-direction: column; gap: 8px; }
 .todo-add {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 10px 4px 12px;
+  padding: 3px 8px 3px 11px;
   background: var(--surface);
   border: 1px dashed var(--border);
   border-radius: var(--radius);
@@ -3585,24 +3483,28 @@ button.home-strip__item:active { opacity: 0.6; }
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
-.todo-add__icon { width: 17px; height: 17px; color: var(--text-dim); flex-shrink: 0; }
+.todo-add__icon { width: 16px; height: 16px; color: var(--text-dim); flex-shrink: 0; }
 .todo-add__field {
   flex: 1;
   min-width: 0;
-  padding: 9px 0;
+  padding: 8px 0;
   border: 0;
   background: transparent;
   font-size: 16px;
   outline: none;
 }
 .todo-add__field::placeholder { color: var(--text-dim); }
+.todo-add__when { margin-top: -2px; }
 
 .todo-tools { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.todo-sort {
-  width: auto;
-  flex-shrink: 0;
-  padding: 6px 8px;
-  font-size: 0.78rem;
+/*
+ * Die Kategorienreihe scrollt waagerecht. Ohne Verlauf am rechten Rand sieht
+ * ein halb abgeschnittener Chip aus wie ein Fehler statt wie "da geht es
+ * weiter".
+ */
+.todo-tools .chip-scroll {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
 }
 
 /* Kategorie-Chip: ein Punkt in der Kategorienfarbe, der Rest bleibt neutral. */
@@ -3620,84 +3522,153 @@ button.home-strip__item:active { opacity: 0.6; }
   color: var(--text);
 }
 
-.todo-groups { display: flex; flex-direction: column; gap: 16px; }
-.todo-group { display: flex; flex-direction: column; gap: 8px; }
+/* Liegengebliebenes: eine Zeile, kein Kasten - es ist ein Angebot, keine Warnung. */
+.todo-carry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 11px;
+  border: 1px solid color-mix(in srgb, var(--warn) 32%, transparent);
+  border-radius: var(--radius);
+  background: var(--warn-soft);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.todo-carry__text { flex: 1; min-width: 0; font-size: 0.82rem; font-weight: 550; }
+.todo-carry__action { font-size: 0.78rem; font-weight: 650; color: var(--warn); white-space: nowrap; }
+
+/* -------------------------------------------------------------- Abschnitte */
+
+.todo-groups { display: flex; flex-direction: column; gap: 14px; }
+.todo-group { display: flex; flex-direction: column; gap: 7px; }
+.todo-list { display: flex; flex-direction: column; gap: 7px; }
+
 .todo-group__head {
   display: flex;
   align-items: center;
   gap: 7px;
   width: 100%;
-  padding: 2px 0 6px;
+  padding: 0 0 5px;
   border: 0;
   border-bottom: 1px solid var(--border-soft);
   background: transparent;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 620;
   cursor: pointer;
   text-align: left;
 }
 .todo-group__head:hover { color: var(--text); }
-.todo-group__chevron { width: 15px; height: 15px; color: var(--text-dim); transition: transform 0.15s var(--ease); }
+.todo-group__chevron { width: 14px; height: 14px; color: var(--text-dim); transition: transform 0.15s var(--ease); }
 .todo-group__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .todo-group__count { color: var(--text-dim); font-weight: 600; }
-/* Die Prioritaet steht als Punkt vor der Gruppe - eine Stelle, nicht drei. */
+/*
+ * Der Punkt vor dem Abschnitt sagt, wie dringend er ist - dieselbe Leserichtung
+ * wie ueberall sonst in der App: Rot heisst sieh her, der kuehle Ton heisst
+ * zeitlich, Grau heisst kann warten.
+ */
 .todo-group__pip { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
-.todo-group__pip--high { background: var(--danger); }
-.todo-group__pip--normal { background: var(--time); }
-.todo-group__pip--low { background: var(--border); }
+.todo-group__pip--overdue { background: var(--danger); }
+.todo-group__pip--today { background: var(--accent); }
+.todo-group__pip--tomorrow { background: var(--time); }
+.todo-group__pip--week { background: color-mix(in srgb, var(--time) 70%, transparent); }
+.todo-group__pip--month { background: color-mix(in srgb, var(--time) 45%, transparent); }
+.todo-group__pip--year { background: color-mix(in srgb, var(--time) 30%, transparent); }
+.todo-group__pip--later,
+.todo-group__pip--none { background: var(--border); }
 .todo-group__pip--done { background: var(--success); }
 
 /* ------------------------------------------------------------- Eine Zeile */
 
 .todo-item {
   position: relative;
+  border-radius: var(--radius);
+  /* Gezogene Zeilen ruecken beiseite - das soll man sehen. */
+  transition: transform 0.16s var(--ease);
+  isolation: isolate;
+}
+.todo-item--dragging { z-index: 3; }
+.todo-item--dragging .todo-item__main { box-shadow: var(--shadow-lg); }
+
+/* Was beim Wischen darunter liegt. */
+.todo-item__behind {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  border-radius: var(--radius);
+  background: linear-gradient(to right, var(--success-soft) 50%, var(--danger-soft) 50%);
+  font-size: 0.78rem;
+  font-weight: 620;
+  z-index: 0;
+}
+.todo-item__behind--armed {
+  background: linear-gradient(to right, var(--success) 50%, var(--danger) 50%);
+}
+.todo-item__behind-left { display: inline-flex; align-items: center; gap: 5px; color: var(--success); }
+.todo-item__behind-right { display: inline-flex; align-items: center; gap: 5px; color: var(--danger); }
+.todo-item__behind--armed .todo-item__behind-left { color: #06251a; }
+.todo-item__behind--armed .todo-item__behind-right { color: #2b0a07; }
+.todo-item__behind svg { width: 15px; height: 15px; }
+
+.todo-item__main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 6px 8px 11px;
   background: var(--surface);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm), var(--lift-edge);
-  overflow: hidden;
+  /* Senkrecht scrollen bleibt am System; waagerecht gehoert der Geste. */
+  touch-action: pan-y;
+  transition: transform 0.2s var(--ease);
 }
 /*
  * Der Streifen an der linken Kante traegt die Kategorienfarbe. Er ist die
  * einzige Flaeche in der Zeile, die Farbe zeigt - dadurch liest sich eine
  * Liste aus zwanzig Zeilen als Liste und nicht als Farbkasten.
  */
-.todo-item::before {
+.todo-item__main::before {
   content: '';
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 3px;
+  border-radius: var(--radius) 0 0 var(--radius);
   background: var(--cat, transparent);
 }
-.todo-item--high { border-color: color-mix(in srgb, var(--danger) 30%, var(--border-soft)); }
-.todo-item--overdue { border-color: color-mix(in srgb, var(--danger) 45%, var(--border-soft)); }
-.todo-item--done { opacity: 0.58; }
+.todo-item--high .todo-item__main { border-color: color-mix(in srgb, var(--danger) 26%, var(--border-soft)); }
+.todo-item--overdue .todo-item__main { border-color: color-mix(in srgb, var(--danger) 42%, var(--border-soft)); }
+.todo-item--done { opacity: 0.55; }
 .todo-item--done .todo-item__title { text-decoration: line-through; color: var(--text-muted); }
-
-.todo-item__main { display: flex; align-items: flex-start; gap: 10px; padding: 10px 8px 10px 12px; }
 
 .todo-check {
   position: relative;
-  width: 26px; height: 26px;
+  width: 24px; height: 24px;
   margin-top: 1px;
   flex-shrink: 0;
   display: grid; place-items: center;
   border: 1.5px solid var(--border);
   border-radius: 7px;
   background: var(--surface-2);
-  color: var(--accent-ink);
+  color: #06251a;
   cursor: pointer;
   overflow: hidden;
   transition: background 0.15s, border-color 0.15s, transform 0.08s;
 }
 .todo-check:active { transform: scale(0.88); }
 .todo-check:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.todo-check svg { width: 15px; height: 15px; position: relative; }
+.todo-check svg { width: 14px; height: 14px; position: relative; }
 .todo-check--on {
   background: var(--success);
   border-color: var(--success);
-  color: #06251a;
   animation: pop 0.24s var(--ease);
 }
 /*
@@ -3707,7 +3678,7 @@ button.home-strip__item:active { opacity: 0.6; }
 .todo-check__part {
   position: absolute;
   left: 0; right: 0; bottom: 0;
-  background: color-mix(in srgb, var(--success) 42%, transparent);
+  background: color-mix(in srgb, var(--success) 45%, transparent);
 }
 
 .todo-item__body {
@@ -3715,37 +3686,41 @@ button.home-strip__item:active { opacity: 0.6; }
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  text-align: left;
+  gap: 2px;
   cursor: pointer;
-  font: inherit;
+  /* Beim Wischen soll nichts markiert werden. */
+  -webkit-user-select: none;
+  user-select: none;
 }
+.todo-item__body:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
 .todo-item__title {
+  font-size: 0.93rem;
   font-weight: 560;
-  line-height: 1.32;
+  line-height: 1.3;
   overflow-wrap: anywhere;
 }
 .todo-item__meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 9px;
-  font-size: 0.72rem;
+  gap: 2px 8px;
+  font-size: 0.71rem;
   color: var(--text-dim);
 }
-.todo-item__cat { display: inline-flex; align-items: center; gap: 5px; }
-.todo-item__prio { display: inline-flex; align-items: center; gap: 3px; color: var(--danger); font-weight: 600; }
+.todo-item__meta svg { flex-shrink: 0; }
+.todo-item__cat { display: inline-flex; align-items: center; gap: 4px; }
+.todo-item__time { display: inline-flex; align-items: center; gap: 3px; color: var(--time); font-weight: 600; }
+.todo-item__prio { display: inline-flex; color: var(--danger); }
 .todo-item__repeat { display: inline-flex; align-items: center; gap: 3px; color: var(--time); }
-.todo-item__late { color: var(--danger); font-weight: 600; }
+.todo-item__late { display: inline-flex; align-items: center; gap: 3px; color: var(--danger); font-weight: 650; }
+.todo-item__tag { color: var(--text-muted); }
 
+/* Der Teilschritt-Zaehler traegt seinen Balken gleich mit - eine Zeile spart. */
+.todo-item__steps { display: inline-flex; align-items: center; gap: 5px; }
 .todo-item__meter {
-  display: block;
+  display: inline-block;
+  width: 34px;
   height: 3px;
-  margin-top: 4px;
   border-radius: 2px;
   background: var(--surface-3);
   overflow: hidden;
@@ -3754,31 +3729,51 @@ button.home-strip__item:active { opacity: 0.6; }
   display: block;
   height: 100%;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--success) 70%, transparent);
+  background: color-mix(in srgb, var(--success) 75%, transparent);
   transition: width 0.3s var(--ease);
 }
 
-.todo-item__sort { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
-.todo-item__sort .btn { min-width: 30px; min-height: 26px; padding: 2px; }
-.todo-item__toggle { flex-shrink: 0; margin-top: -2px; }
-.todo-item__toggle svg { transition: transform 0.15s var(--ease); }
+.todo-item__toggle { flex-shrink: 0; padding: 6px; min-width: 30px; min-height: 30px; }
+.todo-item__toggle svg { width: 15px; height: 15px; transition: transform 0.15s var(--ease); }
+/*
+ * Der Griff zum Ziehen ist bewusst leise: Er wird gebraucht, wenn man ihn
+ * sucht, und stoert sonst in jeder der zwanzig Zeilen.
+ */
+.todo-item__grip {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  min-height: 30px;
+  color: var(--border);
+  cursor: grab;
+  touch-action: none;
+}
+.todo-item__grip:hover { color: var(--text-dim); }
+.todo-item__grip:active { cursor: grabbing; }
+.todo-item__grip svg { width: 15px; height: 15px; }
 
 .todo-item__detail {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 2px 12px 10px 48px;
-  border-top: 1px solid var(--border-soft);
-  margin-top: 2px;
+  gap: 1px;
+  margin: -6px 0 0;
+  padding: 10px 12px 9px 44px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-top: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+  position: relative;
+  z-index: 1;
 }
-.todo-item__note { margin: 8px 0 4px; white-space: pre-wrap; }
+.todo-item__note { margin: 0 0 6px; white-space: pre-wrap; }
 
 .todo-step {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
+  gap: 8px;
   width: 100%;
-  padding: 6px 0;
+  padding: 4px 0;
   border: 0;
   background: transparent;
   color: inherit;
@@ -3786,8 +3781,9 @@ button.home-strip__item:active { opacity: 0.6; }
   text-align: left;
   cursor: pointer;
 }
+.todo-step--nested { padding-left: 22px; }
 .todo-step__box {
-  width: 19px; height: 19px;
+  width: 18px; height: 18px;
   flex-shrink: 0;
   margin-top: 1px;
   display: grid; place-items: center;
@@ -3802,15 +3798,27 @@ button.home-strip__item:active { opacity: 0.6; }
 .todo-step__box--wide svg { width: 16px; height: 16px; }
 .todo-step--done .todo-step__box,
 .todo-step__box--on { background: var(--success); border-color: var(--success); }
-.todo-step__text { font-size: 0.86rem; line-height: 1.35; overflow-wrap: anywhere; }
+.todo-step__text { font-size: 0.84rem; line-height: 1.35; overflow-wrap: anywhere; }
 .todo-step--done .todo-step__text { text-decoration: line-through; color: var(--text-dim); }
 
-/* ------------------------------------------------------ Dialoge und Farben */
+.todo-shots { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.todo-shots img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-soft);
+}
+
+/* ----------------------------------------------------------------- Dialog */
 
 .todo-prio { border-color: var(--border); }
 .todo-prio--on.todo-prio--high { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
 .todo-prio--on.todo-prio--normal { background: var(--time-soft); color: var(--time); border-color: transparent; }
 .todo-prio--on.todo-prio--low { background: var(--surface-3); color: var(--text); border-color: transparent; }
+
+.todo-edit-step { display: flex; flex-direction: column; gap: 5px; }
+.todo-edit-step__child { padding-left: 26px; }
 
 .todo-cat-row { padding: 11px 12px; border-left: 3px solid var(--cat); }
 /* Der Punkt ist zugleich der Knopf fuer Farbe und Zeichen. */
@@ -3847,9 +3855,89 @@ button.home-strip__item:active { opacity: 0.6; }
 .todo-swatch--on { border-color: var(--text); box-shadow: 0 0 0 2px var(--surface) inset; }
 .todo-swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* ------------------------------------------------------------- Auswertung */
+
+.todo-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.todo-week__col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/*
+ * Erledigt (voll) und offen (umrandet) uebereinander, getrennt durch eine Fuge
+ * in der Kartenfarbe - ohne sie verschmelzen zwei Abschnitte zu einem und man
+ * liest die falsche Hoehe.
+ */
+.todo-week__stack {
+  height: 46px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+}
+.todo-week__bar { border-radius: 3px 3px 0 0; min-height: 3px; }
+.todo-week__bar--done { background: var(--success); border-radius: 3px; }
+.todo-week__bar--open {
+  background: color-mix(in srgb, var(--time) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--time) 60%, transparent);
+}
+.todo-week__day {
+  font-size: 0.64rem;
+  text-align: center;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border-soft);
+  padding-top: 3px;
+}
+.todo-week__day--today { color: var(--text); font-weight: 650; border-top-color: var(--accent); }
+
+.todo-legend { display: flex; align-items: center; gap: 12px; margin-top: 9px; }
+.todo-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.todo-legend__swatch { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.todo-legend__swatch--done { background: var(--success); }
+.todo-legend__swatch--open {
+  background: color-mix(in srgb, var(--time) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--time) 60%, transparent);
+}
+
+/* Balken je Kategorie - Beschriftung links, Zahl rechts, dazwischen die Laenge. */
+.todo-bars { display: flex; flex-direction: column; gap: 8px; }
+.todo-bars__row { display: grid; grid-template-columns: minmax(0, 8em) 1fr auto; align-items: center; gap: 9px; }
+.todo-bars__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.todo-bars__track { height: 7px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.todo-bars__fill { display: block; height: 100%; border-radius: 4px; background: var(--cat); }
+.todo-bars__value { font-size: 0.8rem; font-weight: 620; }
+
+/* Gewohnheiten: acht Wochen als Raster, eine Spalte je Woche. */
+.todo-habit { padding: 10px 0; border-top: 1px solid var(--border-soft); }
+.todo-habit:first-child { border-top: 0; padding-top: 0; }
+.habit { display: flex; flex-direction: column; gap: 5px; margin-top: 7px; }
+/* Waagerecht scrollbar, falls sechzehn Wochen doch einmal nicht passen. */
+.habit__grid { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.habit__grid::-webkit-scrollbar { display: none; }
+.habit__week { display: flex; flex-direction: column; gap: 2px; flex: 1 0 auto; min-width: 9px; }
+.habit__cell {
+  /* Quadratisch, sonst liest sich das Raster als Balkendiagramm. */
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--surface-3);
+}
+.habit__cell--on { background: var(--success); }
+.habit__cell--future { opacity: 0.3; }
+.habit__cell--today { box-shadow: 0 0 0 1.5px var(--accent); }
+.habit__legend { display: flex; gap: 8px; }
+
 @media (prefers-reduced-motion: reduce) {
-  .todo-check, .todo-check--on, .todo-item__meter-fill,
-  .todo-group__chevron, .todo-item__toggle svg, .todo-scopes__item {
+  .todo-check, .todo-check--on, .todo-item, .todo-item__main, .todo-item__meter-fill,
+  .todo-head__fill, .todo-group__chevron, .todo-item__toggle svg {
     transition: none;
     animation: none;
   }
@@ -3857,13 +3945,3 @@ button.home-strip__item:active { opacity: 0.6; }
 
 /* Die Zahl an den Aufgaben meldet nichts Dringendes - sie zaehlt nur mit. */
 .nav__badge--soft { background: var(--time); color: var(--bg); }
-
-/*
- * Die Kategorienreihe scrollt waagerecht. Ohne Verlauf am rechten Rand sieht
- * ein halb abgeschnittener Chip aus wie ein Fehler statt wie "da geht es
- * weiter".
- */
-.todo-tools .chip-scroll {
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
-  mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
-}
