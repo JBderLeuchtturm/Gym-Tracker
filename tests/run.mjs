@@ -30,6 +30,7 @@ const SUITES = [
   ['social', () => import('./social.mjs')],
   ['invite', () => import('./invite.mjs')],
   ['bindung', () => import('./bindung.mjs')],
+  ['todos', () => import('./todos.mjs')],
 ];
 
 async function reachable() {

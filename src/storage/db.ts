@@ -1,5 +1,7 @@
 import type { AppState } from '../types';
-import { DEFAULT_PROFILE, DEFAULT_SETTINGS, SCHEMA_VERSION, createInitialState } from './defaults';
+import {
+  DEFAULT_PROFILE, DEFAULT_SETTINGS, DEFAULT_TODO_CATEGORIES, SCHEMA_VERSION, createInitialState,
+} from './defaults';
 
 const STORAGE_KEY = 'gym-tracker:state:v1';
 const BACKUP_KEY = 'gym-tracker:state:backup';
@@ -48,6 +50,14 @@ export function migrate(raw: unknown): AppState {
     measurements: asArray(raw.measurements),
     nutrition: asArray(raw.nutrition),
     goals: asArray(raw.goals),
+    todos: asArray(raw.todos),
+    /*
+     * Ohne Kategorien waere die Aufgabenliste beim ersten Oeffnen eine leere
+     * Flaeche mit einem Knopf "Kategorie anlegen" - das ist keine App, das ist
+     * eine Aufgabe. Wer alle loescht, bekommt sie nicht wieder aufgedraengt:
+     * Das erkennt man daran, dass dann schon Aufgaben da sind.
+     */
+    todoCategories: asArray(raw.todoCategories),
     lastBackupAt: typeof raw.lastBackupAt === 'string' ? raw.lastBackupAt : null,
     settings: {
       ...DEFAULT_SETTINGS,
@@ -84,6 +94,32 @@ export function migrate(raw: unknown): AppState {
       },
     },
   };
+
+  if (state.todoCategories.length === 0 && state.todos.length === 0) {
+    state.todoCategories = DEFAULT_TODO_CATEGORIES.map((category) => ({ ...category }));
+  }
+
+  /*
+   * Aufgaben aus dem Speicher koennen alles sein. Die Felder, an denen die
+   * Anzeige haengt (Zeitraum, Teilschritte, Prioritaet), werden deshalb hier
+   * einmal geradegezogen - eine Aufgabe ohne `steps` wuerde sonst beim ersten
+   * Aufklappen die Seite mitnehmen.
+   */
+  state.todos = state.todos.map((todo) => ({
+    ...todo,
+    title: typeof todo.title === 'string' ? todo.title : '',
+    note: typeof todo.note === 'string' ? todo.note : '',
+    scope: ['day', 'week', 'month', 'year', 'someday'].includes(todo.scope) ? todo.scope : 'day',
+    period: typeof todo.period === 'string' ? todo.period : null,
+    priority: ['high', 'normal', 'low'].includes(todo.priority) ? todo.priority : 'normal',
+    steps: asArray(todo.steps),
+    done: todo.done === true,
+    doneAt: typeof todo.doneAt === 'string' ? todo.doneAt : null,
+    repeat: isObject(todo.repeat) ? todo.repeat : null,
+    streak: Number.isFinite(todo.streak) ? todo.streak : 0,
+    order: Number.isFinite(todo.order) ? todo.order : 0,
+    categoryId: typeof todo.categoryId === 'string' ? todo.categoryId : null,
+  }));
 
   // Ohne Plaene waere die App unbenutzbar - dann lieber den Startplan anbieten.
   if (state.plans.length === 0) {

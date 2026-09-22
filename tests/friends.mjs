@@ -38,7 +38,7 @@ export async function run() {
   }
 
   const openFriends = async (page) => {
-    await page.locator('.nav__item').nth(4).click();
+    await page.locator('.nav__item').nth(5).click();
     await page.waitForTimeout(500);
   };
 
@@ -66,7 +66,7 @@ export async function run() {
   });
   
   await guarded('A: Gewichte eintragen', async () => {
-    await a.page.locator('.nav__item').nth(5).click();
+    await a.page.locator('.nav__item').nth(6).click();
     await a.page.waitForTimeout(500);
     for (const [days, kg] of [[14, 84.2], [7, 83.6], [0, 83.1]]) {
       await a.page.getByRole('button', { name: 'Eintrag', exact: true }).click();
@@ -223,7 +223,7 @@ export async function run() {
     await second.page.waitForTimeout(4500); // auf das gebündelte Hochladen warten
   
     // Erstes Gerät holt den Stand
-    await a.page.locator('.nav__item').nth(4).click();
+    await a.page.locator('.nav__item').nth(5).click();
     await a.page.waitForTimeout(300);
     await a.page.getByRole('button', { name: 'Abgleichen' }).click();
     await a.page.waitForTimeout(2000);
@@ -250,7 +250,7 @@ export async function run() {
   /* ------------------------------------------------------ Freund entfernen */
   
   await guarded('B: Freundschaft beenden räumt Freigaben ab', async () => {
-    await b.page.locator('.nav__item').nth(4).click();
+    await b.page.locator('.nav__item').nth(5).click();
     await b.page.waitForTimeout(600);
     await openFriendList(b.page);
     await b.page.locator('.friend-card').first().click();
@@ -263,7 +263,7 @@ export async function run() {
     if (backend.db.share_grants.length !== 0) throw new Error('Freigaben nicht entfernt');
   });
   
-  await a.page.locator('.nav__item').nth(4).click();
+  await a.page.locator('.nav__item').nth(5).click();
   await a.page.waitForTimeout(500);
   
   

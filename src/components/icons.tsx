@@ -167,3 +167,21 @@ export const IconSettings = (p: IconProps) => (
     <circle cx="15.5" cy="17" r="2.1" fill="currentColor" />
   </Base>
 );
+/** Hakenliste - der Reiter fuer die Aufgaben. */
+export const IconChecklist = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M3.5 6.5l1.8 1.8 3-3.3M3.5 13l1.8 1.8 3-3.3M3.5 19.5l1.8 1.8 3-3.3" />
+    <path d="M12 6h8.5M12 12.5h8.5M12 19h8.5" />
+  </Base>
+);
+/** Faehnchen - Prioritaet. */
+export const IconFlag = (p: IconProps) => (
+  <Base {...p}><path d="M6 21V4.5M6 4.5h11l-2.2 3.6L17 11.7H6" /></Base>
+);
+/** Notizzettel - eine Aufgabe mit Text dahinter. */
+export const IconNote = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M5 3.5h9.5L19 8v12.5H5z" />
+    <path d="M14 3.5V8h5M8.5 12.5h7M8.5 16h4.5" />
+  </Base>
+);

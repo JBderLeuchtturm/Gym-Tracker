@@ -1,4 +1,4 @@
-import type { AppState, Plan, PlanDay, Profile, Settings, Weekday } from '../types';
+import type { AppState, Plan, PlanDay, Profile, Settings, TodoCategory, Weekday } from '../types';
 
 export const SCHEMA_VERSION = 1;
 
@@ -56,6 +56,25 @@ export const emptyDays = (): PlanDay[] =>
     isRestDay: true,
     exercises: [],
   }));
+
+/**
+ * Die Kategorien, mit denen die Aufgabenliste startet.
+ *
+ * Feste IDs, aus demselben Grund wie beim Startplan: Legt ein zweites Geraet
+ * dieselben Kategorien an, erkennt die Synchronisierung sie als dieselben und
+ * macht keine Dubletten daraus.
+ *
+ * Fuenf, nicht zwoelf. Eine Liste, die mit zwoelf fremden Schubladen anfaengt,
+ * erzieht dazu, in fremden Schubladen zu denken; fuenf sind ein Anfang, und
+ * jede weitere legt man selbst an.
+ */
+export const DEFAULT_TODO_CATEGORIES: TodoCategory[] = [
+  { id: 'tcat_training', name: 'Training', color: 1, icon: '\u{1F3CB}\uFE0F' },
+  { id: 'tcat_ernaehrung', name: 'Ernährung', color: 4, icon: '\u{1F957}' },
+  { id: 'tcat_alltag', name: 'Alltag', color: 2, icon: '\u{1F3E0}' },
+  { id: 'tcat_arbeit', name: 'Arbeit', color: 3, icon: '\u{1F4BC}' },
+  { id: 'tcat_gesundheit', name: 'Gesundheit', color: 6, icon: '\u{1FA7A}' },
+];
 
 /** Beispielplan (Push/Pull/Legs), damit die App nicht leer startet. */
 export function createStarterPlan(): Plan {
@@ -132,6 +151,8 @@ export function createInitialState(): AppState {
     measurements: [],
     nutrition: [],
     goals: [],
+    todos: [],
+    todoCategories: DEFAULT_TODO_CATEGORIES.map((category) => ({ ...category })),
     lastBackupAt: null,
     settings: {
       ...DEFAULT_SETTINGS,

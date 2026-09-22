@@ -71,7 +71,7 @@ export async function run() {
     if (clipped.length > 0) throw new Error(clipped.join(', '));
   });
 
-  for (const [index, name] of [[0, 'Heute'], [2, 'Fortschritt'], [3, 'Rang'], [5, 'Profil']]) {
+  for (const [index, name] of [[0, 'Heute'], [2, 'To-dos'], [3, 'Fortschritt'], [4, 'Rang'], [6, 'Profil']]) {
     await runner.step(`${name} läuft nicht über`, async () => {
       await page.locator('.nav__item').nth(index).click();
       await page.waitForTimeout(700);

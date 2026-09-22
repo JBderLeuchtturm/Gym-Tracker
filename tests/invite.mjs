@@ -25,7 +25,7 @@ export async function run() {
 
   // Nutzer A legt ein Konto an und erzeugt den Einladungslink
   const a = await makeUser('A');
-  await a.page.locator('.nav__item').nth(4).click();
+  await a.page.locator('.nav__item').nth(5).click();
   await a.page.waitForTimeout(500);
   await step('A: Konto anlegen', async () => { await signUp(a.page, 'anna@example.com'); });
   
@@ -80,7 +80,7 @@ export async function run() {
   
   await step('A: eigener Link löst bei einem selbst nichts aus', async () => {
     const self = await makeUser('A2', `${(process.env.TEST_URL ?? 'http://127.0.0.1:4173/')}#add=${handleA}`);
-    await self.page.locator('.nav__item').nth(4).click();
+    await self.page.locator('.nav__item').nth(5).click();
     await self.page.waitForTimeout(400);
     await self.page.locator('input[type=email]').fill('anna@example.com');
     await self.page.locator('input[type=password]').fill('geheim123');

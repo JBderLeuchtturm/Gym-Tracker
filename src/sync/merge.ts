@@ -1,6 +1,7 @@
 import { t } from '../i18n';
 import type {
-  AppState, Exercise, ExerciseGoal, MeasurementEntry, NutritionEntry, Plan, WeightEntry, Workout,
+  AppState, Exercise, ExerciseGoal, MeasurementEntry, NutritionEntry, Plan, Todo, TodoCategory,
+  WeightEntry, Workout,
 } from '../types';
 
 /**
@@ -62,6 +63,25 @@ export function mergeStates(local: AppState, remote: AppState): AppState {
       (goal) => goal.id,
       (goal) => goal.createdAt ?? '',
     ) as ExerciseGoal[],
+    /*
+     * Aufgaben tragen einen eigenen Zeitstempel, also gewinnt je Aufgabe die
+     * juengere Fassung - nicht das juengere Geraet. Wer am Handy zwei Punkte
+     * abhakt und am Rechner einen dritten anlegt, behaelt alle drei.
+     *
+     * Eine geloeschte Aufgabe kommt beim Abgleich zurueck, wenn das andere
+     * Geraet sie noch kennt. Das ist die bewusste Seite des Tauschs: Lieber
+     * eine Zeile zu viel, die man noch einmal wegwischt, als eine verlorene.
+     */
+    todos: mergeByKeyPreferNewer(
+      local.todos ?? [], remote.todos ?? [],
+      (todo) => todo.id,
+      (todo) => todo.updatedAt ?? todo.createdAt ?? '',
+    ) as Todo[],
+    todoCategories: mergeById(
+      settingsSide.todoCategories ?? [],
+      (settingsSide === local ? remote : local).todoCategories ?? [],
+      (category) => category.id,
+    ) as TodoCategory[],
     lastBackupAt: (local.lastBackupAt ?? '') >= (remote.lastBackupAt ?? '')
       ? local.lastBackupAt
       : remote.lastBackupAt,
@@ -121,6 +141,7 @@ export function isPristine(state: AppState): boolean {
     (state.measurements ?? []).length === 0 &&
     state.nutrition.length === 0 &&
     state.exercises.length === 0 &&
+    (state.todos ?? []).length === 0 &&
     state.plans.length <= 1 &&
     state.plans.every((plan) => plan.id === 'plan_starter')
   );

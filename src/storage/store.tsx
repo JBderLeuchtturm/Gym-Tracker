@@ -3,7 +3,7 @@ import React, {
 } from 'react';
 import type {
   AppState, Exercise, ExerciseGoal, ID, MeasurementEntry, NutritionEntry, Plan, Profile, Settings,
-  Workout,
+  Todo, TodoCategory, Workout,
 } from '../types';
 import { CATALOG } from '../data/catalog';
 import { loadState, requestPersistence, saveState } from './db';
@@ -32,6 +32,14 @@ interface StoreValue {
   setNutrition: (entry: NutritionEntry) => void;
   addGoal: (goal: ExerciseGoal) => void;
   deleteGoal: (id: ID) => void;
+  addTodo: (todo: Todo) => void;
+  updateTodo: (id: ID, patch: Partial<Todo>) => void;
+  /** Mehrere Aufgaben in einem Rutsch - fuer "offene übernehmen" und "erledigte aufräumen". */
+  updateTodos: (ids: ID[], patch: Partial<Todo>) => void;
+  deleteTodo: (id: ID) => void;
+  deleteTodos: (ids: ID[]) => void;
+  upsertTodoCategory: (category: TodoCategory) => void;
+  deleteTodoCategory: (id: ID) => void;
   replaceState: (next: AppState) => void;
   /** Der aktuelle Stand als Kopie - Grundlage fuer "Rueckgaengig". */
   snapshot: () => AppState;
@@ -260,6 +268,72 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     commit((prev) => ({ ...prev, goals: (prev.goals ?? []).filter((goal) => goal.id !== id) }));
   }, [commit]);
 
+  /* ------------------------------------------------------------- Aufgaben */
+
+  const addTodo = useCallback((todo: Todo) => {
+    commit((prev) => ({ ...prev, todos: [...prev.todos, todo] }));
+  }, [commit]);
+
+  /*
+   * Jede Aenderung an einer Aufgabe stempelt sie neu. Daran - und nicht am
+   * Zeitstempel des ganzen Standes - entscheidet die Synchronisierung, welche
+   * von zwei Fassungen derselben Aufgabe gilt.
+   */
+  const stamp = (todo: Todo, patch: Partial<Todo>): Todo =>
+    ({ ...todo, ...patch, updatedAt: new Date().toISOString() });
+
+  const updateTodo = useCallback((id: ID, patch: Partial<Todo>) => {
+    commit((prev) => ({
+      ...prev,
+      todos: prev.todos.map((todo) => (todo.id === id ? stamp(todo, patch) : todo)),
+    }));
+  }, [commit]);
+
+  const updateTodos = useCallback((ids: ID[], patch: Partial<Todo>) => {
+    const wanted = new Set(ids);
+    commit((prev) => ({
+      ...prev,
+      todos: prev.todos.map((todo) => (wanted.has(todo.id) ? stamp(todo, patch) : todo)),
+    }));
+  }, [commit]);
+
+  const deleteTodo = useCallback((id: ID) => {
+    commit((prev) => ({ ...prev, todos: prev.todos.filter((todo) => todo.id !== id) }));
+  }, [commit]);
+
+  const deleteTodos = useCallback((ids: ID[]) => {
+    const wanted = new Set(ids);
+    commit((prev) => ({ ...prev, todos: prev.todos.filter((todo) => !wanted.has(todo.id)) }));
+  }, [commit]);
+
+  const upsertTodoCategory = useCallback((category: TodoCategory) => {
+    commit((prev) => {
+      const exists = prev.todoCategories.some((item) => item.id === category.id);
+      return {
+        ...prev,
+        todoCategories: exists
+          ? prev.todoCategories.map((item) => (item.id === category.id ? category : item))
+          : [...prev.todoCategories, category],
+        settingsUpdatedAt: new Date().toISOString(),
+      };
+    });
+  }, [commit]);
+
+  /*
+   * Eine geloeschte Kategorie nimmt ihre Aufgaben nicht mit - sie verlieren
+   * nur ihre Schublade. Alles andere waere eine Falle: Wer eine Kategorie
+   * aufraeumt, will nicht die Arbeit loeschen, die darin lag.
+   */
+  const deleteTodoCategory = useCallback((id: ID) => {
+    commit((prev) => ({
+      ...prev,
+      todoCategories: prev.todoCategories.filter((item) => item.id !== id),
+      todos: prev.todos.map((todo) =>
+        (todo.categoryId === id ? stamp(todo, { categoryId: null }) : todo)),
+      settingsUpdatedAt: new Date().toISOString(),
+    }));
+  }, [commit]);
+
   const replaceState = useCallback((next: AppState) => setState(next), []);
 
   /*
@@ -275,6 +349,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       removeBodyWeight, logMeasurement, removeMeasurement,
       addExercise, updateExercise, deleteExercise, addPlan, updatePlan,
       deletePlan, setActivePlan, upsertWorkout, deleteWorkout, setNutrition, addGoal, deleteGoal,
+      addTodo, updateTodo, updateTodos, deleteTodo, deleteTodos,
+      upsertTodoCategory, deleteTodoCategory,
       replaceState, snapshot, lastSavedAt,
     }),
     [
@@ -282,6 +358,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       removeBodyWeight, logMeasurement, removeMeasurement,
       addExercise, updateExercise, deleteExercise, addPlan, updatePlan,
       deletePlan, setActivePlan, upsertWorkout, deleteWorkout, setNutrition, addGoal, deleteGoal,
+      addTodo, updateTodo, updateTodos, deleteTodo, deleteTodos,
+      upsertTodoCategory, deleteTodoCategory,
       replaceState, snapshot, lastSavedAt,
     ],
   );

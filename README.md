@@ -34,6 +34,31 @@ nirgends mit: nicht ins Volumen, nicht in die Satzzahl, nicht in den
 Kalorienverbrauch, nicht in Bestleistungen. Ein Haken auf einem ausgelassenen
 Satz holt ihn ohne Umweg zurück.
 
+**To-dos**
+Ein eigener Reiter für alles, was neben dem Training ansteht. Jede Aufgabe
+gehört genau einem Zeitraum an – **Tag, Woche, Monat, Jahr** oder „Später" für
+das, was keinen Termin hat – und man sieht immer nur einen davon. Die Woche ist
+dabei nicht die Summe ihrer Tage, sondern eine eigene Ebene: „diese Woche
+zweimal laufen" ist etwas anderes als „am Dienstag laufen".
+
+Dazu gibt es frei benennbare **Kategorien** mit Farbe und Zeichen (Training,
+Ernährung, Alltag, Arbeit, Gesundheit sind vorbelegt), **Prioritäten**, eine
+**Notiz** je Aufgabe und **Teilschritte** – daher auch das Halb-Abhaken: Das
+Kästchen füllt sich von unten so weit, wie die Teilschritte reichen, und der
+letzte Teilschritt hakt die Aufgabe mit ab. **Wiederkehrende Aufgaben**
+(täglich bis jährlich, auch „alle 3 Wochen") rücken beim Abhaken in ihren
+nächsten Zeitraum weiter und zählen mit, wie oft das am Stück geklappt hat.
+
+Oben steht, wie weit der gewählte Zeitraum ist – angefangene Aufgaben zählen
+anteilig mit, damit der Ring nicht den ganzen Tag auf null steht – dazu offen,
+erledigt, überfällig und ein Wochenbalken aus erledigten und offenen
+Tagesaufgaben. Was an vergangenen Tagen offen geblieben ist, meldet sich und
+lässt sich mit einem Griff **auf heute holen**. Gesucht wird über Titel, Notiz,
+Teilschritte und Kategorie; sortiert nach Priorität, Kategorie oder eigener
+Reihenfolge. Erledigtes sammelt sich zugeklappt am Ende und lässt sich
+abräumen. Gelöschtes ist sieben Sekunden lang zurückzuholen, wie überall sonst
+in der App auch.
+
 **Rechner für zwischen den Sätzen**
 Der *Rechner* an jeder Übung beantwortet die zwei Fragen, die man sonst im Kopf
 löst. Erstens: Was muss auf die Stange? „82,5 kg" heißt je Seite 25 + 5 + 1,25.
@@ -261,6 +286,19 @@ gesetzten Namen: Farbe im Text würde eine Bedeutung tragen, die sie dort nicht
 hat, und drei von ihnen lagen so nah an Akzent und Warnfarbe, dass eine
 Brustübung wie ein Fehler aussah.
 
+**Die Aufgabenliste ist die eine Stelle, an der Farbe Identität trägt** statt
+Bedeutung: „Arbeit" ist nicht wichtiger als „Alltag", nur anders. Sie hat dafür
+einen eigenen Satz von acht Tönen, der weder mit dem Messing (Bedienung) noch
+mit Grün, Gelb und Rot verwechselt werden kann. Die acht sind gerechnet, nicht
+gegriffen: gleiche Helligkeit und Buntheit (OKLCH), und in dieser Reihenfolge so
+angeordnet, dass benachbarte Töne auch bei Rot-Grün-Blindheit auseinanderzuhalten
+sind – OKLab-Abstand mindestens 10 unter Protanopie und Deuteranopie, mindestens
+17 bei normalem Sehen, jeder Ton mindestens 3 zu 1 gegen den Kartengrund. Das
+helle Thema hat seinen eigenen, auf Papier nachgerechneten Satz. In der Liste
+erscheint die Farbe nur zweimal: als Punkt neben dem Kategorienamen und als
+schmaler Streifen an der linken Kante der Zeile. Neben dem Punkt steht immer der
+Name – Farbe allein trägt hier nie.
+
 **Auf breiten Fenstern stehen zwei Spalten**, links das Laufende und rechts das
 Nachschlagende. Sonst bleibt der Text auf Lesebreite: Eine Zeile ist bei etwa
 65 Zeichen am besten zu lesen, und eine Eingabemaske über den halben Monitor
@@ -322,12 +360,12 @@ Ränge, Erfolge, Belastung und das Zusammenführen zweier Geräte-Stände – in
 Minuten, und die Fehlermeldung zeigt genau auf die Zeile. Die `.ts`-Dateien
 werden dafür einmal mit dem esbuild gebündelt, das ohnehin in Vite steckt.
 
-Vierzehn Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
+Fünfzehn Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
 Übungssuche ohne Netz, Layout auf schmalen Geräten, Muskelkarte, Wochenziele
 und Zyklen, Rückgängig und Querformat, Rechner und Studio-Handgriffe,
 Gestaltung und Zugänglichkeit, Kalorienseite, Auslassen, Ränge, Abzeichen und
-Erfolge, Mehrsprachigkeit, Freunde und Freigaben, Gruppen und Challenges sowie
-Einladungslinks ab. Alle teilen sich einen
+Erfolge, Mehrsprachigkeit, Freunde und Freigaben, Gruppen und Challenges,
+Einladungslinks sowie die Aufgabenliste ab. Alle teilen sich einen
 Browser statt jeweils einen eigenen zu starten. Kontraste und Farbabstände
 werden im laufenden Browser nachgerechnet, nicht nach Augenmaß beurteilt.
 
@@ -475,6 +513,11 @@ kurz nach jeder Änderung, beim Zurückkehren zur App und im Hintergrund.
 Treffen zwei Stände aufeinander (etwa Handy und Rechner), werden sie
 zusammengeführt statt überschrieben: Trainings, Pläne und Einträge aus beiden
 Richtungen bleiben erhalten, und bei demselben Eintrag gewinnt der jüngere.
+
+Für Aufgaben gilt dasselbe je Aufgabe, nicht je Gerät: Wer am Handy zwei Punkte
+abhakt und am Rechner einen dritten anlegt, behält alle drei. Eine gelöschte
+Aufgabe kommt beim Abgleich zurück, solange das andere Gerät sie noch kennt –
+lieber eine Zeile zu viel, die man noch einmal wegwischt, als eine verlorene.
 
 ## Push-Nachrichten
 
@@ -713,8 +756,8 @@ src/
 ├── sync/          Konto, Freunde, Freigaben, Einladungslinks, Zusammenführen
 ├── components/    UI-Bausteine, Übungssuche, Detailansicht, Diagramme, Körperkarte
 ├── data/          Übungskatalog (216 Einträge) und Planvorlagen
-├── lib/           Datum, Suche, Kalorien, Statistik, Muskeln, Scheiben, Ziele, ZIP, iCal
-├── pages/         Heute, Pläne, Fortschritt, Kalorien, Freunde, Profil, Verlauf
+├── lib/           Datum, Suche, Kalorien, Statistik, Muskeln, Scheiben, Ziele, To-dos, ZIP, iCal
+├── pages/         Heute, Pläne, To-dos, Fortschritt, Kalorien, Freunde, Profil, Verlauf
 ├── storage/       Speicherung, Migration, globaler Zustand
 └── types.ts       Datenmodell
 ```

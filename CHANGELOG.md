@@ -2,6 +2,88 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Neuer Reiter „To-dos": eine Aufgabenliste in der App
+
+*Branch `claude/todo-tab-kategorien-6d4uj0`*
+
+**Ein siebter Reiter, zwischen Plänen und Fortschritt.** Die App führt Buch
+darüber, was man sich vornimmt und was man davon tut – bisher ausschließlich für
+Sätze und Wiederholungen. Jetzt auch für alles andere: „Proteinpulver
+bestellen", „diese Woche zweimal laufen", „dieses Jahr den Klimmzug schaffen".
+
+**Jede Aufgabe gehört genau einem Zeitraum an.** Tag, Woche, Monat, Jahr oder
+„Später" für das, was keinen Termin hat – und man sieht immer nur einen davon.
+Das ist die eine Entscheidung, an der der Rest hängt: Eine Aufgabenliste
+scheitert fast immer daran, dass alles in einem Topf landet, und die Woche ist
+nicht die Summe ihrer Tage. Gespeichert wird der Zeitraum als Datum seines
+ersten Tages (Woche = ihr Montag, Monat = der Erste, Jahr = der 1. Januar),
+damit „gehört in diesen Zeitraum" ein Zeichenkettenvergleich bleibt und keine
+Datumsrechnerei wird.
+
+**Was dazugehört:** frei benennbare Kategorien mit Farbe und Zeichen (Training,
+Ernährung, Alltag, Arbeit, Gesundheit sind vorbelegt), drei Prioritäten, eine
+Notiz je Aufgabe, Teilschritte, Wiederholungen von täglich bis jährlich
+(auch „alle 3 Wochen") mit Serienzähler, Suche über Titel, Notiz, Teilschritte
+und Kategorie, Filter je Kategorie, Sortierung nach Priorität, Kategorie oder
+eigener Reihenfolge, ein zugeklapptes Archiv der erledigten Aufgaben und
+Rückgängig auf jedem Löschen.
+
+**Halb abhaken.** Der Punkt, an dem eine gewöhnliche Hakenliste schweigt: Ein
+Kästchen kennt nur „nichts getan" und „fertig", dazwischen liegt bei den meisten
+Aufgaben die eigentliche Arbeit. Hier füllt sich das Kästchen von unten so weit,
+wie die Teilschritte reichen, die Zeile trägt einen Fortschrittsbalken, und der
+letzte Teilschritt hakt die Aufgabe mit ab. Der Ring im Kopf der Seite zählt
+Angefangenes anteilig mit – sonst stünde er den halben Tag auf null, obwohl
+Arbeit drinsteckt.
+
+**Liegengebliebenes meldet sich.** Offene Tagesaufgaben aus der Vergangenheit
+erscheinen als Hinweis über der Liste und lassen sich mit einem Griff auf heute
+holen. Bewusst nur Tagesaufgaben: Eine Wochenaufgabe auf einen Tag zu schieben
+wäre eine andere Entscheidung als „das steht immer noch an".
+
+**Wiederkehrende Aufgaben rücken weiter, statt sich zu vermehren.** Beim Abhaken
+springt die Aufgabe in ihren nächsten Zeitraum, die Teilschritte gehen wieder
+auf, und ein Zähler merkt sich, wie oft das am Stück geklappt hat. Die Alternative
+– sie erledigt stehen lassen und eine Kopie anlegen – füllt die Liste mit
+Leichen, ohne mehr zu sagen. Eine kurze Meldung sagt, wohin sie gewandert ist,
+mit Rückgängig daneben.
+
+**Acht Kategorienfarben, gerechnet statt gegriffen.** Die Aufgabenliste ist die
+eine Stelle der App, an der Farbe Identität trägt und nicht Bedeutung – „Arbeit"
+ist nicht wichtiger als „Alltag", nur anders. Sie bekommt dafür einen eigenen
+Satz Töne, der weder mit dem Messing (Bedienung) noch mit Grün/Gelb/Rot
+kollidiert: gleiche Helligkeit und Buntheit in OKLCH, und in dieser Reihenfolge
+so angeordnet, dass benachbarte Töne auch bei Rot-Grün-Blindheit
+auseinanderzuhalten sind. Nachgerechnet, nicht nach Augenmaß beurteilt:
+OKLab-Abstand ≥ 10 unter Protanopie und Deuteranopie, ≥ 17 bei normalem Sehen,
+jeder Ton ≥ 3 zu 1 gegen den Kartengrund – je ein eigener Satz für das dunkle
+und das helle Thema. In der Liste erscheint die Farbe nur als Punkt neben dem
+Namen und als schmaler Streifen an der linken Kante; neben dem Punkt steht immer
+der Name, Farbe allein trägt nie.
+
+**Die Reiterleiste trägt jetzt sieben statt sechs Einträge.** Die Spalten sind
+gleich breit (`minmax(0, 1fr)`), und die Beschriftung geht auf schmalen Geräten
+mit (`clamp(0.53rem, 2.55vw, 0.62rem)`) – „Fortschritt" passt damit auch bei
+320 Pixeln noch in seine Spalte. Die Zahl an den Aufgaben zählt nur, was heute
+oder früher fällig ist, und steht in der Zeitfarbe statt in Rot: Sie ist eine
+Auskunft, keine Mahnung wie eine offene Freundschaftsanfrage.
+
+**Technisch:** `Todo`, `TodoCategory`, `TodoStep` und `TodoRepeat` in `types.ts`,
+zwei neue Felder in `AppState`; die Rechnerei (Zeiträume, Überfälligkeit,
+Gruppierung, Zählung) in `src/lib/todos.ts` ohne React und ohne Speicher, die
+Seite in `src/pages/Todos.tsx`, nachgeladen wie alle anderen auch. Die Migration
+zieht Aufgaben aus alten Ständen gerade und legt die Standardkategorien nur an,
+wenn noch keine Aufgaben da sind. Das Zusammenführen zweier Geräte behandelt
+Aufgaben einzeln nach ihrem eigenen Zeitstempel – wer am Handy zwei Punkte
+abhakt und am Rechner einen dritten anlegt, behält alle drei.
+
+**Tests:** ein neuer Lauf `tests/todos.mjs` mit sechzehn Schritten (anlegen,
+abhaken, Teilschritte einzeln und bis zum Schluss, Wiederholung, Filter, Suche,
+Zeitraumwechsel, Übernehmen, Dialog, Neuladen, Kategorie löschen). Die
+Reiter-Erwartungen in `basics.mjs` und `language.mjs` und die stellungsbezogenen
+Reiterklicks in `friends.mjs`, `invite.mjs`, `social.mjs`, `language.mjs` und
+`layout.mjs` sind auf die neue Leiste nachgezogen. Alle sechzehn Läufe grün.
+
 ## Passendes Logging für Burpees & Co., mehr Übungen, Wochen-Rückblick auf der Muskelkarte
 
 *Branch `claude/uebungen-logging-verlauf`*

@@ -15,7 +15,7 @@ export async function run() {
   };
 
   const openFriends = async (page) => {
-    await page.locator('.nav__item').nth(4).click();
+    await page.locator('.nav__item').nth(5).click();
     await page.waitForTimeout(500);
   };
   const openSection = async (page, name) => {

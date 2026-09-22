@@ -16,6 +16,7 @@ const RankPage = lazy(() => import('./pages/Rank').then((m) => ({ default: m.Ran
 const ProfilePage = lazy(() => import('./pages/Profile').then((m) => ({ default: m.ProfilePage })));
 const HistoryPage = lazy(() => import('./pages/History').then((m) => ({ default: m.HistoryPage })));
 const FriendsPage = lazy(() => import('./pages/Friends').then((m) => ({ default: m.FriendsPage })));
+const TodosPage = lazy(() => import('./pages/Todos').then((m) => ({ default: m.TodosPage })));
 import { useSync } from './sync/SyncProvider';
 import { applyUpdate, onUpdateAvailable } from './lib/appUpdate';
 import { workoutSetCount } from './lib/stats';
@@ -24,14 +25,22 @@ import { PageSkeleton } from './components/ui';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RankUpWatcher } from './components/RankUp';
 import { Onboarding } from './components/Onboarding';
-import { IconCalendar, IconChart, IconDumbbell, IconTrophy, IconUser } from './components/icons';
-import { IconUsers } from './components/icons';
+import {
+  IconCalendar, IconChart, IconChecklist, IconDumbbell, IconTrophy, IconUser, IconUsers,
+} from './components/icons';
+import { dueTodoCount } from './lib/todos';
 
-type Tab = 'today' | 'plans' | 'progress' | 'rank' | 'friends' | 'profile';
+type Tab = 'today' | 'plans' | 'todos' | 'progress' | 'rank' | 'friends' | 'profile';
 
 const TABS: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
   { id: 'today', label: 'Heute', icon: <IconDumbbell /> },
   { id: 'plans', label: 'Pläne', icon: <IconCalendar /> },
+  /*
+   * Die Aufgaben stehen neben den Plaenen, nicht am Ende der Leiste: Beides
+   * ist "was ich mir vorgenommen habe" - einmal fuer das Training, einmal
+   * fuer alles andere.
+   */
+  { id: 'todos', label: 'To-dos', icon: <IconChecklist /> },
   { id: 'progress', label: 'Fortschritt', icon: <IconChart /> },
   /*
    * Rang statt Kalorien: Die Kalorienseite traegt man einmal am Tag ein, den
@@ -47,6 +56,7 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
 const TITLE_KEYS: Record<Tab, string> = {
   today: 'Training',
   plans: 'Wochenpläne',
+  todos: 'To-dos',
   progress: 'Fortschritt',
   rank: 'Rang',
   friends: 'Freunde',
@@ -119,14 +129,20 @@ export function App() {
   const activePlan = state.plans.find((plan) => plan.id === state.activePlanId);
 
   const workoutCount = state.workouts.filter((workout) => workoutSetCount(workout) > 0).length;
+  /* Heute oder frueher faellig - siehe dueTodoCount. */
+  const openTodos = dueTodoCount(state.todos);
   const subtitle =
     tab === 'today' ? formatDateLong(todayISO())
       : tab === 'plans'
         ? activePlan ? t('Aktiv: {name}', { name: activePlan.name }) : t('Kein Plan aktiv')
-        : tab === 'progress' && workoutCount > 0
-          ? t('{count} Einheiten aufgezeichnet', { count: workoutCount })
-          : tab === 'rank' ? t('Bronze bis Elite, je drei Divisionen')
-            : null;
+        : tab === 'todos'
+          ? openTodos > 0
+            ? t('{count} offen – Tag, Woche, Monat, Jahr', { count: openTodos })
+            : t('Tag, Woche, Monat, Jahr')
+          : tab === 'progress' && workoutCount > 0
+            ? t('{count} Einheiten aufgezeichnet', { count: workoutCount })
+            : tab === 'rank' ? t('Bronze bis Elite, je drei Divisionen')
+              : null;
 
   return (
     <div className={`app ${booting ? 'app--boot' : ''}`}>
@@ -164,6 +180,19 @@ export function App() {
               {item.id === 'friends' && pendingRequests > 0 && (
                 <span className="nav__badge" aria-label={t('{count} offene Anfragen', { count: pendingRequests })}>
                   {pendingRequests}
+                </span>
+              )}
+              {/*
+                * Die Zahl an den Aufgaben ist eine Auskunft, keine Mahnung -
+                * deshalb in der Zeitfarbe und nicht in Rot wie die Anfragen,
+                * die wirklich jemand anderen warten lassen.
+                */}
+              {item.id === 'todos' && openTodos > 0 && (
+                <span
+                  className="nav__badge nav__badge--soft"
+                  aria-label={t('{count} Aufgaben offen', { count: openTodos })}
+                >
+                  {openTodos}
                 </span>
               )}
             </span>
@@ -225,6 +254,7 @@ export function App() {
               <>
                 {tab === 'today' && <TodayPage onNavigate={setTab} />}
                 {tab === 'plans' && <PlansPage />}
+                {tab === 'todos' && <TodosPage />}
                 {tab === 'progress' && <ProgressPage />}
                 {tab === 'rank' && <RankPage />}
                 {tab === 'friends' && <FriendsPage />}

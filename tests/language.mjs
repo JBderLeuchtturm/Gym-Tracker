@@ -31,7 +31,7 @@ export async function run() {
 
   await runner.step('Englisches Gerät bekommt Englisch', async () => {
     const tabs = await page.locator('.nav__item span:last-child').allTextContents();
-    const expected = ['Today', 'Plans', 'Progress', 'Rank', 'Friends', 'Profile'];
+    const expected = ['Today', 'Plans', 'To-dos', 'Progress', 'Rank', 'Friends', 'Profile'];
     if (tabs.join(',') !== expected.join(',')) throw new Error(tabs.join(','));
   });
 
@@ -53,7 +53,7 @@ export async function run() {
   });
 
   await runner.step('Umschalten auf Deutsch wirkt sofort', async () => {
-    await page.locator('.nav__item').nth(5).click();
+    await page.locator('.nav__item').nth(6).click();
     await page.waitForTimeout(600);
     // Sprache liegt seit der Umgestaltung hinter Settings -> General statt
     // offen auf der Profilseite.

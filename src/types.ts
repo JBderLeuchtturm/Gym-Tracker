@@ -239,6 +239,80 @@ export interface Workout {
   updatedAt: string;
 }
 
+/* ------------------------------------------------------------------ To-dos */
+
+/**
+ * Das Zeitfenster, in dem eine Aufgabe steht.
+ *
+ * Eine Aufgabenliste lebt davon, dass nicht alles gleich dringend ist. "Diese
+ * Woche die Steuer sortieren" und "heute Milch holen" sind zwei verschiedene
+ * Versprechen an sich selbst - und wer beides in dieselbe Liste wirft, hat am
+ * Abend eine Liste, die er nicht geschafft hat. Deshalb gehoert jede Aufgabe
+ * genau einem Zeitraum an, und jeder Zeitraum hat seine eigene Ansicht.
+ */
+export type TodoScope = 'day' | 'week' | 'month' | 'year' | 'someday';
+
+export type TodoPriority = 'high' | 'normal' | 'low';
+
+/**
+ * Platz in der Kategorienpalette (--todo-cat-1 ... --todo-cat-8 in styles.css).
+ *
+ * Gespeichert wird die Nummer, nicht der Farbwert: Das helle und das dunkle
+ * Thema haben je einen eigenen Ton je Platz, und ein fest eingetragenes
+ * "#599b5c" waere in genau einem der beiden falsch.
+ */
+export type TodoColor = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
+/** Ein Teilschritt - dafuer, dass man eine Aufgabe auch halb abhaken kann. */
+export interface TodoStep {
+  id: ID;
+  text: string;
+  done: boolean;
+}
+
+export interface TodoCategory {
+  id: ID;
+  name: string;
+  color: TodoColor;
+  /** Ein Zeichen vor dem Namen (Emoji). Leer = keins. */
+  icon: string;
+}
+
+/** Wiederholung: alle `interval` Tage/Wochen/Monate/Jahre. */
+export interface TodoRepeat {
+  every: 'day' | 'week' | 'month' | 'year';
+  interval: number;
+}
+
+export interface Todo {
+  id: ID;
+  title: string;
+  note: string;
+  categoryId: ID | null;
+  scope: TodoScope;
+  /**
+   * Der Zeitraum als Datum seines ersten Tages: Tag = der Tag selbst, Woche =
+   * ihr Montag, Monat = der Erste, Jahr = der 1. Januar. Bei 'someday' null.
+   *
+   * Ein einzelnes Feld statt Anfang und Ende: Aus Zeitraumart und Startdatum
+   * ergibt sich das Ende immer eindeutig, zwei gespeicherte Daten koennten
+   * dagegen auseinanderlaufen.
+   */
+  period: string | null;
+  priority: TodoPriority;
+  steps: TodoStep[];
+  done: boolean;
+  /** Zeitpunkt des Abhakens - fuer "heute erledigt" und die Sortierung im Archiv. */
+  doneAt: string | null;
+  repeat: TodoRepeat | null;
+  /** Wie oft die Wiederholung am Stueck erledigt wurde. */
+  streak: number;
+  /** Eigene Reihenfolge innerhalb des Zeitraums, aufsteigend. */
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /* ------------------------------------------------------------- Ernaehrung */
 
 export interface NutritionEntry {
@@ -430,6 +504,9 @@ export interface AppState {
   measurements: MeasurementEntry[];
   nutrition: NutritionEntry[];
   goals: ExerciseGoal[];
+  /** Aufgaben und ihre Kategorien - siehe Todo. */
+  todos: Todo[];
+  todoCategories: TodoCategory[];
   /** Zeitpunkt der letzten automatischen Sicherung. */
   lastBackupAt?: string | null;
   settings: Settings;
