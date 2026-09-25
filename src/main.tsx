@@ -6,6 +6,7 @@ import { SyncProvider } from './sync/SyncProvider';
 import { ToastProvider } from './components/ui';
 import { I18nProvider, detectLanguage, loadDictionary } from './i18n';
 import { registerServiceWorker } from './lib/appUpdate';
+import { isNativeApp } from './native/platform';
 import './fonts.css';
 import './styles.css';
 
@@ -37,7 +38,9 @@ if (detectLanguage() === 'en') void loadDictionary('en').then(start);
 else start();
 
 // Service Worker fuer Offline-Betrieb und Update-Erkennung (nur im Produktionsbau).
-if (import.meta.env.PROD) {
+// Nicht in der Android-App: Dort liegen die Dateien ohnehin in der APK, und ein
+// Zwischenspeicher wuerde nach einem APK-Update alte Dateien weiterliefern.
+if (import.meta.env.PROD && !isNativeApp()) {
   window.addEventListener('load', () => {
     registerServiceWorker(import.meta.env.BASE_URL || '/');
   });

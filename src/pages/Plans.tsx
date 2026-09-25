@@ -18,6 +18,7 @@ import {
 import { goalsFromPlan } from '../lib/weeklyGoals';
 import { customToExercises, decodePlan, encodePlan } from '../lib/planShare';
 import { printPlan } from '../lib/exportData';
+import { isNativeApp } from '../native/platform';
 import { plannedWeeklyLoad } from '../lib/planVolume';
 import { loadStatus } from '../lib/muscleLoad';
 import { tidyGroups } from '../lib/planGroups';
@@ -161,13 +162,16 @@ export function PlansPage() {
                 <button className="btn btn--sm" onClick={() => setSharingId(plan.id)}>
                   <IconShare /> {t("Teilen")}
                 </button>
-                <button
-                  className="btn btn--sm"
-                  onClick={() => printPlan(plan, (id) => exerciseName(getExercise(id)))}
-                  title={t('Zum Mitnehmen in der Sporttasche')}
-                >
-                  <IconPrinter /> {t('Drucken')}
-                </button>
+                {/* Drucken kann die Android-App nicht - dort fehlt der Knopf. */}
+                {!isNativeApp() && (
+                  <button
+                    className="btn btn--sm"
+                    onClick={() => printPlan(plan, (id) => exerciseName(getExercise(id)))}
+                    title={t('Zum Mitnehmen in der Sporttasche')}
+                  >
+                    <IconPrinter /> {t('Drucken')}
+                  </button>
+                )}
                 <span className="spacer" />
                 {state.plans.length > 1 && (
                   <button className="btn btn--sm btn--ghost" onClick={() => setDeletingId(plan.id)} aria-label={t("Plan löschen")}>

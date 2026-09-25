@@ -1,3 +1,5 @@
+import { isNativeApp } from '../native/platform';
+
 /**
  * Echte Push-Nachrichten.
  *
@@ -31,6 +33,8 @@ const encodeKey = (buffer: ArrayBuffer | null): string => {
 };
 
 export function pushSupported(): boolean {
+  // Web-Push braucht einen Service Worker - den gibt es in der Android-App nicht.
+  if (isNativeApp()) return false;
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 }
 

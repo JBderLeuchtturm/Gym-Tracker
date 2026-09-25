@@ -1,0 +1,80 @@
+name: Android-App
+
+# Baut die Android-App (APK) aus demselben Code wie die Web-App und legt sie
+# als Release "app" ab. Der Link zur neuesten Fassung bleibt dabei immer gleich:
+#   https://github.com/JBderLeuchtturm/Gym-Tracker/releases/download/app/Gym-Tracker.apk
+# Die App selbst fragt dieses Release ab und meldet sich, wenn es neuer ist.
+
+on:
+  push:
+    branches:
+      - claude/gym-tracker-website-aeaazi
+      - main
+      - 'claude/**'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Laufnummer = Versionsnummer der APK. Android installiert nur hoehere
+      # Nummern ueber die alte Fassung.
+      APP_BUILD: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Web-App bauen
+        run: npm run build
+
+      - name: In das Android-Projekt kopieren
+        run: npx cap sync android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: APK bauen und signieren
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease -PappBuild=$APP_BUILD --no-daemon --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk ../Gym-Tracker.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gym-Tracker-Build-${{ github.run_number }}
+          path: Gym-Tracker.apk
+          retention-days: 14
+
+      # Nur die Fassung vom Hauptzweig wird als "app" veroeffentlicht - die
+      # Arbeitszweige bauen zur Probe und legen die APK als Artefakt ab.
+      - name: Als Release "app" veroeffentlichen
+        if: github.ref == 'refs/heads/claude/gym-tracker-website-aeaazi' || github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete app --yes --cleanup-tag || true
+          gh release create app Gym-Tracker.apk \
+            --target "$GITHUB_SHA" \
+            --title "Gym Tracker – Build $APP_BUILD" \
+            --notes "Android-App, Build $APP_BUILD ($(date -u +%Y-%m-%d)). Installieren: Datei auf dem Handy öffnen. Anleitung: docs/app-verteilen.md"

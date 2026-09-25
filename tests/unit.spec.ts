@@ -29,6 +29,8 @@ import { tidyGroups } from '../src/lib/planGroups';
 import { CATALOG_BY_ID } from '../src/data/catalog';
 import { ALL_REGIONS } from '../src/lib/muscles';
 import { decodePlan, encodePlan } from '../src/lib/planShare';
+import { TODO_COLORS_DARK, TODO_COLORS_LIGHT, buildWidgetSnapshot } from '../src/lib/widgetSnapshot';
+import { readFileSync } from 'node:fs';
 import { createInitialState } from '../src/storage/defaults';
 import type { AppState, Exercise, PlanExercise, SetLog, Todo, Workout } from '../src/types';
 
@@ -929,6 +931,87 @@ check('Plan teilen: Erfassung, Zeiten und Zirkel reisen mit', () => {
   eq(plank.targetDurationSec, 30);
   eq(plank.transitionSec, 10);
   eq(plank.groupId, burpee.groupId, 'Zirkel bleibt gekoppelt');
+});
+
+/* ------------------------------------------------------------- Widgets (Android) */
+
+check('Widgets: Trainingstag, Ruhetag und die nächsten sieben Tage', () => {
+  const state = createInitialState();
+  const plan = state.plans.find((item) => item.id === state.activePlanId)!;
+  const monday = new Date(2026, 2, 2, 9, 0); // Montag, 2. März 2026, Ortszeit
+  const snapshot = buildWidgetSnapshot(state, catalogExercise, monday);
+  eq(Object.keys(snapshot.days).length, 7, 'eine Woche voraus');
+  eq(Object.keys(snapshot.days)[0], '2026-03-02', 'beginnt heute');
+
+  plan.days.forEach((day, index) => {
+    const entry = snapshot.days[`2026-03-0${2 + index}`];
+    const training = !day.isRestDay && day.exercises.length > 0;
+    eq(entry.rest, !training, `Tag ${index}`);
+    if (training) {
+      eq(entry.planned, day.exercises.reduce((sum, item) => sum + item.targetSets, 0), 'geplante Sätze');
+      eq(entry.done, 0);
+      eq(entry.target, 'focus', 'Tipp führt in die Fokus-Ansicht');
+      eq(entry.next, catalogExercise(day.exercises[0].exerciseId)?.name, 'erste Übung als nächste');
+      if (!entry.detail.startsWith('Satz 1 von')) throw new Error(entry.detail);
+    } else if (!/Nächstes Training: /.test(entry.next)) {
+      throw new Error(`Ruhetag ohne Ausblick: ${entry.next}`);
+    }
+  });
+});
+
+check('Widgets: abgehakte Sätze schieben die nächste Übung weiter', () => {
+  const state = createInitialState();
+  const plan = state.plans.find((item) => item.id === state.activePlanId)!;
+  const index = plan.days.findIndex((day) => !day.isRestDay && day.exercises.length > 1);
+  const date = `2026-03-0${2 + index}`;
+  const [first, second] = plan.days[index].exercises;
+  state.workouts = [{
+    id: 'wo_w', date, title: 'x', createdAt: date, updatedAt: date, durationMin: null, bodyWeightKg: 80,
+    exercises: [{
+      id: 'le_w', exerciseId: first.exerciseId, planExerciseId: first.id,
+      sets: Array.from({ length: first.targetSets }, (_, n) => setOf({ id: `w${n}`, reps: 8, weightKg: 60 })),
+    }],
+  } as Workout];
+  const entry = buildWidgetSnapshot(state, catalogExercise, new Date(2026, 2, 2 + index, 18)).days[date];
+  eq(entry.done, first.targetSets);
+  eq(entry.next, catalogExercise(second.exerciseId)?.name);
+});
+
+check('Widgets: Wochenziele nur mit eigenen Zielen, die nächste Woche beginnt bei null', () => {
+  const state = createInitialState();
+  const now = new Date(2026, 2, 4, 12);
+  eq(buildWidgetSnapshot(state, catalogExercise, now).weeks['2026-03-02'].length, 0, 'ohne Ziele nichts');
+  state.settings.weeklyGoals = { trainingDays: 3, minutes: null, volumeKg: 20000 };
+  state.settings.weeklySetTargets = Object.fromEntries(ALL_REGIONS.map((region) => [region, 0]));
+  state.workouts = [workoutOn('2026-03-02', 100, 10)];
+  const weeks = buildWidgetSnapshot(state, catalogExercise, now).weeks;
+  eq(weeks['2026-03-02'].map((meter) => meter.text).join(' | '), '1 / 3 | 3.000 / 20,0k');
+  eq(weeks['2026-03-09'].map((meter) => meter.text).join(' | '), '0 / 3 | 0 / 20,0k', 'nächste Woche');
+});
+
+check('Widgets: To-dos bis heute fällig, Überfälliges zuerst', () => {
+  const state = createInitialState();
+  const category = state.todoCategories[0];
+  state.todos = [
+    { ...todo({ title: 'Heute', scope: 'day', period: '2026-03-04', dueTime: '18:00' }), categoryId: category.id },
+    { ...todo({ title: 'Gestern', scope: 'day', period: '2026-03-03' }) },
+    { ...todo({ title: 'Morgen', scope: 'day', period: '2026-03-05' }) },
+    { ...todo({ title: 'Erledigt', scope: 'day', period: '2026-03-04' }), done: true },
+  ];
+  const { todos } = buildWidgetSnapshot(state, catalogExercise, new Date(2026, 2, 4, 8));
+  eq(todos['2026-03-04'].items.map((item) => item.title).join(','), 'Gestern,Heute');
+  eq(todos['2026-03-04'].items[0].meta, 'überfällig');
+  eq(todos['2026-03-04'].items[1].meta, '18:00');
+  eq(todos['2026-03-04'].items[1].color, TODO_COLORS_DARK[category.color], 'Farbe der Kategorie');
+  eq(todos['2026-03-05'].count, 3, 'am nächsten Tag ist Heute schon überfällig');
+});
+
+check('Widgets: Kategorienfarben stimmen mit styles.css überein', () => {
+  const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
+  const values = [...css.matchAll(/--todo-cat-(\d):\s*(#[0-9a-f]{6})/gi)].map((match) => match[2].toLowerCase());
+  eq(values.length >= 16, true, 'dunkel und hell');
+  eq(values.slice(0, 8).join(','), Object.values(TODO_COLORS_DARK).join(','), 'dunkles Thema');
+  eq(values.slice(8, 16).join(','), Object.values(TODO_COLORS_LIGHT).join(','), 'helles Thema');
 });
 
 export async function run(): Promise<number> {

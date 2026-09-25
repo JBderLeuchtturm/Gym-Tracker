@@ -6,7 +6,7 @@ import { startOfWeek, todayISO } from '../lib/date';
 import { ALL_REGIONS, REGION_LABELS, type MuscleRegion } from '../lib/muscles';
 import { DEFAULT_WEEKLY_TARGET, targetFor } from '../lib/muscleLoad';
 import {
-  goalMeters, goalsFromPlan, hasOwnGoals, weekProgress, type GoalMeter,
+  goalMeters, goalsFromPlan, hasOwnGoals, meterParts, weekProgress, type GoalMeter,
 } from '../lib/weeklyGoals';
 import { Modal, NumberInput, fmt, useToast } from './ui';
 import { IconGoal } from './icons';
@@ -18,14 +18,6 @@ import { IconGoal } from './icons';
  * Woche?), die Karte auf der Fortschrittsseite (alles, auch je Muskelgruppe),
  * der Dialog ist von beiden aus und aus den Einstellungen zu erreichen.
  */
-
-const meterParts = (meter: GoalMeter): [string, string] => {
-  if (meter.key === 'volume') {
-    const short = (value: number) => (value >= 10000 ? `${fmt(value / 1000, 1)}k` : fmt(value));
-    return [short(meter.value), short(meter.target)];
-  }
-  return [fmt(meter.value), fmt(meter.target)];
-};
 
 const formatMeter = (meter: GoalMeter): string => meterParts(meter).join(' / ');
 

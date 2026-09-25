@@ -19,6 +19,7 @@ import { downloadBlob } from '../lib/zip';
 import { ALL_EQUIPMENT } from '../data/catalog';
 import type { Exercise } from '../types';
 import { WeeklyGoalsDialog } from '../components/WeeklyGoals';
+import { appBuild, isNativeApp } from '../native/platform';
 
 type Category = 'allgemein' | 'studio' | 'uebungen' | 'erinnerung' | 'daten';
 
@@ -682,6 +683,7 @@ function DataSettings() {
 
       <div className="tiny dim center" style={{ marginTop: 11 }}>
         {t('App-Version')}: {new Date(__BUILD_TIME__).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' })}
+        {isNativeApp() && ` · ${t('Android-App, Build {build}', { build: appBuild() })}`}
       </div>
 
       <button className="btn btn--danger btn--block" style={{ marginTop: 9 }} onClick={() => setResetOpen(true)}>

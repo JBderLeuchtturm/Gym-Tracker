@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_today_name">Today\'s workout</string>
+    <string name="widget_today_desc">Today\'s plan, sets and the next exercise. Tap to open the focus view.</string>
+    <string name="widget_goals_name">Weekly goals</string>
+    <string name="widget_goals_desc">Days, minutes, volume and muscle groups this week.</string>
+    <string name="widget_todos_name">To-dos today</string>
+    <string name="widget_todos_desc">What is still open today, overdue first.</string>
+</resources>

@@ -20,6 +20,7 @@ import {
   IconDrag, IconDumbbell, IconEdit, IconFlag, IconNote, IconPlus, IconRefresh, IconSearch,
   IconSettings, IconTrash, IconX,
 } from '../components/icons';
+import { saveBlob } from '../lib/download';
 
 /*
  * Die Aufgabenseite.
@@ -818,12 +819,7 @@ function TodoMenu({
 
   const exportIcs = () => {
     const blob = new Blob([todosToIcs(todos)], { type: 'text/calendar' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'gym-tracker-aufgaben.ics';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    void saveBlob('gym-tracker-aufgaben.ics', blob);
     onClose();
   };
 

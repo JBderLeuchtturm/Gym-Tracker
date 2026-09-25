@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widgets im dunklen Thema: Anthrazit, Kreide, Signalgelb. -->
+<resources>
+    <color name="widget_bg">#1A1C1F</color>
+    <color name="widget_border">#292D32</color>
+    <color name="widget_text">#EFECE5</color>
+    <color name="widget_muted">#AAA69E</color>
+    <color name="widget_dim">#9A968E</color>
+    <color name="widget_accent">#F5B700</color>
+    <color name="widget_track">#2C3035</color>
+    <color name="widget_fill">#F5B700</color>
+    <color name="widget_success">#3DBB63</color>
+</resources>

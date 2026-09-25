@@ -2,6 +2,7 @@ import type { AppState } from '../types';
 import {
   DEFAULT_PROFILE, DEFAULT_SETTINGS, DEFAULT_TODO_CATEGORIES, SCHEMA_VERSION, createInitialState,
 } from './defaults';
+import { saveBlob } from '../lib/download';
 
 const STORAGE_KEY = 'gym-tracker:state:v1';
 const BACKUP_KEY = 'gym-tracker:state:backup';
@@ -193,10 +194,5 @@ export function importState(json: string): AppState {
 
 export function downloadBackup(state: AppState): void {
   const blob = new Blob([exportState(state)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `gym-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  void saveBlob(`gym-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`, blob);
 }

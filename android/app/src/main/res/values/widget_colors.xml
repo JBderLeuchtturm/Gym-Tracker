@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widgets im hellen Thema: Kreide auf hellem Beton, wie die App. -->
+<resources>
+    <color name="widget_bg">#FDFCFA</color>
+    <color name="widget_border">#DCD8CF</color>
+    <color name="widget_text">#15161A</color>
+    <color name="widget_muted">#4A4740</color>
+    <color name="widget_dim">#5A564E</color>
+    <color name="widget_accent">#7D5A00</color>
+    <color name="widget_track">#E4E1DA</color>
+    <color name="widget_fill">#F5B700</color>
+    <color name="widget_success">#18702F</color>
+</resources>

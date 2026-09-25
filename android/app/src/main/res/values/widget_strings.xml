@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_today_name">Heute-Training</string>
+    <string name="widget_today_desc">Tagesplan, Sätze und die nächste Übung. Tippen öffnet die Fokus-Ansicht.</string>
+    <string name="widget_goals_name">Wochenziele</string>
+    <string name="widget_goals_desc">Tage, Minuten, Volumen und Muskelgruppen dieser Woche.</string>
+    <string name="widget_todos_name">To-dos heute</string>
+    <string name="widget_todos_desc">Was heute noch offen ist, Überfälliges zuerst.</string>
+</resources>

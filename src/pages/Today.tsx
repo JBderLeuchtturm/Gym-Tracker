@@ -60,6 +60,7 @@ import { TargetFields, TrackingPicker, type TargetValues } from '../components/E
 import { Barbell } from '../components/Barbell';
 import { CircuitRunner } from '../components/CircuitRunner';
 import { FocusView } from '../components/FocusView';
+import { consumeFocusRequest, onFocusRequest } from '../lib/focusRequest';
 import { WeeklyGoalsStrip } from '../components/WeeklyGoals';
 import { beep } from '../lib/beep';
 
@@ -292,6 +293,20 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
     },
     [upsertWorkout, date, plan?.id, planDay?.title, state.profile.weightKg],
   );
+
+  /** Fokus-Ansicht bei der naechsten offenen Uebung - vom Knopf oder vom Widget. */
+  const openFocusView = useCallback(() => {
+    const open = rows.find((row) => !row.logged?.skipped && row.sets.some((set) => !set.done && !set.skipped))
+      ?? rows.find((row) => !row.logged?.skipped);
+    if (open) setFocusKey(focusId(open));
+  }, [rows]);
+
+  // Ein Tipp aufs Widget "Heute-Training" will direkt hierher.
+  useEffect(() => {
+    const check = () => { if (consumeFocusRequest()) openFocusView(); };
+    check();
+    return onFocusRequest(check);
+  }, [openFocusView]);
 
   const startRest = useCallback((seconds: number) => {
     setRestEndsAt(Date.now() + seconds * 1000);
@@ -873,11 +888,7 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
           onStop={stopSession}
           sortMode={sortMode}
           onToggleSort={() => setSortMode(!sortMode)}
-          onFocus={() => {
-            const open = rows.find((row) => !row.logged?.skipped && row.sets.some((set) => !set.done && !set.skipped))
-              ?? rows.find((row) => !row.logged?.skipped);
-            if (open) setFocusKey(focusId(open));
-          }}
+          onFocus={openFocusView}
         />
       )}
 

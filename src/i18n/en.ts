@@ -1809,4 +1809,14 @@ export const EN: Record<string, string> = {
   'Alles wird direkt auf diesem Gerät gespeichert und bleibt nach dem Schließen erhalten. Für den Wechsel auf ein anderes Gerät nutzt du Export und Import.': 'Everything is stored directly on this device and stays after closing. To move to another device, use export and import.',
   'Fortschrittsfotos sind nicht dabei': 'Progress photos are not included',
   '– die liegen nur auf diesem Gerät und werden unter Fotos gesondert heruntergeladen.': '– they stay on this device only and are downloaded separately under Photos.',
+
+  /* ------------------------------------------------ Android-App und Widgets */
+  'Build {build} herunterladen und installieren – deine Daten bleiben.': 'Download and install build {build} – your data stays.',
+  'Herunterladen': 'Download',
+  'Nächstes Training: {day} · {title}': 'Next workout: {day} · {title}',
+  'Freies Training': 'Free workout',
+  'To-dos heute': 'To-dos today',
+  '+{n} weitere': '+{n} more',
+  'Einmal die App öffnen': 'Open the app once',
+  'Android-App, Build {build}': 'Android app, build {build}',
 };

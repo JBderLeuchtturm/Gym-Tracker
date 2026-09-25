@@ -1,3 +1,5 @@
+import { saveBlob } from './download';
+
 /**
  * Zeichnet einen Wochenrückblick als Bild - zum Teilen mit Freunden.
  *
@@ -132,11 +134,6 @@ export async function shareOrDownload(blob: Blob, filename: string): Promise<'sh
       /* Abgebrochen ist kein Fehler - dann eben herunterladen. */
     }
   }
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  await saveBlob(filename, blob);
   return 'downloaded';
 }

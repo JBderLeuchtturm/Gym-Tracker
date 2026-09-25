@@ -154,6 +154,18 @@ export function goalMeters(
   return meters;
 }
 
+/** Stand und Ziel als Text - Volumen ab 10 000 kg verkuerzt ("13,9k"). */
+export const meterParts = (meter: GoalMeter): [string, string] => {
+  const plain = (value: number) => value.toLocaleString('de-DE', { maximumFractionDigits: 0 });
+  if (meter.key === 'volume') {
+    const short = (value: number) => (value >= 10000
+      ? `${(value / 1000).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k`
+      : plain(value));
+    return [short(meter.value), short(meter.target)];
+  }
+  return [plain(meter.value), plain(meter.target)];
+};
+
 /** Hat jemand ueberhaupt eigene Ziele gesetzt - ausser den Standard-Saetzen? */
 export const hasOwnGoals = (goals: WeeklyGoals, setTargets: Record<string, number>): boolean =>
   goals.trainingDays != null || goals.minutes != null || goals.volumeKg != null

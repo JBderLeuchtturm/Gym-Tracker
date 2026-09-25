@@ -18,7 +18,9 @@ const HistoryPage = lazy(() => import('./pages/History').then((m) => ({ default:
 const FriendsPage = lazy(() => import('./pages/Friends').then((m) => ({ default: m.FriendsPage })));
 const TodosPage = lazy(() => import('./pages/Todos').then((m) => ({ default: m.TodosPage })));
 import { useSync } from './sync/SyncProvider';
-import { applyUpdate, onUpdateAvailable } from './lib/appUpdate';
+import { announceAppDownload, applyUpdate, onUpdateAvailable, pendingAppDownload } from './lib/appUpdate';
+import { appBuild, isNativeApp } from './native/platform';
+import { requestFocusView } from './lib/focusRequest';
 import { workoutSetCount } from './lib/stats';
 import { formatDateLong, todayISO, weekdayOf } from './lib/date';
 import { PageSkeleton } from './components/ui';
@@ -66,8 +68,11 @@ const TITLE_KEYS: Record<Tab, string> = {
 
 const title = (tab: Tab): string => t(TITLE_KEYS[tab]);
 
+/** Wie oft die Android-App hoechstens nach einer neuen APK fragt. */
+const UPDATE_CHECK_MS = 6 * 60 * 60 * 1000;
+
 export function App() {
-  const { state, updateSettings } = useStore();
+  const { state, updateSettings, getExercise } = useStore();
   const sync = useSync();
 
   const pendingRequests = sync.friends.filter((friend) => friend.state === 'incoming').length;
@@ -87,6 +92,61 @@ export function App() {
   const [booting, setBooting] = useState(true);
 
   useEffect(() => onUpdateAvailable(setUpdateReady), []);
+
+  /*
+   * Nur in der Android-App: Zurueck-Taste, Tipps auf Widgets und die Frage
+   * nach einer neueren APK. Im Browser wird davon nichts geladen.
+   */
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  const historyRef = useRef(historyOpen);
+  historyRef.current = historyOpen;
+  useEffect(() => {
+    if (!isNativeApp()) return undefined;
+    let active = true;
+    void import('./native/native').then((native) => {
+      if (!active) return;
+      void native.initNative({
+        onTarget: (target) => {
+          setHistoryOpen(false);
+          setTab(target === 'todos' ? 'todos' : 'today');
+          scrollRef.current?.scrollTo({ top: 0 });
+          if (target === 'focus') requestFocusView();
+        },
+        onBack: () => {
+          if (historyRef.current) { setHistoryOpen(false); return true; }
+          if (tabRef.current !== 'today') { setTab('today'); return true; }
+          return false;
+        },
+      });
+      let lastCheck = 0;
+      const check = () => {
+        if (Date.now() - lastCheck < UPDATE_CHECK_MS) return;
+        lastCheck = Date.now();
+        void native.checkForUpdate(appBuild()).then((info) => { if (info) announceAppDownload(info); });
+      };
+      check();
+      native.onResume(check);
+    });
+    return () => { active = false; };
+  }, []);
+
+  /*
+   * Widgets fuettern: Nach jeder Aenderung (kurz gebuendelt) bekommt der
+   * Startbildschirm den neuen Stand - Satz abgehakt, Aufgabe erledigt, Ziel
+   * geaendert. Auch die Sprache zaehlt, die Texte stehen fertig darin.
+   */
+  useEffect(() => {
+    if (!isNativeApp()) return undefined;
+    const timer = window.setTimeout(() => {
+      void Promise.all([import('./lib/widgetSnapshot'), import('./native/native')])
+        .then(([snapshot, native]) => native.updateWidgets(
+          JSON.stringify(snapshot.buildWidgetSnapshot(state, getExercise)),
+        ))
+        .catch(() => { /* Ohne Widgets laeuft die App genauso. */ });
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [state, getExercise]);
   useEffect(() => {
     const id = setTimeout(() => setBooting(false), 650);
     return () => clearTimeout(id);
@@ -225,11 +285,17 @@ export function App() {
 
       {updateReady && (
         <div className="update-banner" role="status">
-                    <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div className="bold small">{t('Neue Version verfügbar')}</div>
-            <div className="tiny" style={{ opacity: 0.85 }}>{t('Einmal neu laden, dann ist sie da.')}</div>
+            <div className="tiny" style={{ opacity: 0.85 }}>
+              {pendingAppDownload()
+                ? t('Build {build} herunterladen und installieren – deine Daten bleiben.', { build: pendingAppDownload()!.build })
+                : t('Einmal neu laden, dann ist sie da.')}
+            </div>
           </div>
-          <button className="btn btn--sm" onClick={applyUpdate}>{t('Jetzt laden')}</button>
+          <button className="btn btn--sm" onClick={applyUpdate}>
+            {pendingAppDownload() ? t('Herunterladen') : t('Jetzt laden')}
+          </button>
         </div>
       )}
 

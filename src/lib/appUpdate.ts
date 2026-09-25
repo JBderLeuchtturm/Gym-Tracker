@@ -15,14 +15,37 @@ export type UpdateListener = (available: boolean) => void;
 let waitingWorker: ServiceWorker | null = null;
 let listener: UpdateListener | null = null;
 
+/**
+ * In der Android-App gibt es keinen Service Worker: Die Dateien liegen in der
+ * APK. Ein Update ist dort eine neue APK - gefunden von native.ts, hier nur
+ * gemerkt, damit derselbe Hinweis-Balken erscheint.
+ */
+export interface AppDownload {
+  build: number;
+  url: string;
+}
+let appDownload: AppDownload | null = null;
+
 export function onUpdateAvailable(callback: UpdateListener): () => void {
   listener = callback;
-  if (waitingWorker) callback(true);
+  if (waitingWorker || appDownload) callback(true);
   return () => { listener = null; };
 }
 
-/** Uebernimmt die wartende Fassung und laedt die Seite neu. */
+export function announceAppDownload(info: AppDownload): void {
+  appDownload = info;
+  listener?.(true);
+}
+
+export const pendingAppDownload = (): AppDownload | null => appDownload;
+
+/** Uebernimmt die wartende Fassung und laedt die Seite neu - oder laedt die neue APK. */
 export function applyUpdate(): void {
+  if (appDownload) {
+    const { url } = appDownload;
+    void import('../native/native').then((native) => native.openExternal(url));
+    return;
+  }
   if (!waitingWorker) { window.location.reload(); return; }
   waitingWorker.postMessage({ type: 'SKIP_WAITING' });
 }

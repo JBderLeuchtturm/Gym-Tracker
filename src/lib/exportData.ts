@@ -1,6 +1,7 @@
 import type { AppState, Exercise, Plan, PlanExercise } from '../types';
 import { WEEKDAY_NAMES, formatDateShort } from './date';
 import { countsAsWork, exerciseVolume, workoutSetCount, workoutVolume } from './stats';
+import { saveBlob } from './download';
 
 /**
  * Ausgabe fuer andere Programme und fuers Archiv.
@@ -120,14 +121,7 @@ export function downloadText(filename: string, content: string, mime = 'text/csv
   const blob = new Blob([mime.startsWith('text/csv') ? '﻿' : '', content], {
     type: `${mime};charset=utf-8`,
   });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  void saveBlob(filename, blob);
 }
 
 export interface ReportInput {

@@ -37,7 +37,11 @@ function serviceWorkerPrecache(): Plugin {
 export default defineConfig({
   // Zeitpunkt des Baus - wird im Profil als Version angezeigt, damit sich
   // pruefen laesst, ob ein Update wirklich angekommen ist.
-  define: { __BUILD_TIME__: JSON.stringify(new Date().toISOString()) },
+  define: {
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    // Beim APK-Bau die Laufnummer von GitHub - daran erkennt die App Updates.
+    __APP_BUILD__: JSON.stringify(Number(process.env.APP_BUILD ?? 0) || 0),
+  },
   plugins: [react(), serviceWorkerPrecache()],
   base: './',
   build: { outDir: 'dist', sourcemap: false },
