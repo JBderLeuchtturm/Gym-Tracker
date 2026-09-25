@@ -6,6 +6,7 @@ import {
   exerciseHistory, personalRecords, streakInfo, weeklySummaries, workoutSetCount, workoutVolume,
   countsAsWork,
 } from '../lib/stats';
+import { isTimedExercise } from '../lib/tracking';
 
 /**
  * Die Daten, die Freunde zu sehen bekommen.
@@ -104,7 +105,7 @@ export function buildProgressShare(
     const history = exerciseHistory(state, id);
     if (history.length === 0) continue;
     const records = personalRecords(state, id);
-    const timed = exercise.kind === 'time' || exercise.kind === 'cardio';
+    const timed = isTimedExercise(exercise);
 
     exercises.push({
       id,

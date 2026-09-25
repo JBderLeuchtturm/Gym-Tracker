@@ -1,0 +1,54 @@
+/*
+ * Die beiden Schriften der App - mitgeliefert, nicht nachgeladen.
+ *
+ * Eine App, die im Keller-Studio ohne Netz starten soll, kann nicht auf einen
+ * Schriftserver warten. Deshalb liegen die Dateien im Build und landen ueber
+ * den Service Worker im Speicher des Geraets. Nur der lateinische Teil: Er
+ * enthaelt Umlaute, ß und „deutsche“ Anfuehrungszeichen - Vietnamesisch und
+ * erweitertes Latein brauchen wir nicht.
+ *
+ * Big Shoulders Display: schmal, schwer, aus der Beschilderung von Chicagos
+ * Industrie - fuer Titel, Uebungsnamen und grosse Zahlen.
+ * Barlow: eine ruhige Grotesk mit derselben leicht technischen Anmutung - fuer
+ * alles, was man liest.
+ */
+@font-face {
+  font-family: 'Big Shoulders Display';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../node_modules/@fontsource-variable/big-shoulders-display/files/big-shoulders-display-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('../node_modules/@fontsource/barlow/files/barlow-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('../node_modules/@fontsource/barlow/files/barlow-latin-500-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('../node_modules/@fontsource/barlow/files/barlow-latin-600-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('../node_modules/@fontsource/barlow/files/barlow-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

@@ -31,6 +31,7 @@ const SUITES = [
   ['invite', () => import('./invite.mjs')],
   ['bindung', () => import('./bindung.mjs')],
   ['todos', () => import('./todos.mjs')],
+  ['runde3', () => import('./runde3.mjs')],
 ];
 
 async function reachable() {

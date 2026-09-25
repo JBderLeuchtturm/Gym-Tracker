@@ -111,8 +111,9 @@ export async function run() {
     const strip = home.page.locator('.home-strip');
     if (await strip.count() === 0) throw new Error('Kein Kopfbereich mit Serie/Woche');
     const text = await strip.innerText();
-    if (!/Serie/.test(text)) throw new Error(`Keine Serie: ${text}`);
-    if (!/diese Woche/.test(text)) throw new Error(`Kein Wochenvolumen: ${text}`);
+    // Beschriftungen stehen in Versalien (CSS) - innerText liefert sie so.
+    if (!/Serie/i.test(text)) throw new Error(`Keine Serie: ${text}`);
+    if (!/diese Woche/i.test(text)) throw new Error(`Kein Wochenvolumen: ${text}`);
   });
 
   await runner.step('Was spürbar an Wertung verliert, meldet sich von selbst', async () => {
@@ -168,7 +169,7 @@ export async function run() {
     if (await modal.count() === 0) throw new Error('Kein Abschluss-Bildschirm');
     const text = await modal.innerText();
     for (const word of ['Volumen', 'Verbrauch', 'Dauer']) {
-      if (!text.includes(word)) throw new Error(`„${word}“ fehlt: ${text}`);
+      if (!text.toLowerCase().includes(word.toLowerCase())) throw new Error(`„${word}“ fehlt: ${text}`);
     }
 
     await modal.getByRole('button', { name: 'Fertig' }).click();

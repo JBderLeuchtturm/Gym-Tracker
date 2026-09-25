@@ -185,3 +185,25 @@ export const IconNote = (p: IconProps) => (
     <path d="M14 3.5V8h5M8.5 12.5h7M8.5 16h4.5" />
   </Base>
 );
+/** Kettenglied - zwei Uebungen zu einem Supersatz gekoppelt. */
+export const IconLink = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+    <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+  </Base>
+);
+/** Stoppuhr - Zirkel und Intervalle. */
+export const IconTimer = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="13.5" r="7.5" />
+    <path d="M12 9.5v4l2.5 1.5M9.5 3h5M12 3v3" />
+  </Base>
+);
+/** Zielscheibe mit Pfeil - Wochenziele. */
+export const IconGoal = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="11" cy="13" r="7.5" />
+    <circle cx="11" cy="13" r="3.5" />
+    <path d="M11 13l8.5-8.5M16 4.5h3.5V8" />
+  </Base>
+);

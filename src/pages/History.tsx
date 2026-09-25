@@ -2,10 +2,10 @@ import { exerciseName, t } from '../i18n';
 import { useMemo, useState } from 'react';
 import { calcWorkoutBurn } from '../lib/calories';
 import {
-  WEEKDAY_SHORT, addDays, formatDateLong, formatClock, parseISODate, startOfWeek, todayISO,
+  WEEKDAY_SHORT, addDays, formatDateLong, parseISODate, startOfWeek, todayISO,
 } from '../lib/date';
 import { workoutSetCount, workoutVolume } from '../lib/stats';
-import { formatSet } from '../lib/setFormat';
+import { resolveTracking, setText } from '../lib/tracking';
 import { useStore } from '../storage/store';
 import { EmptyState, Modal, fmt } from '../components/ui';
 import { IconChevronRight, IconFlame, IconTrash } from '../components/icons';
@@ -182,9 +182,7 @@ export function HistoryPage() {
                         <tr key={set.id}>
                           <td style={{ width: 30 }} className="dim">{set.isWarmup ? 'W' : index + 1}</td>
                           <td className="mono">
-                            {set.durationSec
-                              ? formatClock(set.durationSec)
-                              : formatSet(set.weightKg, set.reps, getExercise(logged.exerciseId)?.kind)}
+                            {setText(set, resolveTracking(exercise, undefined, logged), exercise?.kind)}
                           </td>
                           <td className="right dim">{set.rpe ? `RPE ${set.rpe}` : ''}</td>
                         </tr>

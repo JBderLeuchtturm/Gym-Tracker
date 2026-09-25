@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
   weekStartsMonday: true,
   useWgerApi: true,
   weeklySetTargets: {},
+  weeklyGoals: { trainingDays: null, volumeKg: null, minutes: null },
   availableEquipment: [],
   partnerName: '',
   countdownBeep: true,

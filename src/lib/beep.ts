@@ -5,7 +5,7 @@
  * Tonausgabe erlaubt. Schlaegt etwas fehl, passiert nichts weiter - ein
  * fehlender Ton darf das Training nicht stoeren.
  */
-export function beep(times = 2): void {
+export function beep(times = 2, frequency = 880): void {
   try {
     const Ctor = window.AudioContext
       ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -20,7 +20,7 @@ export function beep(times = 2): void {
       const gain = context.createGain();
 
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, at);
+      oscillator.frequency.setValueAtTime(frequency, at);
       gain.gain.setValueAtTime(0.0001, at);
       gain.gain.exponentialRampToValueAtTime(0.22, at + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.2);

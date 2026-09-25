@@ -1,4 +1,5 @@
-import type { Exercise, Plan, PlanDay, PlanExercise, Weekday } from '../types';
+import type { Exercise, Plan, PlanDay, PlanExercise, TrackingMode, Weekday } from '../types';
+import { TRACKING_MODES } from './tracking';
 
 /**
  * Plaene weitergeben.
@@ -24,6 +25,10 @@ interface PackedExercise {
   p?: number | null;      // progressionKg
   g?: string;             // groupId
   n?: string;             // note
+  m?: TrackingMode;       // tracking - fehlt bei aelteren Codes
+  ds?: number | null;     // targetDurationSec
+  km?: number | null;     // targetDistanceKm
+  ws?: number | null;     // transitionSec (Wechsel im Zirkel)
 }
 
 interface PackedDay {
@@ -121,6 +126,10 @@ export function encodePlan(
         p: item.progressionKg ?? undefined,
         g: item.groupId,
         n: item.note,
+        m: item.tracking,
+        ds: item.targetDurationSec ?? undefined,
+        km: item.targetDistanceKm ?? undefined,
+        ws: item.transitionSec ?? undefined,
       })),
     })),
     custom,
@@ -178,6 +187,12 @@ export function decodePlan(
           restSec: item.r ?? null,
           progressionKg: item.p ?? null,
           note: item.n,
+          // Erfassung und Zeiten reisen mit - sonst kaeme "3 Sätze Liegestütze"
+          // beim Empfaenger als "3 × ?" an und der Zirkel ohne Wechselzeit.
+          ...(item.m && TRACKING_MODES.includes(item.m) ? { tracking: item.m } : {}),
+          ...(item.ds != null ? { targetDurationSec: item.ds } : {}),
+          ...(item.km != null ? { targetDistanceKm: item.km } : {}),
+          ...(item.ws != null ? { transitionSec: item.ws } : {}),
         };
       }),
     }));

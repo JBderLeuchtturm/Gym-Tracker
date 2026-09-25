@@ -67,6 +67,10 @@ export function migrate(raw: unknown): AppState {
       weeklySetTargets: isObject(settings.weeklySetTargets)
         ? (settings.weeklySetTargets as Record<string, number>)
         : {},
+      weeklyGoals: {
+        ...DEFAULT_SETTINGS.weeklyGoals,
+        ...(isObject(settings.weeklyGoals) ? settings.weeklyGoals : {}),
+      },
       availableEquipment: asArray<string>(settings.availableEquipment),
       plateSet: asArray<number>(settings.plateSet).filter((plate) => plate > 0).length > 0
         ? asArray<number>(settings.plateSet).filter((plate) => plate > 0)

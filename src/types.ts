@@ -48,6 +48,26 @@ export type ExerciseCategory =
 
 export type ExerciseKind = 'strength' | 'bodyweight' | 'cardio' | 'time' | 'mobility';
 
+/**
+ * Wie die Saetze einer Uebung erfasst werden.
+ *
+ * Bisher folgte das allein aus der Art der Uebung: Bankdruecken hat Kilo und
+ * Wiederholungen, Plank hat Sekunden. Das stimmt meistens - und genau dann
+ * nicht, wenn es darauf ankommt: Liegestuetze als "drei Saetze, egal wie
+ * viele" brauchen kein Zahlenfeld, eine gewichtete Plank braucht Kilo *und*
+ * Sekunden. Deshalb laesst sich die Erfassung an drei Stellen festlegen - an
+ * der Uebung selbst, am Eintrag im Plan und an der Uebung im Training - und
+ * die engere Stelle schlaegt die weitere.
+ */
+export type TrackingMode =
+  | 'weight_reps'   // kg × Wdh - Bankdruecken
+  | 'reps'          // nur Wdh - Liegestuetze
+  | 'time'          // Sekunden - Plank
+  | 'weight_time'   // kg × Sekunden - Farmer's Walk
+  | 'distance_time' // km und Zeit - Laufen, Rudern
+  | 'sets';         // nur abhaken - "3 Saetze"
+
+
 export interface Exercise {
   id: ID;
   name: string;
@@ -81,6 +101,8 @@ export interface Exercise {
    * ist die ausdrueckliche Entscheidung des Nutzers und schlaegt die Vermutung.
    */
   outdoor?: boolean;
+  /** Eigene Erfassung fuer diese Uebung ueberall - siehe TrackingMode. */
+  tracking?: TrackingMode;
 }
 
 /* ----------------------------------------------------------------- Plaene */
@@ -111,6 +133,18 @@ export interface PlanExercise {
    * null oder fehlend = keine automatische Steigerung.
    */
   progressionKg?: number | null;
+  /** Erfassung fuer genau diesen Eintrag im Plan - schlaegt die der Uebung. */
+  tracking?: TrackingMode;
+  /** Zielzeit je Satz in Sekunden - bei Zeit-Erfassung ("3 × 30 s"). */
+  targetDurationSec?: number | null;
+  /** Zielstrecke in Kilometern - bei Strecke und Zeit. */
+  targetDistanceKm?: number | null;
+  /**
+   * Im Supersatz: Sekunden zum Wechseln, bevor die naechste Uebung der Gruppe
+   * beginnt. 0 oder fehlend = direkt weiter. Die Pause nach der ganzen Runde
+   * ist die `restSec` der letzten Uebung der Gruppe - wie im Training auch.
+   */
+  transitionSec?: number | null;
 }
 
 export interface PlanDay {
@@ -209,6 +243,8 @@ export interface LoggedExercise {
    * Schlaegt den Wert aus dem Plan und die globale Einstellung.
    */
   restSec?: number;
+  /** Erfassung fuer diese Uebung an diesem Tag - schlaegt Plan und Uebung. */
+  tracking?: TrackingMode;
   /**
    * Heute ausgelassen - Geraet besetzt, Zeit knapp, Schulter zwickt.
    *
@@ -435,6 +471,20 @@ export interface MealPreset {
 
 /* ----------------------------------------------------------------- State */
 
+/**
+ * Was man sich fuer eine Woche vornimmt - neben den Saetzen je Muskelgruppe.
+ *
+ * Jedes Ziel ist freiwillig (null = kein Ziel). Vier verschiedene Masse, weil
+ * jedes etwas anderes ehrlich misst: Tage die Regelmaessigkeit, Volumen die
+ * Last an der Hantel, Minuten auch das, was keine Saetze hat - Laufen,
+ * Mobility, Zirkel.
+ */
+export interface WeeklyGoals {
+  trainingDays: number | null;
+  volumeKg: number | null;
+  minutes: number | null;
+}
+
 /** Erinnerung an geplante Trainingstage. */
 export interface ReminderSettings {
   enabled: boolean;
@@ -465,6 +515,8 @@ export interface Settings {
   useWgerApi: boolean;
   /** Wochenziel an Arbeitssaetzen je Muskelregion. Fehlt ein Wert, gilt der Standard. */
   weeklySetTargets: Record<string, number>;
+  /** Die uebrigen Wochenziele - siehe WeeklyGoals. */
+  weeklyGoals: WeeklyGoals;
   /** Verfuegbare Geraete. Leere Liste = keine Einschraenkung. */
   availableEquipment: string[];
   /** Name des Trainingspartners. Leer = Partner-Modus aus. */

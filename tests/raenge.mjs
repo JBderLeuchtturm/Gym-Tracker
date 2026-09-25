@@ -132,7 +132,8 @@ export async function run() {
   await runner.step('Eine geplante Übung lässt sich auslassen', async () => {
     await openTraining(gym.page);
     const card = gym.page.locator('.exercise').first();
-    firstName = (await card.locator('.exercise__name').first().innerText()).trim();
+    // textContent statt innerText: Der Name steht per CSS in Versalien.
+    firstName = (await card.locator('.exercise__name').first().textContent()).trim();
 
     // Erst arbeiten, dann auslassen: So laesst sich pruefen, dass der schon
     // eingetragene Satz aus dem Verbrauch wieder verschwindet.
@@ -228,7 +229,7 @@ export async function run() {
     if (await hero.count() === 0) throw new Error('Kein Rangkopf');
     const text = await hero.innerText();
     if (!/4 \/ 21/.test(text)) throw new Error(`Falsche Abdeckung: ${text.replace(/\n/g, ' | ')}`);
-    if (!/(Bronze|Silber|Gold|Diamant|Emerald|Elite) (I|II|III)/.test(text)) {
+    if (!/(Bronze|Silber|Gold|Diamant|Emerald|Elite) (I|II|III)/i.test(text)) {
       throw new Error(`Keine Stufe mit Division: ${text.replace(/\n/g, ' | ')}`);
     }
     // Das Wappen ist gezeichnet, nicht nur geschrieben.
@@ -361,7 +362,7 @@ export async function run() {
     const dialog = promoted.page.locator('.rankup');
     if (await dialog.count() === 0) throw new Error('Keine Meldung');
     const text = await promoted.page.locator('.modal').innerText();
-    if (!/Aufstieg/.test(text)) throw new Error(text.replace(/\n/g, ' | '));
+    if (!/Aufstieg/i.test(text)) throw new Error(text.replace(/\n/g, ' | '));
     if (!/Gesamtrang/.test(text)) throw new Error('Sagt nicht, worum es geht');
     if (await dialog.locator('.rbadge__art').count() < 2) {
       throw new Error('Zeigt nicht Vorher und Nachher');

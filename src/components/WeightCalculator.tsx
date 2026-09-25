@@ -5,6 +5,7 @@ import { useStore } from '../storage/store';
 import { estimate1RM } from '../lib/stats';
 import { percentTable } from '../lib/oneRm';
 import { BAR_WEIGHTS, describePlates, platesFor, usesBarbell } from '../lib/plates';
+import { plateColor } from './Barbell';
 import { Modal, NumberInput, fmt } from './ui';
 
 /** Breite eines Scheibensymbols - grob nach dem Durchmesser echter Scheiben. */
@@ -99,7 +100,7 @@ export function WeightCalculator({
                     <span
                       key={`${plate}-${index}`}
                       className="barbell__plate"
-                      style={{ height: plateHeight(plate) }}
+                      style={{ height: plateHeight(plate), background: plateColor(plate) }}
                     >
                       {plate.toLocaleString('de-DE')}
                     </span>

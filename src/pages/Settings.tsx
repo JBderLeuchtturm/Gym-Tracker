@@ -16,10 +16,9 @@ import {
 import { searchPlace, type Place } from '../api/weather';
 import { icsFileName, planToIcs } from '../lib/ics';
 import { downloadBlob } from '../lib/zip';
-import { ALL_REGIONS, REGION_LABELS, type MuscleRegion } from '../lib/muscles';
-import { DEFAULT_WEEKLY_TARGET, targetFor } from '../lib/muscleLoad';
 import { ALL_EQUIPMENT } from '../data/catalog';
 import type { Exercise } from '../types';
+import { WeeklyGoalsDialog } from '../components/WeeklyGoals';
 
 type Category = 'allgemein' | 'studio' | 'uebungen' | 'erinnerung' | 'daten';
 
@@ -263,7 +262,7 @@ function StudioSettings() {
           </label>
 
           <button className="btn btn--block" onClick={() => setTargetsOpen(true)}>
-            <IconTarget /> {t('Wochenziele je Muskelgruppe')}
+            <IconTarget /> {t('Wochenziele')}
           </button>
 
           <button className="btn btn--block" onClick={() => setEquipmentOpen(true)}>
@@ -274,13 +273,7 @@ function StudioSettings() {
         </div>
       </div>
 
-      {targetsOpen && (
-        <WeeklyTargetsDialog
-          targets={settings.weeklySetTargets}
-          onClose={() => setTargetsOpen(false)}
-          onSave={(next) => { updateSettings({ weeklySetTargets: next }); setTargetsOpen(false); }}
-        />
-      )}
+      {targetsOpen && <WeeklyGoalsDialog onClose={() => setTargetsOpen(false)} />}
 
       {equipmentOpen && (
         <EquipmentDialog
@@ -290,63 +283,6 @@ function StudioSettings() {
         />
       )}
     </>
-  );
-}
-
-/**
- * Wochenziele je Muskelregion. Voreingestellt sind die ueblichen Empfehlungen;
- * 0 heisst "interessiert mich nicht" und nimmt die Region aus der Ampel.
- */
-function WeeklyTargetsDialog({
-  targets, onClose, onSave,
-}: {
-  targets: Record<string, number>;
-  onClose: () => void;
-  onSave: (targets: Record<string, number>) => void;
-}) {
-  const [draft, setDraft] = useState<Record<string, number>>(() => {
-    const initial: Record<string, number> = {};
-    for (const region of ALL_REGIONS) initial[region] = targetFor(targets, region);
-    return initial;
-  });
-
-  const set = (region: MuscleRegion, value: number | null) =>
-    setDraft((current) => ({ ...current, [region]: Math.max(0, Math.min(40, value ?? 0)) }));
-
-  return (
-    <Modal title={t('Wochenziele')} onClose={onClose}>
-      <div className="list">
-        <p className="small muted">
-          {t('Wie viele harte Sätze soll jede Muskelgruppe pro Woche bekommen? Üblich sind 10 bis 20. Auf 0 gesetzt, taucht die Gruppe in der Ampel nicht mehr auf.')}
-        </p>
-
-        {ALL_REGIONS.map((region) => (
-          <div className="row row--between" key={region}>
-            <span className="small">{t(REGION_LABELS[region])}</span>
-            <div style={{ width: 96 }}>
-              <NumberInput
-                value={draft[region]}
-                min={0}
-                max={40}
-                onChange={(value) => set(region, value)}
-              />
-            </div>
-          </div>
-        ))}
-
-        <div className="grid-2" style={{ marginTop: 6 }}>
-          <button
-            className="btn"
-            onClick={() => setDraft({ ...DEFAULT_WEEKLY_TARGET })}
-          >
-            {t('Standard')}
-          </button>
-          <button className="btn btn--primary" onClick={() => onSave(draft)}>
-            {t('Speichern')}
-          </button>
-        </div>
-      </div>
-    </Modal>
   );
 }
 

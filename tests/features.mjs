@@ -109,14 +109,20 @@ export async function run() {
     await page.waitForTimeout(300);
     await page.locator('.big-link', { hasText: 'Training & Studio' }).click();
     await page.waitForTimeout(300);
-    await page.locator('.btn', { hasText: 'Wochenziele je Muskelgruppe' }).click();
+    // Seit Runde drei ein Dialog fuer alle Wochenziele: Tage, Minuten,
+    // Volumen und die Saetze je Muskelgruppe.
+    await page.locator('.btn', { hasText: 'Wochenziele' }).click();
     await page.waitForSelector('.modal');
-    await page.locator('.modal .row', { hasText: 'Brust' }).locator('input').first().fill('16');
+    await page.getByLabel('Trainingstage pro Woche').fill('4');
+    await page.locator('.modal .goals-regions__row', { hasText: 'Brust' }).locator('input').first().fill('16');
     await page.locator('.modal .btn--primary', { hasText: 'Speichern' }).click();
     await page.waitForTimeout(400);
     const state = await readState(page);
     if (state.settings.weeklySetTargets.chest !== 16) {
       throw new Error(JSON.stringify(state.settings.weeklySetTargets));
+    }
+    if (state.settings.weeklyGoals?.trainingDays !== 4) {
+      throw new Error(`Trainingstage: ${JSON.stringify(state.settings.weeklyGoals)}`);
     }
     // Zurueck auf die Profilseite, damit nachfolgende Schritte nicht in den
     // Einstellungen-Unterseiten stehenbleiben.

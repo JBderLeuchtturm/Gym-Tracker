@@ -87,38 +87,61 @@ export async function run() {
     await page.waitForTimeout(200);
   });
 
-  await runner.step('Kategorienfarben liegen nicht auf den Systemfarben', async () => {
-    const worst = await page.evaluate(() => {
-      const hue = (css) => {
-        const [r, g, b] = css.match(/[\d.]+/g).slice(0, 3).map((n) => Number(n) / 255);
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-        if (max === min) return 0;
-        const d = max - min;
-        let h = 0;
-        if (max === r) h = ((g - b) / d) % 6;
-        else if (max === g) h = (b - r) / d + 2;
-        else h = (r - g) / d + 4;
-        return ((h * 60) + 360) % 360;
-      };
-      const probe = document.createElement('div');
-      document.body.appendChild(probe);
-      const read = (value) => { probe.style.color = value; return hue(getComputedStyle(probe).color); };
-      const styles = getComputedStyle(document.documentElement);
-      const system = ['--accent', '--warn', '--danger'].map((name) => read(styles.getPropertyValue(name)));
-      // Genau die drei Toene, die frueher zu nah lagen.
-      const cats = ['#ba5e6e', '#7d7d36', '#6a8240'].map(read);
-      probe.remove();
-      let smallest = 360;
-      for (const c of cats) {
-        for (const s of system) {
-          const d = Math.min(Math.abs(c - s), 360 - Math.abs(c - s));
-          if (d < smallest) smallest = d;
+  /*
+   * Die Muskelgruppen tragen seit der Umgestaltung die Scheibenfarben. Rot
+   * fuer die Brust liegt damit bewusst nahe am Warnrot - das trennt die Form
+   * (Streifen und Punkt, nie Schrift oder Knopf). Gepruefte Zusage ist jetzt:
+   * Die elf Toene sind untereinander unterscheidbar und kraeftig genug, in
+   * beiden Themen. Vorher lagen im hellen Thema vier Grautoene aufeinander.
+   */
+  await runner.step('Muskelgruppen-Farben sind unterscheidbar und kräftig genug', async () => {
+    const groups = ['chest', 'back', 'legs', 'shoulders', 'arms', 'glutes', 'core', 'cardio', 'fullbody', 'mobility', 'other'];
+    for (const theme of ['dark', 'light']) {
+      await page.evaluate((value) => { document.documentElement.dataset.theme = value; }, theme);
+      await page.waitForTimeout(150);
+      const result = await page.evaluate(([contrast, groups]) => {
+        const styles = getComputedStyle(document.documentElement);
+        const probe = document.createElement('div');
+        document.body.appendChild(probe);
+        const rgb = (value) => {
+          probe.style.color = value;
+          return getComputedStyle(probe).color.match(/[\d.]+/g).slice(0, 3).map(Number);
+        };
+        const lab = ([r, g, b]) => {
+          const lin = (c) => (c / 255 <= 0.04045 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4);
+          const [R, G, B] = [lin(r), lin(g), lin(b)];
+          const x = (0.4124 * R + 0.3576 * G + 0.1805 * B) / 0.95047;
+          const y = 0.2126 * R + 0.7152 * G + 0.0722 * B;
+          const z = (0.0193 * R + 0.1192 * G + 0.9505 * B) / 1.08883;
+          const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+          return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+        };
+        // eslint-disable-next-line no-eval
+        const ratio = eval(contrast);
+        const colors = groups.map((name) => rgb(styles.getPropertyValue(`--muscle-${name}`)));
+        const surface = `rgb(${rgb(styles.getPropertyValue('--surface')).join(',')})`;
+        probe.remove();
+        let closest = { distance: Infinity, pair: '' };
+        for (let i = 0; i < colors.length; i += 1) {
+          for (let j = i + 1; j < colors.length; j += 1) {
+            const distance = Math.hypot(...lab(colors[i]).map((value, k) => value - lab(colors[j])[k]));
+            if (distance < closest.distance) closest = { distance, pair: `${groups[i]}/${groups[j]}` };
+          }
         }
+        const weakest = colors
+          .map((color, index) => ({ name: groups[index], value: ratio(`rgb(${color.join(',')})`, surface) }))
+          .sort((a, b) => a.value - b.value)[0];
+        return { closest, weakest };
+      }, [CONTRAST, groups]);
+      if (result.closest.distance < 20) {
+        throw new Error(`${theme}: ${result.closest.pair} nur ${result.closest.distance.toFixed(1)} auseinander`);
       }
-      return smallest;
-    });
-    if (worst < 12) throw new Error(`nur ${worst.toFixed(0)} Grad Abstand`);
+      if (result.weakest.value < 3) {
+        throw new Error(`${theme}: ${result.weakest.name} nur ${result.weakest.value.toFixed(2)} zu 1`);
+      }
+    }
+    await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+    await page.waitForTimeout(150);
   });
 
   await runner.step('Plankarte zeigt die Namen der Trainingstage', async () => {

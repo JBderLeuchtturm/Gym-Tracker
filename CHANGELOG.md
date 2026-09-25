@@ -2,6 +2,63 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Übungen frei anpassbar, Supersätze und Zirkel im Plan, Wochenziele, neues Aussehen
+
+*Branch `claude/todo-tab-kategorien-6d4uj0`*
+
+**Jede Übung ist frei anpassbar.** Vorher stand jeder Plan-Eintrag als Sätze ×
+Wiederholungen × Gewicht da – auch Liegestütze, die man einfach dreimal macht.
+Jetzt wählt man je Eintrag, *wie* erfasst wird: Gewicht × Wdh, nur Wdh, Zeit,
+Gewicht × Zeit, Strecke & Zeit oder **nur Sätze**. Die Satzzeilen im Training
+folgen dem: „Nur Sätze" hat keine einzige Zahl, nur den Haken. Es gilt Training
+vor Plan vor Übung vor Art – wer nichts umstellt, merkt keinen Unterschied.
+
+**Supersätze und Zirkel schon im Plan.** Ein Kettenglied zwischen zwei Übungen
+koppelt sie; der Gruppenkopf stellt Runden, Wechselzeit und Pause nach der
+Runde ein, „Als Intervall" gibt allen dieselbe Arbeitszeit. Im Training startet
+ein Knopf den **geführten Zirkel**: 30 s das eine, direkt das nächste, eine
+Minute Pause, viermal – die App zählt herunter, piept, springt weiter, zählt die
+Runden und hakt die Sätze ab.
+
+**„Anpassen" im Training.** Dieselben Einstellungen gibt es jetzt an jeder
+Übung im Training: Erfassung, Sätze, Vorgaben, Pause, Supersatz – für heute, auf
+Wunsch auch im Plan oder für die Übung überall. Erledigte Sätze bleiben, wie
+sie sind.
+
+**Wochenziele** für Trainingstage, Minuten und Wochenvolumen neben den Sätzen je
+Muskelgruppe, von Hand oder *vom aktiven Plan übernommen*. Der Stand steht als
+Leiste auf der Trainingsseite, ausführlich in der Auswertung; der Plan-Editor
+kann seine Wochenlast direkt als Ziel setzen (mit Rückgängig).
+
+**Neues Aussehen: Eisen & Kreide in Scheibenfarben.** Nach einer Abstimmung
+über vier Richtungen eine Mischung aus zweien: Anthrazit, Stahl und Kreide mit
+gerändeltem Kopf und Warnstreifen am aktuellen Satz, dazu die Farben der
+Wettkampfscheiben als Farbsystem – Brust rot wie die 25er, Rücken blau wie die
+20er, Beine gelb, Schultern grün, Arme weiß. Titel, Übungsnamen und alle Zahlen
+stehen in *Big Shoulders Display*, der Rest in *Barlow*; beide liegen offline in
+der App. Das helle Thema ist gleichwertig durchgerechnet.
+
+- **Beladene Stange** unter dem aktuellen Satz und im Rechner, Scheiben in ihren
+  Farben. Das erste „+" auf leerer Stange legt die Stange auf statt 2,5 kg.
+- **Fokus-Ansicht**: ein Satz bildschirmfüllend, riesige Zahlen, Daumen-Knöpfe,
+  Haken über die ganze Breite, die Pause in derselben Ansicht.
+- **Feiern**: Ring um den Haken, Stempel an der fertigen Übung, Bestleistung in
+  Gold, Stempel „Geschafft" am Ende der Einheit.
+- **Diagramme**: Einzelreihen in Stahl, die laufende Woche in Gelb; Muskelgruppen
+  in Scheibenfarben; die Plan-Woche zeigt die prägende Muskelgruppe je Tag.
+- Eine neu hinzugefügte Übung klappt auf, auch wenn weiter oben noch
+  Plan-Übungen offen sind.
+
+**Behoben nebenbei:** Im hellen Thema lagen vier Muskelgruppen-Farben (Arme,
+Rumpf, Ganzkörper, Sonstiges) fast aufeinander. Jetzt haben alle elf mindestens
+20 Lab-Abstand – der alte Farbtest prüfte feste Werte einer früheren Palette und
+ist durch einen ersetzt, der die echten Tokens in beiden Themen misst.
+
+Tests: neuer Browser-Lauf `runde3` (Erfassung je Plan-Eintrag, Anpassen, Fokus
+mit Stange, Zirkel bis zum Ende, Wochenziele aus dem Plan, Koppeln im Editor),
+neun neue Rechen-Prüfungen. Prüfungen, die sichtbaren Text lesen, vergleichen
+jetzt ohne Groß-/Kleinschreibung – die Versalien macht das Stylesheet.
+
 ## To-do-Tab überarbeitet: eine Liste nach Fälligkeit, Wischen, Erinnerungen, Gewohnheiten
 
 *Branch `claude/todo-tab-kategorien-6d4uj0`*

@@ -151,14 +151,14 @@ export async function run() {
     // Beschriftungen der Kennzahlen stehen in Grossbuchstaben - unabhaengig pruefen.
     const text = await b.page.locator('.modal').innerText();
     if (!/trainings/i.test(text)) throw new Error('Fortschritt fehlt');
-    if (text.includes('Körpergewicht')) throw new Error('Gewicht sichtbar, obwohl nicht freigegeben');
+    if (/Körpergewicht/i.test(text)) throw new Error('Gewicht sichtbar, obwohl nicht freigegeben');
   });
   
   await guarded('B: Vergleich zeigt gemeinsame Übungen', async () => {
     await b.page.getByRole('button', { name: 'Vergleich' }).click();
     await b.page.waitForTimeout(600);
     const text = await b.page.locator('.modal').innerText();
-    if (!/gemeinsame Übungen|Noch keine gemeinsamen/.test(text)) throw new Error('Vergleich fehlt');
+    if (!/gemeinsame Übungen|Noch keine gemeinsamen/i.test(text)) throw new Error('Vergleich fehlt');
     console.log('    Vergleich:', text.split('\n').slice(2, 5).join(' | '));
   });
   
@@ -192,7 +192,7 @@ export async function run() {
     await b.page.locator('.friend-card').first().click();
     await b.page.waitForTimeout(900);
     const text = await b.page.locator('.modal').innerText();
-    if (!text.includes('Körpergewicht')) throw new Error('Gewicht fehlt trotz Freigabe');
+    if (!/Körpergewicht/i.test(text)) throw new Error('Gewicht fehlt trotz Freigabe');
     if (text.includes('noch keine Einträge')) throw new Error('Gewicht ist leer angekommen');
     console.log('    Gewicht bei B sichtbar:', /Körpergewicht[^\n]*\n?([^\n]*)/.exec(text)?.[1] ?? '');
     await b.page.locator('.modal__head button').last().click();

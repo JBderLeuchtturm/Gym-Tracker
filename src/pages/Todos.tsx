@@ -119,7 +119,7 @@ export function TodosPage() {
   const removeTodo = (todo: Todo) => {
     deleteTodo(todo.id);
     setEditing(null);
-    toast.show(t('„{title}" gelöscht', { title: todo.title || t('Aufgabe') }),
+    toast.show(t('„{title}“ gelöscht', { title: todo.title || t('Aufgabe') }),
       { label: t('Rückgängig'), run: () => addTodo(todo) });
   };
 

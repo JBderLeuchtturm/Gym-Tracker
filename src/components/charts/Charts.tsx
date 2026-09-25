@@ -271,11 +271,13 @@ export function LineChart({
 const MAX_SLOT = 86;
 
 export function BarChart({
-  points, height = 170, color = 'var(--accent)', unit = '', label,
+  points, height = 170, color = 'var(--accent)', highlightLast, unit = '', label,
 }: {
   points: Point[];
   height?: number;
   color?: string;
+  /** Eigene Farbe fuer den letzten Balken - die laufende Woche hebt sich ab. */
+  highlightLast?: string;
   unit?: string;
   label?: string;
 }) {
@@ -348,7 +350,8 @@ export function BarChart({
               <rect
                 x={x} y={y} width={barWidth} height={Math.max(1.5, barHeight)}
                 rx={Math.min(4, barWidth / 2)}
-                fill={color} opacity={hover == null || hover === index ? 1 : 0.45}
+                style={{ fill: highlightLast && index === points.length - 1 ? highlightLast : color }}
+                opacity={hover == null || hover === index ? 1 : 0.45}
               />
               {index % labelStep === 0 && (
                 <text
@@ -504,7 +507,7 @@ export function StackedBarChart({
                   <rect
                     key={name}
                     x={x} y={cursor} width={barWidth} height={Math.max(1, segment - 0.5)}
-                    fill={colors[name] ?? 'var(--text-dim)'}
+                    style={{ fill: colors[name] ?? 'var(--text-dim)' }}
                     opacity={hover == null || hover === index ? 1 : 0.4}
                     rx={1.5}
                   />

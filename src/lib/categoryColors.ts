@@ -1,48 +1,42 @@
 import type { ExerciseCategory } from '../types';
 
 /**
- * Eine feste Farbe je Muskelgruppe.
+ * Eine feste Farbe je Muskelgruppe - die Farben der Wettkampfscheiben.
  *
- * Die Farben ziehen sich durch die ganze App - Uebungsnamen, Suchergebnisse,
- * Auswertungen. Dadurch erkennt man eine Gruppe am Farbton, bevor man den Text
- * gelesen hat.
+ * Brust ist rot wie die 25er, Ruecken blau wie die 20er, Beine gelb wie die
+ * 15er, Schultern gruen wie die 10er, Arme weiss wie die 5er. Die fuenf grossen
+ * Gruppen bekommen die fuenf Scheiben; die kleineren Gruppen Toene dazwischen.
  *
- * Bewusst gedaempft: Ein voll gesaettigter Regenbogen zieht mehr Aufmerksamkeit
- * auf sich als der Inhalt, den er einordnen soll. Diese Toene sind im Farbkreis
- * verteilt, aber alle in aehnlicher Saettigung und Helligkeit gehalten - so
- * bleiben sie unterscheidbar, ohne zu schreien, und sind auf dunklem wie auf
- * hellem Grund lesbar.
+ * Die Farbe steht nur als Streifen an der Kante und als Punkt neben dem
+ * Namen - nie als Schriftfarbe und nie als Flaeche eines Knopfs. So bleibt
+ * eine rote Brustuebung eine Brustuebung und wird nicht zur Fehlermeldung,
+ * obwohl Rot auch "sieh her" heisst: Die Form traegt die Bedeutung, nicht die
+ * Farbe allein.
+ *
+ * Die Werte stehen als Variablen in styles.css (--muscle-*), je Thema eigens
+ * gerechnet: "Weiss" ist auf hellem Grund Eisen - fast schwarz wie eine
+ * Bumper-Scheibe -, "Gelb" ein Ocker. Die kleineren Gruppen: Rumpf Stahl,
+ * Po orange, Cardio petrol, Ganzkoerper pink, Mobilitaet violett, Sonstiges
+ * braun. Jeder Ton erreicht auf jedem Kartengrund mindestens 3 zu 1 - das Mass
+ * fuer Grafik, die etwas bedeutet -, und je zwei Toene liegen im Lab-Raum
+ * mindestens 20 auseinander (geprueft in tests/fuenfte.mjs).
  */
 export const CATEGORY_COLORS: Record<ExerciseCategory, string> = {
-  /*
-   * Der warme Bereich zwischen 0 und 45 Grad gehoert dem System: Akzent (30),
-   * Warnung (41), Gefahr (5). Terrakotta lag drei Grad neben "Gefahr", Ocker
-   * fuenf neben dem Akzent - eine Brustuebung sah aus wie ein Fehler, eine
-   * Schulteruebung wie ein Knopf. Die warmen Toene sind deshalb aus dem Weg
-   * gerueckt, und jeder Ton erreicht auf hellem wie dunklem Grund mindestens
-   * 4 zu 1.
-   */
-  chest: '#ba5e6e',      // Backstein
-  shoulders: '#7d7d36',  // Oliv
-  core: '#6a8240',       // Moos
-  fullbody: '#5a8551',   // Salbei
-  arms: '#47857c',       // Petrol
-  cardio: '#4b839b',     // Stahlblau
-  back: '#5d7ca8',       // Graublau
-  legs: '#7b72ac',       // Staubviolett
-  mobility: '#996c9d',   // Malve
-  glutes: '#a96683',     // Altrosa
-  other: '#7d7973',      // Neutral
+  chest: 'var(--muscle-chest)',
+  back: 'var(--muscle-back)',
+  legs: 'var(--muscle-legs)',
+  shoulders: 'var(--muscle-shoulders)',
+  arms: 'var(--muscle-arms)',
+  glutes: 'var(--muscle-glutes)',
+  core: 'var(--muscle-core)',
+  cardio: 'var(--muscle-cardio)',
+  fullbody: 'var(--muscle-fullbody)',
+  mobility: 'var(--muscle-mobility)',
+  other: 'var(--muscle-other)',
 };
 export const categoryColor = (category: ExerciseCategory): string =>
   CATEGORY_COLORS[category] ?? CATEGORY_COLORS.other;
 
 /** Dieselbe Farbe stark abgeschwaecht - fuer Flaechen hinter Text. */
-export const categoryTint = (category: ExerciseCategory, alpha = 0.15): string => {
-  const hex = categoryColor(category);
-  const r = Number.parseInt(hex.slice(1, 3), 16);
-  const g = Number.parseInt(hex.slice(3, 5), 16);
-  const b = Number.parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
-
+export const categoryTint = (category: ExerciseCategory, alpha = 0.15): string =>
+  `color-mix(in srgb, ${categoryColor(category)} ${Math.round(alpha * 100)}%, transparent)`;

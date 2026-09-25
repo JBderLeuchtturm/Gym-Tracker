@@ -436,7 +436,13 @@ export function CaloriesPage() {
             * Alltagswert, an Trainingstagen darueber. Eine Linie dazwischen
             * behauptet einen Uebergang, den es nicht gibt.
             */}
-          <BarChart points={history.burn} unit={t("kcal")} color="var(--time)" label={t("Verbrauch je Tag")} />
+          <BarChart
+            points={history.burn}
+            unit={t("kcal")}
+            color="var(--steel)"
+            highlightLast="var(--accent)"
+            label={t("Verbrauch je Tag")}
+          />
           {history.intake.length > 1 && (
             <div style={{ marginTop: 14 }}>
               <div className="section-label" style={{ marginBottom: 6 }}>{t('Zufuhr')}</div>
@@ -444,7 +450,8 @@ export function CaloriesPage() {
                 points={history.intake}
                 height={96}
                 unit={t("kcal")}
-                color="color-mix(in srgb, var(--time) 52%, var(--surface-3))"
+                color="color-mix(in srgb, var(--steel) 55%, var(--surface-3))"
+                highlightLast="color-mix(in srgb, var(--accent) 65%, var(--surface-3))"
                 label={t("Zufuhr je Tag")}
               />
             </div>

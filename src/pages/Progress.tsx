@@ -29,6 +29,8 @@ import { renderWeekCard, shareOrDownload } from '../lib/shareCard';
 import {
   bodyToCsv, downloadText, printReport, summaryToCsv, workoutsToCsv,
 } from '../lib/exportData';
+import { isTimedExercise } from '../lib/tracking';
+import { WeeklyGoalsCard } from '../components/WeeklyGoals';
 
 type Range = 30 | 90 | 365 | 0;
 
@@ -42,7 +44,7 @@ const labelOf = (key: string): string =>
 
 /** Waehlt den passenden Bestwert: Zeit bei Halte-/Cardio-Uebungen, sonst Gewicht. */
 function bestLabel(exercise: Exercise, records: ReturnType<typeof personalRecords>): string {
-  const timed = exercise.kind === 'time' || exercise.kind === 'cardio';
+  const timed = isTimedExercise(exercise);
   if (timed && records.maxDurationSec) return ` · Bestzeit ${formatClock(records.maxDurationSec.value)}`;
   if (!timed && records.maxWeight) {
     return ` · ${t('Bestwert')} ${formatSet(records.maxWeight.value, records.maxWeight.reps, exercise.kind)}`;
@@ -245,7 +247,13 @@ export function ProgressPage() {
           <div className="split__main">
           <Section title={t('Woche für Woche')} note={RANGE_LABELS[range]}>
           <Block title={t("Volumen je Woche")} note={t("kg gesamt")}>
-            <BarChart points={weeklyVolumePoints} unit={t("kg")} color="var(--time)" label={t("Volumen je Woche")} />
+            <BarChart
+              points={weeklyVolumePoints}
+              unit={t("kg")}
+              color="var(--steel)"
+              highlightLast="var(--accent)"
+              label={t("Volumen je Woche")}
+            />
           </Block>
 
           <Block title={t("Sätze je Woche")} note={t("abgehakte Arbeitssätze")}>
@@ -257,7 +265,8 @@ export function ProgressPage() {
             <BarChart
               points={weeklySetPoints}
               height={96}
-              color="color-mix(in srgb, var(--time) 52%, var(--surface-3))"
+              color="color-mix(in srgb, var(--steel) 55%, var(--surface-3))"
+              highlightLast="color-mix(in srgb, var(--accent) 65%, var(--surface-3))"
               label={t("Sätze je Woche")}
             />
           </Block>
@@ -429,6 +438,7 @@ export function ProgressPage() {
           </div>
 
           <div className="split__side">
+            <WeeklyGoalsCard />
             {fatigue && fatigue.level !== 'steady' && (
               <Section title={t("Belastung")} note={t("letzte 7 Tage")}>
                 <div className={`load-note load-note--${fatigue.level}`}>
@@ -464,7 +474,7 @@ export function ProgressPage() {
           <LineChart
             points={weightPoints}
             unit={t("kg")}
-            color="var(--time)"
+            color="var(--accent)"
             label={t("Körpergewicht")}
             formatValue={(value) => fmt(value, 1)}
           />
@@ -874,7 +884,7 @@ function MuscleLoadCard({
           <span className="chip chip--danger">{t("deutlich unter Ziel")}</span>
           <span className="chip chip--warn">{t("knapp drunter")}</span>
           <span className="chip chip--success">{t("im Ziel")}</span>
-          <span className="chip">{t("darüber")}</span>
+          <span className="chip chip--violet">{t("darüber")}</span>
           <span className="chip">{t("grau = noch nichts")}</span>
         </div>
       ) : (

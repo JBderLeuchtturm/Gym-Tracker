@@ -21,8 +21,16 @@ import {
   removeStepIn, toggleStepIn,
 } from '../src/lib/todos';
 import { todosToIcs } from '../src/lib/todoIcs';
+import {
+  defaultTracking, draftValues, fieldsOf, resolveTracking, setText, summarizeSets, targetText, valueColumns,
+} from '../src/lib/tracking';
+import { goalMeters, goalsFromPlan, hasOwnGoals, weekProgress } from '../src/lib/weeklyGoals';
+import { tidyGroups } from '../src/lib/planGroups';
+import { CATALOG_BY_ID } from '../src/data/catalog';
+import { ALL_REGIONS } from '../src/lib/muscles';
+import { decodePlan, encodePlan } from '../src/lib/planShare';
 import { createInitialState } from '../src/storage/defaults';
-import type { AppState, Exercise, SetLog, Todo, Workout } from '../src/types';
+import type { AppState, Exercise, PlanExercise, SetLog, Todo, Workout } from '../src/types';
 
 let failed = 0;
 const results: string[] = [];
@@ -789,6 +797,138 @@ check('mergeStates: Aufgaben werden je Aufgabe zusammengeführt', () => {
   const merged = mergeStates(a, b);
   eq(merged.todos.length, 3, 'nichts geht verloren');
   eq(merged.todos.find((item) => item.id === 'shared')?.title, 'Gemeinsam, neuer', 'die jüngere Fassung');
+});
+
+/* ------------------------------------------------ Runde 3: Erfassung, Gruppen, Ziele */
+
+const catalogExercise = (id: string): Exercise | undefined => CATALOG_BY_ID[id];
+const planEx = (patch: Partial<PlanExercise> = {}): PlanExercise => ({
+  id: `pe_${Math.random().toString(36).slice(2, 8)}`,
+  exerciseId: 'cat_barbell-bench-press',
+  targetSets: 3,
+  targetRepsMin: 8,
+  targetRepsMax: 12,
+  targetWeightKg: null,
+  restSec: 90,
+  ...patch,
+});
+const setOf = (patch: Partial<SetLog> = {}): SetLog => ({
+  id: `s_${Math.random().toString(36).slice(2, 8)}`,
+  reps: null, weightKg: null, durationSec: null, distanceKm: null, rpe: null,
+  done: true, isWarmup: false, ...patch,
+});
+
+check('Erfassung: Training vor Plan vor Übung vor Art', () => {
+  const plank = { id: 'x', kind: 'time' } as Exercise;
+  eq(resolveTracking(plank), 'time', 'Art');
+  eq(resolveTracking({ ...plank, tracking: 'weight_time' }), 'weight_time', 'Übung');
+  eq(resolveTracking({ ...plank, tracking: 'weight_time' }, planEx({ tracking: 'sets' })), 'sets', 'Plan');
+  eq(resolveTracking(plank, planEx({ tracking: 'sets' }), { id: 'l', exerciseId: 'x', sets: [], tracking: 'reps' }), 'reps', 'Training');
+  eq(defaultTracking('cardio'), 'distance_time');
+  eq(defaultTracking(undefined), 'weight_reps');
+});
+
+check('Erfassung: Felder und Spalten je Art', () => {
+  eq(JSON.stringify(fieldsOf('sets')), JSON.stringify({ weight: false, reps: false, time: false, distance: false }));
+  eq(valueColumns('weight_reps'), 2);
+  eq(valueColumns('reps'), 1);
+  eq(valueColumns('sets'), 0);
+  eq(valueColumns('distance_time'), 2);
+});
+
+check('Erfassung: Vorgabe in Worten', () => {
+  eq(targetText(planEx({ targetWeightKg: 80 }), 'weight_reps'), '3 × 8–12 @ 80 kg');
+  eq(targetText(planEx({ targetRepsMin: 15, targetRepsMax: 15 }), 'reps'), '3 × 15');
+  eq(targetText(planEx({ targetDurationSec: 30 }), 'time'), '3 × 30 s');
+  eq(targetText(planEx({ targetSets: 1 }), 'sets'), '1 Satz');
+  eq(targetText(planEx({ targetSets: 1, targetDistanceKm: 5, targetDurationSec: 1800 }), 'distance_time'), '5 km · 30:00');
+});
+
+check('Erfassung: Sätze in Worten und zusammengefasst', () => {
+  eq(setText(setOf({ done: true }), 'sets'), 'erledigt');
+  eq(setText(setOf({ durationSec: 45 }), 'time'), '45 s');
+  eq(setText(setOf({ weightKg: 24, durationSec: 60 }), 'weight_time'), '24 kg × 1:00');
+  eq(summarizeSets([setOf({ durationSec: 30 }), setOf({ durationSec: 30 })], 'time'), '2 × 30 s');
+  eq(summarizeSets([setOf(), setOf(), setOf()], 'sets'), '3 Sätze');
+});
+
+check('Erfassung: „Nur Sätze“ legt keine Zahlen vor', () => {
+  const reference = setOf({ reps: 10, weightKg: 60, durationSec: 30 });
+  const empty = draftValues('sets', reference, planEx(), 70);
+  eq(JSON.stringify(empty), JSON.stringify({ reps: null, weightKg: null, durationSec: null, distanceKm: null }));
+  const weighted = draftValues('weight_reps', undefined, planEx(), 70);
+  eq(weighted.weightKg, 70, 'Gewicht aus dem Plan');
+  eq(weighted.reps, 8, 'Wiederholungen aus dem Plan');
+  eq(weighted.durationSec, null, 'keine Zeit bei Gewicht × Wdh');
+});
+
+check('tidyGroups: getrennte Stücke bekommen eigene Gruppen, Einzelne keine', () => {
+  const tidy = tidyGroups([
+    planEx({ id: 'a', groupId: 'g' }),
+    planEx({ id: 'b', groupId: 'g' }),
+    planEx({ id: 'c' }),
+    planEx({ id: 'd', groupId: 'g' }),
+    planEx({ id: 'e', groupId: 'g' }),
+    planEx({ id: 'f', groupId: 'solo' }),
+  ]);
+  eq(tidy[0].groupId, 'g');
+  eq(tidy[1].groupId, 'g');
+  eq(tidy[2].groupId, undefined);
+  if (!tidy[3].groupId || tidy[3].groupId === 'g') throw new Error('zweites Stück teilt die ID');
+  eq(tidy[3].groupId, tidy[4].groupId, 'zweites Stück bleibt zusammen');
+  eq('groupId' in tidy[5], false, 'Gruppe aus einer Übung aufgelöst');
+});
+
+check('Wochenziele: Stand der Woche aus dem Verlauf', () => {
+  const state = stateWith([workoutOn('2026-03-02', 100, 10), workoutOn('2026-03-04', 100, 10), workoutOn('2026-03-10', 100, 10)]);
+  const progress = weekProgress(state, (id) => state.exercises.find((item) => item.id === id) ?? catalogExercise(id), '2026-03-02');
+  eq(progress.trainingDays, 2, 'nur Montag bis Sonntag');
+  eq(progress.volumeKg, 6000, '2 × 3 Sätze × 100 kg × 10');
+  if (!(progress.minutes > 0)) throw new Error('keine Minuten');
+  if (!((progress.regions.get('chest') ?? 0) >= 6)) throw new Error(`Brust: ${progress.regions.get('chest')}`);
+});
+
+check('Wochenziele: Messleisten nur für gesetzte Ziele, gekappt bei 100 %', () => {
+  const progress = { trainingDays: 4, volumeKg: 5000, minutes: 90, regions: new Map([['chest', 12], ['lats', 4]]) } as ReturnType<typeof weekProgress>;
+  // Fehlende Gruppen fielen auf den Standard zurueck - hier ausdruecklich 0.
+  const targets: Record<string, number> = Object.fromEntries(ALL_REGIONS.map((region) => [region, 0]));
+  targets.chest = 10;
+  targets.lats = 10;
+  const meters = goalMeters(progress, { trainingDays: 3, volumeKg: null, minutes: 120 }, targets);
+  eq(meters.map((meter) => meter.key).join(','), 'days,minutes,muscles');
+  eq(meters[0].ratio, 1, 'über dem Ziel wird gekappt');
+  eq(meters[1].ratio, 0.75);
+  eq(`${meters[2].value}/${meters[2].target}`, '1/2', 'eine von zwei Gruppen erreicht');
+  eq(hasOwnGoals({ trainingDays: null, volumeKg: null, minutes: null }, {}), false);
+});
+
+check('Wochenziele: Vorschlag aus dem Plan', () => {
+  const state = createInitialState();
+  const plan = state.plans.find((item) => item.id === state.activePlanId) ?? state.plans[0];
+  const getExercise = (id: string) => catalogExercise(id);
+  const suggestion = goalsFromPlan(plan, state, getExercise, '2026-03-02');
+  const days = plan.days.filter((day) => !day.isRestDay && day.exercises.length > 0).length;
+  eq(suggestion.goals.trainingDays, days, 'Trainingstage laut Plan');
+  if (!suggestion.goals.minutes || suggestion.goals.minutes % 5 !== 0) throw new Error(`Minuten: ${suggestion.goals.minutes}`);
+  if (!(suggestion.setTargets.chest > 0)) throw new Error('keine Brust-Sätze');
+});
+
+check('Plan teilen: Erfassung, Zeiten und Zirkel reisen mit', () => {
+  const state = createInitialState();
+  const plan = structuredClone(state.plans[0]);
+  plan.days[0].exercises = [
+    planEx({ id: 'a', exerciseId: 'cat_push-up', tracking: 'sets', targetSets: 3 }),
+    planEx({ id: 'b', exerciseId: 'cat_plank', tracking: 'time', targetDurationSec: 30, groupId: 'g', transitionSec: 10 }),
+    planEx({ id: 'c', exerciseId: 'cat_burpee', tracking: 'time', targetDurationSec: 30, groupId: 'g', transitionSec: 0 }),
+  ];
+  let next = 0;
+  const decoded = decodePlan(encodePlan(plan, catalogExercise), (id) => Boolean(catalogExercise(id)), () => `n${next++}`);
+  if (!decoded) throw new Error('nicht lesbar');
+  const [push, plank, burpee] = decoded.days[0].exercises;
+  eq(push.tracking, 'sets');
+  eq(plank.targetDurationSec, 30);
+  eq(plank.transitionSec, 10);
+  eq(plank.groupId, burpee.groupId, 'Zirkel bleibt gekoppelt');
 });
 
 export async function run(): Promise<number> {

@@ -1,6 +1,6 @@
 import { exerciseName, t } from '../i18n';
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Exercise, ID, LoggedExercise, PlanExercise, SetLog, Workout } from '../types';
+import type { Exercise, ID, LoggedExercise, PlanExercise, SetLog, TrackingMode, Workout } from '../types';
 import {
   WEEKDAY_SHORT, addDays, formatClock, formatDateShort, parseISODate, relativeDayLabel,
   startOfWeek, todayISO, weekKey, weekdayOf,
@@ -11,7 +11,10 @@ import {
 } from '../lib/ranks';
 import { RankBadge } from '../components/RankBadge';
 import { formatValue } from '../components/Ranks';
-import { formatSet, isOwnWeightOnly } from '../lib/setFormat';
+import { isOwnWeightOnly } from '../lib/setFormat';
+import {
+  draftValues, fieldsOf, resolveTracking, summarizeSets, targetText as trackedTarget, valueColumns,
+} from '../lib/tracking';
 import { detectRecord, suggestWeight, warmupSets, type NewRecord } from '../lib/coaching';
 import { cycleLabel, cycleWeight, isDeload } from '../lib/cycle';
 import {
@@ -50,9 +53,14 @@ import { categoryColor, categoryTint } from '../lib/categoryColors';
 import { CATEGORY_LABELS } from '../data/catalog';
 import {
   IconBook, IconCalculator, IconCalendar, IconCheck, IconChart, IconChevronDown, IconChevronLeft,
-  IconChevronRight, IconClock, IconCopy, IconExpand, IconPlay, IconPlus, IconSkip, IconSwap, IconTrash,
-  IconTrophy, IconX,
+  IconChevronRight, IconClock, IconCopy, IconExpand, IconLink, IconPlay, IconPlus, IconSettings, IconSkip,
+  IconSwap, IconTrash, IconTrophy, IconX,
 } from '../components/icons';
+import { TargetFields, TrackingPicker, type TargetValues } from '../components/ExerciseTargets';
+import { Barbell } from '../components/Barbell';
+import { CircuitRunner } from '../components/CircuitRunner';
+import { FocusView } from '../components/FocusView';
+import { WeeklyGoalsStrip } from '../components/WeeklyGoals';
 import { beep } from '../lib/beep';
 
 /* ------------------------------------------------------------ Zeilenmodell */
@@ -67,6 +75,8 @@ interface Row {
   fromPlan: boolean;
   /** Uebungen mit derselben Gruppe bilden einen Supersatz. */
   groupId?: string;
+  /** Wie die Saetze erfasst werden - siehe lib/tracking.ts. */
+  tracking: TrackingMode;
 }
 
 const newSet = (partial: Partial<SetLog> = {}): SetLog => ({
@@ -81,18 +91,31 @@ const newSet = (partial: Partial<SetLog> = {}): SetLog => ({
   ...partial,
 });
 
+/**
+ * Eine Kennung, die den ersten Satz ueberlebt: Eine Plan-Zeile heisst
+ * "plan:…", bis sie ins Training geschrieben wird, danach traegt sie die
+ * Kennung des Eintrags. Die Fokus-Ansicht wuerde sonst beim ersten Tipper auf
+ * "+" zur ersten Uebung springen.
+ */
+const focusId = (row: Row): string => (row.planExercise ? `plan:${row.planExercise.id}` : row.key);
+
 /* ------------------------------------------------------------------ Seite */
 
 export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank') => void }) {
   const {
     state, getExercise, allExercises, upsertWorkout, deleteWorkout, snapshot, replaceState,
-    updateSettings,
+    updateSettings, updatePlan, updateExercise,
   } = useStore();
   const toast = useToast();
 
   const [date, setDate] = useState(todayISO());
   const [pickerOpen, setPickerOpen] = useState(false);
   const [swapFor, setSwapFor] = useState<Row | null>(null);
+  const [adjusting, setAdjusting] = useState<Row | null>(null);
+  /** Gruppe, deren Zirkel gerade laeuft. */
+  const [circuitGroup, setCircuitGroup] = useState<string | null>(null);
+  /** Fokus-Ansicht: die Uebung, die gerade gross angezeigt wird (stabile Kennung, siehe focusId). */
+  const [focusKey, setFocusKey] = useState<string | null>(null);
   const sync = useSync();
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -184,16 +207,12 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
 
       const exercise = getExercise(planExercise.exerciseId);
       const previous = lastPerformance(state, planExercise.exerciseId, date);
+      const tracking = resolveTracking(exercise, planExercise, logged);
+      const plannedWeight = cycleWeight(planExercise.targetWeightKg, plan?.cycle, date) ?? null;
 
       const draftSets = Array.from({ length: Math.max(1, planExercise.targetSets) }, (_, index) => {
         const reference = previous?.sets[index] ?? previous?.sets[previous.sets.length - 1];
-        return newSet({
-          reps: reference?.reps ?? planExercise.targetRepsMin ?? null,
-          weightKg: reference?.weightKg
-            ?? cycleWeight(planExercise.targetWeightKg, plan?.cycle, date)
-            ?? null,
-          durationSec: reference?.durationSec ?? null,
-        });
+        return newSet(draftValues(tracking, reference, planExercise, plannedWeight));
       });
 
       result.push({
@@ -205,19 +224,22 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
         sets: logged?.sets ?? draftSets,
         fromPlan: true,
         groupId: logged?.groupId ?? planExercise.groupId,
+        tracking,
       });
     }
 
     for (const logged of workout?.exercises ?? []) {
       if (usedLoggedIds.has(logged.id)) continue;
+      const exercise = getExercise(logged.exerciseId);
       result.push({
         key: logged.id,
         exerciseId: logged.exerciseId,
-        exercise: getExercise(logged.exerciseId),
+        exercise,
         logged,
         sets: logged.sets,
         fromPlan: false,
         groupId: logged.groupId,
+        tracking: resolveTracking(exercise, undefined, logged),
       });
     }
 
@@ -248,6 +270,12 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
             exerciseId: row.exerciseId,
             planExerciseId: row.planExercise?.id,
             sets: row.sets.map((set) => ({ ...set })),
+            /*
+             * Die Erfassung aus dem Plan wandert mit ins Training, sofern sie
+             * von der der Uebung abweicht. Sonst stuende im Verlauf spaeter
+             * "3 × –", sobald jemand den Plan wieder umstellt.
+             */
+            ...(row.tracking !== resolveTracking(row.exercise) ? { tracking: row.tracking } : {}),
           };
           exercises = [...current.exercises, mutate(created)];
         }
@@ -340,6 +368,115 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
     toast.show(t('Getauscht gegen {name}', { name: exerciseName(next) }));
   };
 
+  /**
+   * Uebernimmt, was im Anpassen-Dialog eingestellt wurde.
+   *
+   * Immer fuer heute. Auf Wunsch auch in den Plan - dann steht es naechste
+   * Woche genauso da - und auf Wunsch fuer die Uebung ueberall. Erledigte
+   * Saetze bleiben, wie sie sind: Was geschafft ist, wird nicht umgeschrieben.
+   */
+  const applyAdjust = (row: Row, result: AdjustResult) => {
+    const { targets, changed, savePlan, everywhere } = result;
+    const fields = fieldsOf(targets.tracking);
+    const baseline = resolveTracking(
+      everywhere && row.exercise ? { ...row.exercise, tracking: targets.tracking } : row.exercise,
+      savePlan && row.planExercise ? { ...row.planExercise, tracking: targets.tracking } : row.planExercise,
+    );
+
+    updateRow(row, (logged) => {
+      let sets = [...logged.sets];
+      const working = sets.filter((set) => !set.isWarmup);
+      const missing = targets.targetSets - working.length;
+      if (missing > 0) {
+        const last = working[working.length - 1];
+        sets = [...sets, ...Array.from({ length: missing }, () => newSet({
+          reps: last?.reps ?? null,
+          weightKg: last?.weightKg ?? null,
+          durationSec: last?.durationSec ?? null,
+          distanceKm: last?.distanceKm ?? null,
+        }))];
+      } else if (missing < 0) {
+        // Von hinten offene Arbeitssaetze streichen - erledigte bleiben stehen.
+        let surplus = -missing;
+        for (let position = sets.length - 1; position >= 0 && surplus > 0; position -= 1) {
+          if (!sets[position].done && !sets[position].isWarmup) {
+            sets.splice(position, 1);
+            surplus -= 1;
+          }
+        }
+      }
+
+      sets = sets.map((set) => (set.done ? set : {
+        ...set,
+        reps: fields.reps && (changed.reps || set.reps == null) ? (targets.targetRepsMin ?? set.reps) : set.reps,
+        weightKg: fields.weight && changed.weight ? targets.targetWeightKg : set.weightKg,
+        durationSec: fields.time && (changed.time || set.durationSec == null)
+          ? (targets.targetDurationSec ?? set.durationSec) : set.durationSec,
+        distanceKm: fields.distance && (changed.distance || set.distanceKm == null)
+          ? (targets.targetDistanceKm ?? set.distanceKm) : set.distanceKm,
+      }));
+
+      return {
+        ...logged,
+        sets,
+        tracking: targets.tracking === baseline ? undefined : targets.tracking,
+        restSec: targets.restSec ?? undefined,
+      };
+    });
+
+    if (savePlan && row.planExercise && plan) {
+      const planExerciseId = row.planExercise.id;
+      const dayIndex = weekdayOf(date);
+      updatePlan(plan.id, (current) => ({
+        ...current,
+        days: current.days.map((day, index) => (index !== dayIndex ? day : {
+          ...day,
+          exercises: day.exercises.map((item) => (item.id !== planExerciseId ? item : {
+            ...item,
+            tracking: everywhere ? undefined : targets.tracking,
+            targetSets: targets.targetSets,
+            targetRepsMin: targets.targetRepsMin,
+            targetRepsMax: targets.targetRepsMax,
+            targetWeightKg: targets.targetWeightKg,
+            targetDurationSec: targets.targetDurationSec,
+            targetDistanceKm: targets.targetDistanceKm,
+            restSec: targets.restSec,
+          })),
+        })),
+      }));
+    }
+
+    if (everywhere && row.exercise) updateExercise(row.exercise.id, { tracking: targets.tracking });
+
+    setAdjusting(null);
+    toast.show(savePlan ? t('Angepasst – auch im Plan') : t('Für heute angepasst'));
+  };
+
+  /**
+   * Startet den Zirkel einer Gruppe.
+   *
+   * Vorher werden alle Uebungen der Gruppe ins Training geschrieben: Solange
+   * eine Uebung nur als Vorschlag aus dem Plan dasteht, bekommen ihre Saetze
+   * bei jeder Aenderung neue Kennungen - und der Zirkel wuesste nicht mehr,
+   * welchen Satz er gerade abhakt.
+   */
+  const startCircuit = (groupId: string) => {
+    for (const row of rows.filter((item) => item.groupId === groupId)) {
+      if (!row.logged) updateRow(row, (logged) => ({ ...logged, groupId }));
+    }
+    if (!workout?.startedAt) startSession();
+    setCircuitGroup(groupId);
+  };
+
+  const completeCircuitSet = (memberKey: string, setId: string, patch: Partial<SetLog>) => {
+    const row = rows.find((item) => item.key === memberKey);
+    if (!row) return;
+    updateRow(row, (logged) => ({
+      ...logged,
+      sets: logged.sets.map((set) => (set.id === setId ? { ...set, ...patch } : set)),
+    }));
+  };
+
   const addSet = (row: Row) => {
     updateRow(row, (logged) => {
       const last = logged.sets[logged.sets.length - 1];
@@ -347,7 +484,12 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
         ...logged,
         sets: [
           ...logged.sets,
-          newSet({ reps: last?.reps ?? null, weightKg: last?.weightKg ?? null, durationSec: last?.durationSec ?? null }),
+          newSet({
+            reps: last?.reps ?? null,
+            weightKg: last?.weightKg ?? null,
+            durationSec: last?.durationSec ?? null,
+            distanceKm: last?.distanceKm ?? null,
+          }),
         ],
       };
     });
@@ -355,23 +497,22 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
 
   const addExercise = (exercise: Exercise) => {
     const previous = lastPerformance(state, exercise.id, date);
-    const sets = Array.from({ length: previous?.sets.length || 3 }, (_, index) => {
-      const reference = previous?.sets[index];
-      return newSet({
-        reps: reference?.reps ?? null,
-        weightKg: reference?.weightKg ?? null,
-        durationSec: reference?.durationSec ?? null,
-      });
-    });
+    const tracking = resolveTracking(exercise);
+    const sets = Array.from({ length: previous?.sets.length || 3 }, (_, index) =>
+      newSet(draftValues(tracking, previous?.sets[index], undefined, null)));
 
+    const id = uid('le');
     upsertWorkout(date, (current) => ({
       ...current,
       title: current.title || planDay?.title || 'Freies Training',
       planId: plan?.id,
       planDayIndex: weekdayOf(date),
       bodyWeightKg: current.bodyWeightKg ?? state.profile.weightKg,
-      exercises: [...current.exercises, { id: uid('le'), exerciseId: exercise.id, sets }],
+      exercises: [...current.exercises, { id, exerciseId: exercise.id, sets }],
     }));
+    // Wer eine Uebung dazunimmt, will sie gleich eintragen - sie klappt auf,
+    // auch wenn weiter oben noch Plan-Uebungen offen sind.
+    setOpenOverrides((previous) => ({ ...previous, [id]: true }));
 
     setPickerOpen(false);
     toast.show(t('„{name}“ hinzugefügt', { name: exercise.name }));
@@ -475,6 +616,8 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
      * sind (stats, streak), keine neue Rechnung dafuer.
      */
     if (stats.sets > 0) {
+      // Drei kurze Stoesse - wie das Abklatschen nach dem letzten Satz.
+      navigator.vibrate?.([30, 50, 30, 50, 60]);
       setRecap({
         volume: stats.volume,
         kcal: stats.kcal,
@@ -676,6 +819,12 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
         </div>
       )}
 
+      {/*
+        * Die Wochenziele direkt unter Serie und Wochenvolumen: dieselbe Frage
+        * ("wie laeuft die Woche?"), jetzt mit dem, was man sich vorgenommen hat.
+        */}
+      <WeeklyGoalsStrip />
+
       <div className="split">
       <div className="split__main">
 
@@ -724,6 +873,11 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
           onStop={stopSession}
           sortMode={sortMode}
           onToggleSort={() => setSortMode(!sortMode)}
+          onFocus={() => {
+            const open = rows.find((row) => !row.logged?.skipped && row.sets.some((set) => !set.done && !set.skipped))
+              ?? rows.find((row) => !row.logged?.skipped);
+            if (open) setFocusKey(focusId(open));
+          }}
         />
       )}
 
@@ -792,9 +946,11 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
             onToggleSkip={() => toggleSkipRow(row)}
             onOpenDetail={() => row.exercise && setDetail(row.exercise)}
             onSwap={() => setSwapFor(row)}
+            onAdjust={() => setAdjusting(row)}
             onStartRest={startRest}
             onMove={(direction) => moveRow(index, direction)}
             onToggleSuperset={() => toggleSuperset(index)}
+            onStartCircuit={row.groupId ? () => startCircuit(row.groupId!) : undefined}
             open={isOpen}
             onToggleOpen={() => setOpenOverrides((prev) => ({ ...prev, [row.key]: !isOpen }))}
           />
@@ -925,7 +1081,7 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
       {restEndsAt && (
         <RestTimer
           endsAt={restEndsAt}
-          fullscreen={state.settings.fullscreenRest}
+          fullscreen={state.settings.fullscreenRest && !focusKey}
           onFullscreenChange={(value) => updateSettings({ fullscreenRest: value })}
           onClose={() => setRestEndsAt(null)}
           onExtend={() => setRestEndsAt(restEndsAt + 30000)}
@@ -941,6 +1097,90 @@ export function TodayPage({ onNavigate }: { onNavigate?: (tab: 'plans' | 'rank')
             excludeIds={rows.map((row) => row.exerciseId)}
           />
         </Suspense>
+      )}
+
+      {focusKey && (() => {
+        const items = rows.filter((row) => !row.logged?.skipped);
+        const byFocus = (key: string) => items.find((row) => focusId(row) === key);
+        return (
+          <FocusView
+            items={items.map((row) => ({
+              key: focusId(row),
+              exercise: row.exercise,
+              tracking: row.tracking,
+              sets: row.sets,
+              planExercise: row.planExercise,
+            }))}
+            activeKey={focusKey}
+            onActiveChange={setFocusKey}
+            restEndsAt={restEndsAt}
+            onExtendRest={() => setRestEndsAt((value) => (value ? value + 30000 : value))}
+            onEndRest={() => setRestEndsAt(null)}
+            flashSet={flashSet}
+            barKg={state.settings.barWeightKg}
+            plates={state.settings.plateSet}
+            onPatchSet={(key, setId, patch) => {
+              const row = byFocus(key);
+              if (!row) return;
+              updateRow(row, (logged) => ({
+                ...logged,
+                sets: logged.sets.map((set) => (set.id === setId ? { ...set, ...patch } : set)),
+              }));
+            }}
+            onToggleSet={(key, setId) => {
+              const row = byFocus(key);
+              if (row) toggleSet(row, setId);
+            }}
+            onAdjust={(key) => {
+              const row = byFocus(key);
+              if (row) setAdjusting(row);
+            }}
+            onClose={() => setFocusKey(null)}
+          />
+        );
+      })()}
+
+      {circuitGroup && (() => {
+        const members = rows.filter((row) => row.groupId === circuitGroup);
+        if (members.length === 0) return null;
+        const last = members[members.length - 1];
+        const round = Math.min(...members.map((row) => row.sets.filter(countsAsWork).length)) + 1;
+        return (
+          <CircuitRunner
+            members={members.map((row) => ({
+              key: row.key,
+              exercise: row.exercise,
+              tracking: row.tracking,
+              sets: row.sets.filter((set) => !set.isWarmup),
+              workSec: row.planExercise?.targetDurationSec ?? null,
+              transitionSec: row.planExercise?.transitionSec ?? 0,
+            }))}
+            restSec={last.logged?.restSec ?? last.planExercise?.restSec ?? state.settings.restTimerSec}
+            startRound={round}
+            sound={state.settings.countdownBeep}
+            onCompleteSet={completeCircuitSet}
+            onClose={() => setCircuitGroup(null)}
+          />
+        );
+      })()}
+
+      {adjusting && (
+        <AdjustDialog
+          row={adjusting}
+          canLink={rows.findIndex((item) => item.key === adjusting.key) > 0}
+          linked={(() => {
+            const position = rows.findIndex((item) => item.key === adjusting.key);
+            return position > 0 && !!adjusting.groupId && adjusting.groupId === rows[position - 1].groupId;
+          })()}
+          effectiveRest={adjusting.logged?.restSec ?? adjusting.planExercise?.restSec ?? state.settings.restTimerSec}
+          onApply={(result) => applyAdjust(adjusting, result)}
+          onSwap={() => { setSwapFor(adjusting); setAdjusting(null); }}
+          onToggleLink={() => {
+            toggleSuperset(rows.findIndex((item) => item.key === adjusting.key));
+            setAdjusting(null);
+          }}
+          onClose={() => setAdjusting(null)}
+        />
       )}
 
       {swapFor && (
@@ -1035,8 +1275,8 @@ function WeekStrip({
 
 function ExerciseCard({
   row, rank, index, total, date, sortMode, groupedWithAbove, groupRound, groupTotal, flashSet,
-  onToggleSet, onUpdate, onAddSet, onRemove, onToggleSkip, onOpenDetail, onSwap, onStartRest, onMove, onToggleSuperset,
-  open, onToggleOpen,
+  onToggleSet, onUpdate, onAddSet, onRemove, onToggleSkip, onOpenDetail, onSwap, onAdjust, onStartRest, onMove,
+  onToggleSuperset, onStartCircuit, open, onToggleOpen,
 }: {
   row: Row;
   /** Der Rang genau dieser Uebung - steht als Abzeichen an der Karte. */
@@ -1056,9 +1296,13 @@ function ExerciseCard({
   onToggleSkip: () => void;
   onOpenDetail: () => void;
   onSwap: () => void;
+  /** Oeffnet "Uebung anpassen": Erfassung, Vorgaben, Pause, Supersatz. */
+  onAdjust: () => void;
   onStartRest: (seconds: number) => void;
   onMove: (direction: -1 | 1) => void;
   onToggleSuperset: () => void;
+  /** Startet den gefuehrten Zirkel fuer die Gruppe dieser Uebung. */
+  onStartCircuit?: () => void;
   /** Satz, an dem gerade eine Bestleistung passiert ist. */
   flashSet?: string | null;
   /**
@@ -1088,18 +1332,21 @@ function ExerciseCard({
   const [calcOpen, setCalcOpen] = useState(false);
   const partnerName = state.settings.partnerName.trim();
   const useRir = state.settings.useRir;
-  const isTimed = row.exercise?.kind === 'time' || row.exercise?.kind === 'cardio';
-  /** Distanz macht nur bei echten Ausdauer-Aktivitaeten Sinn, nicht bei Halteuebungen wie Plank. */
-  const showDistance = row.exercise?.kind === 'cardio';
+  /*
+   * Was eine Satzzeile hat, folgt aus der Erfassung (lib/tracking.ts) - nicht
+   * mehr aus der Art der Uebung. So bekommen Liegestuetze als "nur Saetze"
+   * keine Zahlenfelder und eine gewichtete Plank Kilo *und* Sekunden.
+   */
+  const mode = row.tracking;
+  const fields = fieldsOf(mode);
+  /** Kilo und Wiederholungen - nur dort gibt es Aufwaermsaetze, Vorschlaege und Plus/Minus. */
+  const liftsWeight = fields.weight && fields.reps;
+  const layout = mode === 'sets' ? 'sets' : String(valueColumns(mode));
 
   const target = row.planExercise;
   const targetText = target
-    ? `${target.targetSets} × ${
-        target.targetRepsMin && target.targetRepsMax && target.targetRepsMin !== target.targetRepsMax
-          ? `${target.targetRepsMin}–${target.targetRepsMax}`
-          : target.targetRepsMin || '?'
-      }`
-    : `${row.sets.length} Sätze`;
+    ? trackedTarget(target, mode)
+    : t('{count} Sätze', { count: row.sets.length });
 
   const patchSet = (setId: string, patch: Partial<SetLog>) => {
     onUpdate(row, (logged) => ({
@@ -1111,7 +1358,10 @@ function ExerciseCard({
   /** Plus/Minus auf einem Zahlenwert des Satzes, um den gegebenen Schritt. */
   const bumpSet = (set: SetLog, field: 'weightKg' | 'reps', delta: number) => {
     const current = (field === 'weightKg' ? set.weightKg : set.reps) ?? 0;
-    const next = Math.max(0, Math.round((current + delta) * 1000) / 1000);
+    // Leere Stange: Das erste "+" legt die Stange auf, nicht 2,5 kg ins Nichts.
+    const next = field === 'weightKg' && !current && delta > 0 && usesBarbell(row.exercise)
+      ? state.settings.barWeightKg
+      : Math.max(0, Math.round((current + delta) * 1000) / 1000);
     patchSet(set.id, { [field]: next || null });
     navigator.vibrate?.(8);
   };
@@ -1189,7 +1439,7 @@ function ExerciseCard({
     ?? suggestion?.weightKg ?? 0;
   // Erst ab einem echten Arbeitsgewicht anbieten - der eine lockere Satz, den
   // "warmupSets" darunter erzeugt, will fast niemand vor Seitheben oder Curls.
-  const canOfferWarmup = !isTimed && doneSets === 0
+  const canOfferWarmup = liftsWeight && doneSets === 0
     && warmupBase >= 40
     && !row.sets.some((set) => set.isWarmup)
     && warmupSets(warmupBase, row.exercise).length > 0;
@@ -1237,11 +1487,60 @@ function ExerciseCard({
   const allDone = !skipped && doneSets >= totalTarget && totalTarget > 0;
 
   /** Wurde hier bewusst ohne Zusatzgewicht gearbeitet? Dann steht das da. */
-  const ownWeightOnly = !isTimed && row.sets.some(
+  const ownWeightOnly = liftsWeight && row.sets.some(
     (set) => !set.isWarmup && isOwnWeightOnly(set.weightKg, row.exercise?.kind),
   );
 
   const accent = row.exercise ? categoryColor(row.exercise.category) : 'var(--border)';
+
+  /* Spaltenkoepfe und Zellen je Erfassung - an einer Stelle statt in jeder Zeile verzweigt. */
+  const valueHeaders: string[] = {
+    weight_reps: [t('kg'), t('Wdh')],
+    reps: [t('Wdh')],
+    time: [t('Sek.')],
+    weight_time: [t('kg'), t('Sek.')],
+    distance_time: [t('Sek.'), t('km')],
+    sets: [''],
+  }[mode];
+
+  const weightCell = (set: SetLog) => (
+    <NumberInput
+      value={set.weightKg}
+      ariaLabel={t('Gewicht in Kilogramm')}
+      onChange={(value) => patchSet(set.id, { weightKg: value })}
+      step={kgStep}
+    />
+  );
+  const repsCell = (set: SetLog) => (
+    <NumberInput
+      value={set.reps}
+      ariaLabel={t('Wiederholungen')}
+      onChange={(value) => patchSet(set.id, { reps: value })}
+    />
+  );
+  const timeCell = (set: SetLog) => (
+    <div className="row" style={{ gap: 4 }}>
+      <NumberInput
+        value={set.durationSec}
+        ariaLabel={t('Dauer in Sekunden')}
+        onChange={(value) => patchSet(set.id, { durationSec: value })}
+      />
+      {(set.durationSec ?? 0) > 0 && !set.done && mode !== 'distance_time' && (
+        <HoldCountdown
+          seconds={set.durationSec ?? 0}
+          beepOnEnd={state.settings.countdownBeep}
+          onDone={() => onToggleSet(set.id)}
+        />
+      )}
+    </div>
+  );
+  const distanceCell = (set: SetLog) => (
+    <NumberInput
+      value={set.distanceKm}
+      ariaLabel={t('Distanz in Kilometern')}
+      onChange={(value) => patchSet(set.id, { distanceKm: value })}
+    />
+  );
 
   return (
     <div
@@ -1256,11 +1555,18 @@ function ExerciseCard({
     >
       {row.groupId && !groupedWithAbove && (
         <div className="exercise__group-label">
-          {t("Supersatz")}
-          {groupRound != null && groupTotal != null && groupTotal > 0 && groupRound <= groupTotal && (
-            <span className="exercise__group-round">
-              {` · ${t('Durchgang {n}/{total}', { n: groupRound, total: groupTotal })}`}
-            </span>
+          <span>
+            {t("Supersatz")}
+            {groupRound != null && groupTotal != null && groupTotal > 0 && groupRound <= groupTotal && (
+              <span className="exercise__group-round">
+                {` · ${t('Durchgang {n}/{total}', { n: groupRound, total: groupTotal })}`}
+              </span>
+            )}
+          </span>
+          {onStartCircuit && groupRound != null && groupTotal != null && groupRound <= groupTotal && (
+            <button className="btn btn--sm exercise__circuit-start" onClick={onStartCircuit}>
+              <IconPlay /> {t('Zirkel starten')}
+            </button>
           )}
         </div>
       )}
@@ -1313,7 +1619,7 @@ function ExerciseCard({
               */}
             <span className="exercise__last">
               {previous
-                ? `${t('zuletzt')} ${formatDateShort(previous.date)}: ${summarizeSets(previous.sets, isTimed, row.exercise?.kind)}`
+                ? `${t('zuletzt')} ${formatDateShort(previous.date)}: ${summarizeSets(previous.sets, mode, row.exercise?.kind)}`
                 : t('noch keine Vorleistung')}
             </span>
           </div>
@@ -1351,7 +1657,7 @@ function ExerciseCard({
 
           {previous && (
             <div className="row row--wrap tiny" style={{ gap: 6, padding: '10px 0 2px' }}>
-              <span className="chip">Letztes Mal: {summarizeSets(previous.sets, isTimed, row.exercise?.kind)}</span>
+              <span className="chip">{t('Letztes Mal')}: {summarizeSets(previous.sets, mode, row.exercise?.kind)}</span>
               {previous.best1RM > 0 && <span className="chip">1RM ≈ {fmt(previous.best1RM, 1)} kg</span>}
               {suggestion && suggestion.direction !== 'hold' && (
                 <button
@@ -1384,11 +1690,10 @@ function ExerciseCard({
           )}
 
           {/* Die Einheit steht einmal ueber der Spalte, nicht in jedem Feld. */}
-          <div className="set-header">
+          <div className={`set-header set-row--layout-${layout}`}>
             <span>#</span>
-            <span>{isTimed ? t('Sek.') : t('kg')}</span>
-            <span>{isTimed ? (showDistance ? t('km') : '') : t('Wdh')}</span>
-            <span>{useRir ? t('RIR') : t('RPE')}</span>
+            {valueHeaders.map((label, position) => <span key={position}>{label}</span>)}
+            {mode !== 'sets' && <span>{useRir ? t('RIR') : t('RPE')}</span>}
             <span />
           </div>
 
@@ -1398,6 +1703,7 @@ function ExerciseCard({
               {...rowSwipe(set.id, set.done)}
               className={[
                 'set-row',
+                `set-row--layout-${layout}`,
                 set.done ? 'set-row--done' : '',
                 set.forPartner ? 'set-row--partner' : '',
                 // Genau eine Zeile ist die naechste - wer zwischen zwei
@@ -1418,54 +1724,27 @@ function ExerciseCard({
                 {set.isWarmup ? 'W' : index + 1 - row.sets.slice(0, index).filter((item) => item.isWarmup).length}
               </button>
 
-              {isTimed ? (
-                <>
-                  <div className="row" style={{ gap: 4 }}>
-                    <NumberInput
-                      value={set.durationSec}
-                      ariaLabel={t('Dauer in Sekunden')}
-                      onChange={(value) => patchSet(set.id, { durationSec: value })}
-                    />
-                    {(set.durationSec ?? 0) > 0 && !set.done && (
-                      <HoldCountdown
-                        seconds={set.durationSec ?? 0}
-                        beepOnEnd={state.settings.countdownBeep}
-                        onDone={() => onToggleSet(set.id)}
-                      />
-                    )}
-                  </div>
-                  {showDistance ? (
-                    <NumberInput
-                      value={set.distanceKm}
-                      ariaLabel={t('Distanz in Kilometern')}
-                      onChange={(value) => patchSet(set.id, { distanceKm: value })}
-                    />
-                  ) : <span />}
-                </>
-              ) : (
-                <>
-                  <NumberInput
-                    value={set.weightKg}
-                    ariaLabel={t('Gewicht in Kilogramm')}
-                    onChange={(value) => patchSet(set.id, { weightKg: value })}
-                    step={kgStep}
-                  />
-                  <NumberInput
-                    value={set.reps}
-                    ariaLabel={t('Wiederholungen')}
-                    onChange={(value) => patchSet(set.id, { reps: value })}
-                  />
-                </>
+              {mode === 'weight_reps' && <>{weightCell(set)}{repsCell(set)}</>}
+              {mode === 'reps' && repsCell(set)}
+              {mode === 'time' && timeCell(set)}
+              {mode === 'weight_time' && <>{weightCell(set)}{timeCell(set)}</>}
+              {mode === 'distance_time' && <>{timeCell(set)}{distanceCell(set)}</>}
+              {mode === 'sets' && (
+                <span className={`set-row__label ${set.done ? 'set-row__label--done' : ''}`}>
+                  {set.done ? t('erledigt') : t('abhaken')}
+                </span>
               )}
 
-              <NumberInput
-                value={fromRpe(set.rpe, useRir)}
-                ariaLabel={useRir ? t('Wiederholungen in Reserve') : 'RPE'}
-                min={0}
-                max={useRir ? 9 : 10}
-                onChange={(value) => patchSet(set.id, { rpe: toRpe(value, useRir) })}
-                placeholder="–"
-              />
+              {mode !== 'sets' && (
+                <NumberInput
+                  value={fromRpe(set.rpe, useRir)}
+                  ariaLabel={useRir ? t('Wiederholungen in Reserve') : 'RPE'}
+                  min={0}
+                  max={useRir ? 9 : 10}
+                  onChange={(value) => patchSet(set.id, { rpe: toRpe(value, useRir) })}
+                  placeholder="–"
+                />
+              )}
 
               <div className="row" style={{ gap: 2 }}>
                 <button
@@ -1495,8 +1774,9 @@ function ExerciseCard({
               * Plus/Minus nur unter dem Satz, an dem man gerade steht - nicht
               * unter jeder Zeile. Ein Tipper je Scheibe statt der Zahlentastatur.
               */}
-            {set.id === currentSet?.id && !set.done && !isTimed && (
+            {set.id === currentSet?.id && !set.done && (fields.weight || fields.reps) && (
               <div className="set-steppers">
+                {fields.weight && (
                 <div className="set-steppers__group">
                   <button className="set-steppers__btn" onClick={() => bumpSet(set, 'weightKg', -kgStep)} aria-label={t('Gewicht verringern')}>−</button>
                   {/* Null heisst hier ausdruecklich: nur das eigene Gewicht. */}
@@ -1512,6 +1792,8 @@ function ExerciseCard({
                   </span>
                   <button className="set-steppers__btn" onClick={() => bumpSet(set, 'weightKg', kgStep)} aria-label={t('Gewicht erhöhen')}>+</button>
                 </div>
+                )}
+                {fields.reps && (
                 <div className="set-steppers__group">
                   <button className="set-steppers__btn" onClick={() => bumpSet(set, 'reps', -1)} aria-label={t('Eine Wiederholung weniger')}>−</button>
                   <span className="set-steppers__val">
@@ -1519,7 +1801,14 @@ function ExerciseCard({
                   </span>
                   <button className="set-steppers__btn" onClick={() => bumpSet(set, 'reps', 1)} aria-label={t('Eine Wiederholung mehr')}>+</button>
                 </div>
+                )}
               </div>
+            )}
+
+            {/* Was auf die Stange gehoert - in den Farben der Scheiben. */}
+            {set.id === currentSet?.id && !set.done && fields.weight && usesBarbell(row.exercise)
+              && set.weightKg != null && set.weightKg >= state.settings.barWeightKg && (
+              <Barbell weightKg={set.weightKg} barKg={state.settings.barWeightKg} plates={state.settings.plateSet} />
             )}
 
             {openSet === set.id && (
@@ -1587,8 +1876,13 @@ function ExerciseCard({
             >
               <IconClock /> {t('Pause')}
             </button>
-            <button className="btn btn--sm" onClick={() => setCalcOpen(true)}>
-              <IconCalculator /> {t('Rechner')}
+            {liftsWeight && (
+              <button className="btn btn--sm" onClick={() => setCalcOpen(true)}>
+                <IconCalculator /> {t('Rechner')}
+              </button>
+            )}
+            <button className="btn btn--sm" onClick={onAdjust}>
+              <IconSettings /> {t('Anpassen')}
             </button>
             <span className="spacer" />
             <button
@@ -1616,7 +1910,7 @@ function ExerciseCard({
                 ))}
               </div>
               <div className="row row--wrap" style={{ gap: 7 }}>
-                {!isTimed && !row.sets.some((set) => set.isWarmup) && (
+                {liftsWeight && !row.sets.some((set) => set.isWarmup) && (
                   <button className="btn btn--sm" onClick={addWarmup} title={t("Aufwärmsätze davorstellen")}>
                     {t('Aufwärmen')}
                   </button>
@@ -1713,35 +2007,6 @@ function PlateHint({ exercise, weightKg }: { exercise: Exercise | undefined; wei
   );
 }
 
-/** Fasst Sätze kompakt zusammen, z. B. "3 × 80 kg × 8". */
-function summarizeSets(sets: SetLog[], isTimed: boolean, kind?: Exercise['kind']): string {
-  if (sets.length === 0) return '–';
-  if (isTimed) {
-    const showDistance = kind === 'cardio';
-    return sets
-      .map((set) => {
-        if (set.durationSec) return formatClock(set.durationSec);
-        if (showDistance && set.distanceKm) return `${set.distanceKm} km`;
-        return '–';
-      })
-      .slice(0, 4)
-      .join(' · ');
-  }
-
-  const groups: Array<{ weight: number; reps: number; count: number }> = [];
-  for (const set of sets) {
-    const weight = set.weightKg ?? 0;
-    const reps = set.reps ?? 0;
-    const last = groups[groups.length - 1];
-    if (last && last.weight === weight && last.reps === reps) last.count += 1;
-    else groups.push({ weight, reps, count: 1 });
-  }
-
-  return groups
-    .slice(0, 3)
-    .map((group) => `${group.count > 1 ? `${group.count}× ` : ''}${formatSet(group.weight, group.reps, kind)}`)
-    .join(', ');
-}
 
 /* --------------------------------------------------------------- Pausenuhr */
 
@@ -1829,13 +2094,15 @@ function RestTimer({
 
 /** Zeigt die laufende Trainingszeit und den Umschalter fuers Sortieren. */
 function SessionBar({
-  workout, onStart, onStop, sortMode, onToggleSort,
+  workout, onStart, onStop, sortMode, onToggleSort, onFocus,
 }: {
   workout: Workout | undefined;
   onStart: () => void;
   onStop: () => void;
   sortMode: boolean;
   onToggleSort: () => void;
+  /** Oeffnet die Fokus-Ansicht bei der naechsten offenen Uebung. */
+  onFocus: () => void;
 }) {
   const running = !!workout?.startedAt && !workout?.endedAt;
   const [now, setNow] = useState(() => Date.now());
@@ -1866,6 +2133,11 @@ function SessionBar({
       )}
 
       <span className="spacer" />
+      {!sortMode && (
+        <button className="btn btn--sm" onClick={onFocus}>
+          <IconExpand /> {t('Fokus')}
+        </button>
+      )}
       <button className={`btn btn--sm ${sortMode ? 'btn--primary' : ''}`} onClick={onToggleSort}>
         {sortMode ? t('Fertig') : t('Sortieren')}
       </button>
@@ -1893,6 +2165,7 @@ interface SessionRecap {
 function SessionRecapModal({ recap, onClose }: { recap: SessionRecap; onClose: () => void }) {
   return (
     <Modal title={t('Training beendet')} onClose={onClose}>
+      <div className="recap__stamp" aria-hidden="true">{t('Geschafft')}</div>
       <div className="tally__row">
         <div className="tally__item">
           <span className="tally__label">{t('Volumen')}</span>
@@ -1909,7 +2182,8 @@ function SessionRecapModal({ recap, onClose }: { recap: SessionRecap; onClose: (
       </div>
 
       {recap.records > 0 && (
-        <p className="small" style={{ color: 'var(--success)', marginTop: 14 }}>
+        <p className="recap__records">
+          <IconTrophy />
           {recap.records === 1
             ? t('Eine Bestleistung dabei.')
             : t('{count} Bestleistungen dabei.', { count: recap.records })}
@@ -2414,6 +2688,127 @@ function MoveWorkoutDialog({
         >
           {t('Verschieben')}
         </button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------- Uebung anpassen */
+
+interface AdjustResult {
+  targets: TargetValues;
+  /** Welche Werte im Dialog tatsaechlich veraendert wurden. */
+  changed: { reps: boolean; weight: boolean; time: boolean; distance: boolean };
+  savePlan: boolean;
+  everywhere: boolean;
+}
+
+/**
+ * Eine Uebung mitten im Training anders machen.
+ *
+ * Die Bank ist besetzt, also Liegestuetze - aber nicht 3 × 8–12 mit Kilo,
+ * sondern einfach drei Saetze. Oder die Plank heute mit Scheibe auf dem
+ * Ruecken. Alles, was im Plan-Editor geht, geht hier auch - fuer heute, und
+ * wer will, schreibt es gleich in den Plan zurueck.
+ */
+function AdjustDialog({
+  row, canLink, linked, effectiveRest, onApply, onSwap, onToggleLink, onClose,
+}: {
+  row: Row;
+  canLink: boolean;
+  linked: boolean;
+  effectiveRest: number;
+  onApply: (result: AdjustResult) => void;
+  onSwap: () => void;
+  onToggleLink: () => void;
+  onClose: () => void;
+}) {
+  const open = row.sets.find((set) => !set.done && !set.isWarmup) ?? row.sets[row.sets.length - 1];
+  const initial = useMemo<TargetValues>(() => ({
+    tracking: row.tracking,
+    targetSets: row.sets.filter((set) => !set.isWarmup).length || 1,
+    targetRepsMin: row.planExercise?.targetRepsMin ?? open?.reps ?? null,
+    targetRepsMax: row.planExercise?.targetRepsMax ?? open?.reps ?? null,
+    targetWeightKg: open?.weightKg ?? row.planExercise?.targetWeightKg ?? null,
+    targetDurationSec: open?.durationSec ?? row.planExercise?.targetDurationSec ?? null,
+    targetDistanceKm: open?.distanceKm ?? row.planExercise?.targetDistanceKm ?? null,
+    restSec: effectiveRest,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), []);
+  const [targets, setTargets] = useState<TargetValues>(initial);
+  const [savePlan, setSavePlan] = useState(false);
+  const [everywhere, setEverywhere] = useState(false);
+
+  const patch = (next: Partial<TargetValues>) => setTargets((current) => {
+    const merged = { ...current, ...next };
+    if (next.tracking && fieldsOf(next.tracking).time && merged.targetDurationSec == null) {
+      merged.targetDurationSec = next.tracking === 'distance_time' ? 1800 : 30;
+    }
+    return merged;
+  });
+
+  const name = exerciseName(row.exercise);
+
+  return (
+    <Modal title={t('Übung anpassen')} onClose={onClose}>
+      <div className="list">
+        <div className="row row--between">
+          <div style={{ minWidth: 0 }}>
+            <div className="bold">{name}</div>
+            <div className="tiny dim">{t('Gilt für heute – im Plan nur, wenn du es unten ankreuzt.')}</div>
+          </div>
+          <button className="btn btn--sm" onClick={onSwap}>
+            <IconSwap /> {t('Tauschen')}
+          </button>
+        </div>
+
+        <div className="field">
+          <span className="field__label">{t('Wie wird erfasst?')}</span>
+          <TrackingPicker value={targets.tracking} onChange={(tracking) => patch({ tracking })} />
+        </div>
+
+        <TargetFields value={targets} onChange={patch} />
+
+        {canLink && (
+          <button className={`btn btn--sm ${linked ? 'btn--on' : ''}`} onClick={onToggleLink}>
+            <IconLink /> {linked ? t('Supersatz mit der Übung darüber lösen') : t('Mit der Übung darüber zum Supersatz koppeln')}
+          </button>
+        )}
+
+        <div className="list" style={{ gap: 6 }}>
+          {row.planExercise && (
+            <label className="row small" style={{ gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={savePlan} onChange={(event) => setSavePlan(event.target.checked)} />
+              {t('Auch im Plan so speichern')}
+            </label>
+          )}
+          {row.exercise && (
+            <label className="row small" style={{ gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={everywhere} onChange={(event) => setEverywhere(event.target.checked)} />
+              {t('„{name}“ überall so erfassen', { name })}
+            </label>
+          )}
+        </div>
+
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <button className="btn" onClick={onClose}>{t('Abbrechen')}</button>
+          <button
+            className="btn btn--primary"
+            onClick={() => onApply({
+              targets,
+              changed: {
+                reps: targets.targetRepsMin !== initial.targetRepsMin || targets.tracking !== initial.tracking,
+                weight: targets.targetWeightKg !== initial.targetWeightKg,
+                time: targets.targetDurationSec !== initial.targetDurationSec || targets.tracking !== initial.tracking,
+                distance: targets.targetDistanceKm !== initial.targetDistanceKm,
+              },
+              savePlan,
+              everywhere,
+            })}
+          >
+            {t('Übernehmen')}
+          </button>
+        </div>
       </div>
     </Modal>
   );

@@ -9,7 +9,13 @@ genauso wie auf dem Handy, wo sie sich als App auf den Startbildschirm legen lä
 Beliebig viele Pläne anlegen, benennen und jederzeit zwischen ihnen wechseln.
 Jeder Wochentag bekommt einen Namen (z. B. „Push"), Übungen mit Zielvorgaben
 (Sätze, Wiederholungsbereich, Zielgewicht, Pausenzeit) und lässt sich auf andere
-Tage kopieren – auch auf mehrere gleichzeitig. Ein Plan lässt sich als
+Tage kopieren – auch auf mehrere gleichzeitig. **Jede Übung ist frei
+anpassbar:** Je Eintrag wählt man, *wie* erfasst wird – Gewicht × Wdh, nur
+Wdh, Zeit, Gewicht × Zeit, Strecke & Zeit oder nur Sätze („3 Sätze
+Liegestütze" ohne eine einzige Zahl) –, und bekommt genau die Felder, die dazu
+gehören. Ein Kettenglied zwischen zwei Übungen koppelt sie zum **Supersatz oder
+Zirkel**, mit Runden, Wechselzeit und Pause nach der Runde; „Als Intervall"
+setzt allen Übungen der Runde dieselbe Arbeitszeit. Ein Plan lässt sich als
 Textbaustein weitergeben und woanders wieder einfügen; das läuft ohne Server
 und ohne Konto, mitgeschickte eigene Übungen kommen mit. Fünf fertige Vorlagen
 sind dabei: Push/Pull/Legs, Oberkörper/
@@ -25,6 +31,21 @@ Zwischen den Sätzen läuft auf Wunsch ein Pausen-Timer, auf Wunsch als Vollbild
 mit einer Zahl, die man von der Bank aus liest. Ein Satz lässt sich duplizieren,
 und „Training vom … wiederholen" übernimmt den letzten gleichen Trainingstag
 samt Gewichten. Spontane Zusatzübungen gehen jederzeit, auch an Ruhetagen.
+
+**Mitten im Training umstellen.** *Anpassen* an jeder Übung ändert Erfassung,
+Sätze, Vorgaben und Pause – für heute, auf Wunsch auch im Plan oder für die
+Übung überall – und koppelt sie mit der darüber zum Supersatz. Erledigte Sätze
+bleiben, wie sie sind. Unter dem aktuellen Satz liegt bei Langhantelübungen die
+**beladene Stange in Scheibenfarben**: 82,5 kg sind je Seite eine rote 25er,
+eine weiße 5er und eine kleine. Ein Supersatz startet auf Knopfdruck den
+**geführten Zirkel**: Die App zählt herunter, piept vor dem Wechsel, springt zur
+nächsten Übung, zählt die Runden und hakt dabei die Sätze ab – Übungen ohne
+Zeitvorgabe laufen mit einer hochzählenden Uhr und einem großen „Fertig".
+
+Die **Fokus-Ansicht** zeigt nur den einen Satz, an dem man steht – Gewicht und
+Wiederholungen so groß, dass man sie von der Bank aus liest, Plus und Minus in
+Daumengröße, darunter ein Haken über die ganze Breite. Nach dem Haken läuft die
+Pause in derselben Ansicht; danach steht der nächste Satz da.
 
 Was heute nicht stattfindet, wird **ausgelassen statt gelöscht**: Eine Übung
 (*Mehr → Heute auslassen*) oder ein einzelner geplanter Satz (*⋯ → Satz
@@ -182,8 +203,14 @@ deutlich zu wenig, gelb knapp drunter, grün im Ziel, violett darüber. Grau
 heißt schlicht „diese Woche noch nichts" – am Montagmorgen wäre ein komplett
 roter Körper wenig hilfreich. Darunter steht im Klartext, was noch fehlt und
 welche Region am längsten nicht dran war. Die Ziele stehen unter
-*Profil → Wochenziele je Muskelgruppe*; voreingestellt sind die üblichen
-10 bis 20 Sätze je Woche, auf 0 gesetzt verschwindet eine Gruppe aus der Ampel.
+*Profil → Einstellungen → Training & Studio → Wochenziele*; voreingestellt sind
+die üblichen 10 bis 20 Sätze je Woche, auf 0 gesetzt verschwindet eine Gruppe
+aus der Ampel. Neben den Sätzen je Muskelgruppe lassen sich **Trainingstage,
+Minuten und Wochenvolumen** als Ziel setzen – von Hand oder mit *Vom aktiven
+Plan übernehmen*, das aus dem Plan rechnet, was er für eine Woche vorsieht.
+Tage und Sätze stehen im Plan, Minuten und Volumen werden geschätzt; fehlt dafür
+ein Gewicht, bleibt das Volumenziel leer statt erfunden. Der Stand der Woche
+steht als Leiste oben auf der Trainingsseite und ausführlich in der Auswertung.
 Die Zeichnung ist selbst gemacht, damit keine fremden Abbildungen im Spiel sind.
 
 **Zyklen und Progression**
@@ -279,40 +306,55 @@ legst du die Übung in zehn Sekunden selbst an.
 
 ## Gestaltung
 
-Die Oberfläche folgt dem Bild eines Trainingsbuchs, nicht dem einer
-Software-Oberfläche: warme Graustufen, ein einziger Akzent, Haarlinien statt
-Schatten, kleine Radien. Farbe bedeutet etwas – erledigt, Warnung, aktiv – und
-ist nie Dekoration. Das helle Thema ist Papier, kein Weiß.
+**Eisen & Kreide, in Scheibenfarben.** Die App sieht nach Hantelhalle aus,
+nicht nach Büro: Anthrazit und Stahl, Kreideweiß, ein gerändelter Kopf wie der
+Griff einer Stange. Im hellen Thema wird daraus Kreide auf hellem Beton. Beide
+Themen sind eigens gestaltet und nachgerechnet, nicht eins aus dem anderen
+umgedreht.
 
 Symbole sind gezeichnet, nicht aus Emoji zusammengesetzt. Wo ein Emoji auftaucht,
 hat es jemand selbst gewählt: das Profilbild, das Zeichen einer Gruppe, eine
 Reaktion auf ein Training.
 
-Beschriftungen stehen in normaler Schreibung, nicht in gesperrten Versalien:
-kleine getrackte Großbuchstaben sind der häufigste Griff generierter
-Oberflächen und dekorieren, statt zu gliedern. Eine Blocküberschrift liest sich
-wie die Abschnittsüberschrift, nur eine Stufe leiser.
+**Schrift wie an der Hallenwand.** Titel, Übungsnamen und jede Zahl, die man
+beim Training abliest – Gewicht, Wiederholungen, Uhr, Kennzahlen –, stehen in
+*Big Shoulders Display*: schmal, schwer, in Versalien, wie „HALLE 2" an der
+Wand oder „20 KG" auf der Scheibe. Alles andere steht in *Barlow*, einer ruhigen
+Grotesk aus dem Umfeld der Beschilderung. Kleine Beschriftungen über Zahlen
+(SÄTZE, VOLUMEN) sind gesperrte Versalien: Sie gliedern die Tafel, ohne mit der
+Zahl darunter zu konkurrieren. Die Versalien macht das Stylesheet – im Text
+stehen die Wörter normal, und Screenreader lesen „Bankdrücken", nicht einzelne
+Buchstaben. Beide Schriften liegen in der App (nur der lateinische Zeichensatz,
+zusammen rund 125 KB) und werden vom Service Worker vorgehalten, damit die App
+offline genauso aussieht wie online.
 
-Zahlen stehen in Tabellenziffern, damit Spalten untereinander stehen. Eine
-eigene Schrift dafür wäre schöner, kostet aber einen Ladevorgang, den eine App,
-die offline starten soll, nicht braucht – die Systemschriften von Apple, Google
-und Microsoft bringen tabellarische Ziffern alle mit. Die großen Zahlen –
-Kennzahlen, Tagesbilanz, Pausenuhr – tragen die App und stehen deshalb in einem
-leichten, eng gesetzten Schnitt in großem Grad; der Seitentitel ist schwerer
-und enger und hebt sich damit vom Rest der Überschriften ab.
+**Farbe hat eine Bedeutung.** Gelb heißt *jetzt*: der aktuelle Satz, der einen
+Warnstreifen trägt wie der Rand am Rack, der gewählte Tag, die laufende Woche im
+Diagramm, die Pausenuhr, der Hauptknopf. Als Fläche ist es in beiden Themen
+Signalgelb mit dunkler Schrift; als Schrift wird es im hellen Thema zu Ocker,
+damit es lesbar bleibt. Grün heißt geschafft, Orange und Rot heißen sieh her.
+Stahl trägt Datenreihen ohne eigene Bedeutung.
 
-**Farbe hat eine Bedeutung, und zwar genau eine.** Messing heißt Bedienung:
-hier bist du, hier drückst du. Grün heißt erledigt. Gelb und Rot heißen sieh
-her. Ein kühler Ton trägt alles Zeitliche – Kalender, Wochenblatt, Verläufe.
-Die Farben der Muskelgruppen erscheinen nur als Punkt neben einem neutral
-gesetzten Namen: Farbe im Text würde eine Bedeutung tragen, die sie dort nicht
-hat, und drei von ihnen lagen so nah an Akzent und Warnfarbe, dass eine
-Brustübung wie ein Fehler aussah.
+**Die Muskelgruppen tragen die Farben der Wettkampfscheiben:** Brust rot wie
+die 25er, Rücken blau wie die 20er, Beine gelb wie die 15er, Schultern grün wie
+die 10er, Arme weiß wie die 5er – im hellen Thema Eisen-Schwarz, weil Weiß auf
+hellem Grund verschwände. Die kleineren Gruppen bekommen Töne dazwischen. Die
+beladene Stange unter dem aktuellen Satz benutzt dieselben Farben, sodass man
+sieht, was man vom Ständer holt. Muskelfarben erscheinen nur als Streifen, Punkt
+oder Balken, nie als Schrift oder Knopf – so bleibt eine rote Brustübung eine
+Brustübung und wird keine Fehlermeldung. Die elf Töne liegen in beiden Themen
+im Lab-Raum mindestens 20 auseinander und erreichen 3 zu 1 gegen den
+Kartengrund; das prüft ein Test, nicht das Augenmaß.
+
+**Geschafft ist ein Moment.** Ein abgehakter Satz schlägt einen Ring, eine
+fertige Übung stempelt ihren Zähler, eine Bestleistung meldet sich in Gold, das
+Ende einer Einheit mit einem Stempel „Geschafft" und einem kurzen Vibrieren.
+Alles kurz – und still, wenn das System „Bewegung reduzieren" verlangt.
 
 **Die Aufgabenliste ist die eine Stelle, an der Farbe Identität trägt** statt
 Bedeutung: „Arbeit" ist nicht wichtiger als „Alltag", nur anders. Sie hat dafür
-einen eigenen Satz von acht Tönen, der weder mit dem Messing (Bedienung) noch
-mit Grün, Gelb und Rot verwechselt werden kann. Die acht sind gerechnet, nicht
+einen eigenen Satz von acht gedämpften Tönen, getrennt von den kräftigen
+Scheibenfarben der Muskelgruppen. Die acht sind gerechnet, nicht
 gegriffen: gleiche Helligkeit und Buntheit (OKLCH), und in dieser Reihenfolge so
 angeordnet, dass benachbarte Töne auch bei Rot-Grün-Blindheit auseinanderzuhalten
 sind – OKLab-Abstand mindestens 10 unter Protanopie und Deuteranopie, mindestens
@@ -387,17 +429,19 @@ node tests/unit.mjs              # nur die Rechnerei, ohne Browser
 
 Zuerst laufen die Prüfungen ohne Browser: Scheiben, 1RM, Kalorien, Statistik,
 Ränge, Erfolge, Belastung, die Aufgaben-Rechnerei (Fälligkeits-Körbe,
-Wiederholungen, Gewohnheiten, Kalenderdatei) und das Zusammenführen zweier
+Wiederholungen, Gewohnheiten, Kalenderdatei), Erfassungsarten, Supersatz-Gruppen,
+Wochenziele und das Zusammenführen zweier
 Geräte-Stände – in Sekunden statt Minuten, und die Fehlermeldung zeigt genau auf
 die Zeile. Die `.ts`-Dateien
 werden dafür einmal mit dem esbuild gebündelt, das ohnehin in Vite steckt.
 
-Fünfzehn Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
+Siebzehn Läufe im echten Browser decken Grundbedienung, Trainingsfunktionen,
 Übungssuche ohne Netz, Layout auf schmalen Geräten, Muskelkarte, Wochenziele
 und Zyklen, Rückgängig und Querformat, Rechner und Studio-Handgriffe,
 Gestaltung und Zugänglichkeit, Kalorienseite, Auslassen, Ränge, Abzeichen und
 Erfolge, Mehrsprachigkeit, Freunde und Freigaben, Gruppen und Challenges,
-Einladungslinks sowie die Aufgabenliste ab. Alle teilen sich einen
+Einladungslinks, die Aufgabenliste sowie Erfassungsarten, Anpassen, Fokus-Ansicht,
+Zirkel, Wochenziele und das Koppeln im Plan-Editor ab. Alle teilen sich einen
 Browser statt jeweils einen eigenen zu starten. Kontraste und Farbabstände
 werden im laufenden Browser nachgerechnet, nicht nach Augenmaß beurteilt.
 
@@ -786,21 +830,26 @@ Verbrauch, die Bilanz und alle Diagramme funktionieren dann genauso.
 src/
 ├── api/           wger (Suche + Anleitungen), Open-Meteo (Wetter), Yazio
 ├── sync/          Konto, Freunde, Freigaben, Einladungslinks, Zusammenführen
-├── components/    UI-Bausteine, Übungssuche, Detailansicht, Diagramme, Körperkarte
+├── components/    UI-Bausteine, Übungssuche, Detailansicht, Diagramme, Körperkarte,
+│                  Fokus-Ansicht, Zirkel-Uhr, Hantelstange, Wochenziele
 ├── data/          Übungskatalog (216 Einträge) und Planvorlagen
-├── lib/           Datum, Suche, Kalorien, Statistik, Muskeln, Scheiben, Ziele, To-dos, ZIP, iCal
+├── lib/           Datum, Suche, Kalorien, Statistik, Muskeln, Scheiben, Ziele, To-dos, ZIP, iCal,
+│                  Erfassungsarten, Supersatz-Gruppen, Wochenziele
 ├── pages/         Heute, Pläne, To-dos, Fortschritt, Kalorien, Freunde, Profil, Verlauf
 ├── storage/       Speicherung, Migration, globaler Zustand
+├── fonts.css      Big Shoulders Display und Barlow, lokal eingebunden
 └── types.ts       Datenmodell
 ```
 
 Dazu `supabase/schema.sql` – das Datenbankschema samt Zugriffsregeln – und
 `supabase/functions/notify-friends/` für die Push-Nachrichten.
 
-Abhängigkeiten sind nur React und der Supabase-Client; Diagramme, Icons, Suche,
+Abhängigkeiten sind nur React, der Supabase-Client und die zwei Schriften (als Dateien, ohne Code); Diagramme, Icons, Suche,
 der ZIP-Schreiber und der Kalender-Export sind selbst geschrieben, damit die App
 klein und offline-fähig bleibt. Nachgeladen wird konsequent: Beim Start kommt
 nur „Heute" mit, alle anderen Seiten und die Dialoge folgen beim ersten
 Antippen, das englische Wörterbuch nur bei englischer Spracheinstellung, und
 der Supabase-Client erst, wenn die Synchronisierung wirklich eingerichtet ist.
-Zusammen sind das beim Start rund 150 kB gepackt statt 204 kB.
+Zusammen sind das beim Start rund 150 kB gepackt statt 204 kB, dazu beim
+ersten Start einmalig die zwei Schriften mit rund 125 kB, die danach aus dem
+Zwischenspeicher des Service Workers kommen.

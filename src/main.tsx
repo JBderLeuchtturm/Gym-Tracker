@@ -6,6 +6,7 @@ import { SyncProvider } from './sync/SyncProvider';
 import { ToastProvider } from './components/ui';
 import { I18nProvider, detectLanguage, loadDictionary } from './i18n';
 import { registerServiceWorker } from './lib/appUpdate';
+import './fonts.css';
 import './styles.css';
 
 const container = document.getElementById('root');

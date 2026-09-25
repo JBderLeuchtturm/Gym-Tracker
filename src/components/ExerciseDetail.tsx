@@ -23,6 +23,7 @@ import {
 } from '../lib/forecast';
 import { BodyMap, type Intensity } from './MuscleMap';
 import { REGION_LABELS, regionsOf, type MuscleRegion } from '../lib/muscles';
+import { isTimedExercise } from '../lib/tracking';
 
 type Metric = '1rm' | 'weight' | 'volume' | 'reps' | 'duration';
 
@@ -62,7 +63,7 @@ export function ExerciseDetail({ exercise, onClose }: { exercise: Exercise; onCl
     [state, exercise.id, wholeFamily, familyIds],
   );
 
-  const isTimed = exercise.kind === 'time' || exercise.kind === 'cardio';
+  const isTimed = isTimedExercise(exercise);
   const [metric, setMetric] = useState<Metric>(isTimed ? 'duration' : '1rm');
 
   const points: Point[] = useMemo(() => {
@@ -672,7 +673,7 @@ function ForecastCard({
   exercise: Exercise;
   history: ReturnType<typeof exerciseHistory>;
 }) {
-  const timed = exercise.kind === 'time' || exercise.kind === 'cardio';
+  const timed = isTimedExercise(exercise);
 
   const series = useMemo(() => history.map((session) => ({
     date: session.date,
