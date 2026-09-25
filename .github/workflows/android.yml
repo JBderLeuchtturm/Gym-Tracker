@@ -60,6 +60,22 @@ jobs:
           ./gradlew assembleRelease -PappBuild=$APP_BUILD --no-daemon --stacktrace
           cp app/build/outputs/apk/release/app-release.apk ../Gym-Tracker.apk
 
+      # Bevor etwas veroeffentlicht wird: Stecken die App-Dateien und die drei
+      # Widgets drin, und ist sie mit genau unserem Schluessel signiert? Ein
+      # anderer Schluessel faellt sonst erst auf dem Handy auf - als Update,
+      # das Android ablehnt.
+      - name: APK pruefen
+        run: |
+          TOOLS="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          unzip -l Gym-Tracker.apk | grep -q 'assets/public/index.html'
+          MANIFEST="$("$TOOLS/aapt2" dump xmltree --file AndroidManifest.xml Gym-Tracker.apk)"
+          for widget in TodayWidget GoalsWidget TodosWidget; do
+            echo "$MANIFEST" | grep -q "widgets.$widget" || { echo "Widget $widget fehlt"; exit 1; }
+          done
+          "$TOOLS/apksigner" verify --print-certs Gym-Tracker.apk | tee signer.txt
+          grep -qi '1b7a2caaee487950078a2e6cf08b584d73dbccfda4d4edf15d752b6d93224dd1' signer.txt \
+            || { echo "Falscher Signierschluessel"; exit 1; }
+
       - uses: actions/upload-artifact@v4
         with:
           name: Gym-Tracker-Build-${{ github.run_number }}
