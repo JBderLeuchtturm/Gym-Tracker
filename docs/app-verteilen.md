@@ -12,15 +12,14 @@ Weitem der einfachste.
 | iPhone | ✅ | ❌ | ❌ | ✅ |
 | Android | ✅ | ✅ | ✅ | ❌ |
 | Weitergeben | Link schicken | Datei schicken | Store-Link | Einladung |
-| Aufwand | ~10 Minuten | ~1 Stunde einmalig | ~1 Tag (Prüfung) | ~1 Tag |
+| Aufwand | ~10 Minuten | ~5 Minuten (baut GitHub) | ~1 Tag (Prüfung) | ~1 Tag |
 | Kosten | nichts | nichts | 25 $ einmalig | 99 $ pro Jahr |
-| Updates | von selbst | von selbst¹ | von selbst¹ | neuer Upload |
+| Updates | von selbst | Hinweis in der App, antippen | von selbst | neuer Upload |
+| Widgets | ❌ | ✅ | – | ❌ |
 
-¹ wenn du die Variante „Hülle um die Webseite" baust – siehe Weg B.
-
-> **Empfehlung:** Weg A für alle. Wer auf Android partout eine Datei haben will,
-> bekommt zusätzlich Weg B. Weg C und D lohnen sich erst, wenn Fremde die App
-> finden sollen.
+> **Empfehlung:** Auf Android Weg B – eine echte App mit Widgets, die nicht an
+> der Webseite hängt. Für iPhones und zum schnellen Weitergeben Weg A. Weg C und
+> D lohnen sich erst, wenn Fremde die App finden sollen.
 
 ---
 
@@ -89,195 +88,127 @@ Schick einfach die Adresse. Dazu ein Satz, was zu tun ist:
 
 ---
 
-# Weg B — Eine APK, die du verschicken kannst
+# Weg B — Die Android-App (mit Widgets)
 
-Nur für Android. Am Ende hast du eine Datei, die du über WhatsApp, Telegram
-oder einen Link weitergeben kannst.
+Eine richtige App: Alle Dateien liegen in der APK, nichts wird aus dem Netz
+geladen. Sie startet offline ab der ersten Sekunde und hängt nicht an der
+Webseite, an deren Zwischenspeicher oder an Updates mitten im Training. Dazu
+kommen drei **Widgets für den Startbildschirm**.
 
-## Erst die eine wichtige Entscheidung
+**Gebaut wird sie von GitHub**, nicht auf deinem Rechner: Bei jedem Merge auf
+den Hauptzweig baut der Workflow `.github/workflows/android.yml` eine neue,
+signierte APK und legt sie unter einem Link ab, der immer gleich bleibt:
 
-Es gibt zwei Bauarten, und sie unterscheiden sich vor allem beim Aktualisieren:
+> **https://github.com/JBderLeuchtturm/Gym-Tracker/releases/download/app/Gym-Tracker.apk**
 
-**B1 – Hülle um die Webseite (empfohlen).**
-Die APK enthält nur eine Ansicht, die deine veröffentlichte Adresse lädt. Der
-Inhalt kommt aus dem Netz und wird vom Service Worker offline vorgehalten.
+## Auf dem Samsung installieren (einmalig, ~5 Minuten)
 
-* Updates kommen **von selbst**, genau wie bei Weg A. Die APK baust du **einmal**
-  und nie wieder.
-* Beim allerersten Start braucht sie kurz Internet. Danach läuft sie offline.
+1. Den Link oben **auf dem Handy** öffnen (Chrome oder Samsung Internet). Die
+   Datei `Gym-Tracker.apk` wird heruntergeladen.
+2. Unten auf *Öffnen* tippen – oder in *Eigene Dateien → Downloads* auf die
+   Datei.
+3. Beim ersten Mal fragt Android: *„Aus dieser Quelle installieren?"* →
+   **Einstellungen** → *Berechtigung zulassen* einschalten → zurück →
+   **Installieren**. (Die Erlaubnis gilt nur für den Browser, über den du
+   geladen hast. Du kannst sie danach wieder ausschalten.)
+4. Falls **Play Protect** warnt („Unbekannte App"): *Weitere Details* →
+   *Trotzdem installieren*. Die Warnung kommt, weil die App nicht aus dem
+   Play Store stammt – nicht, weil etwas mit ihr ist.
+5. Die App erscheint als **Gym Tracker** mit der gelben Hantel.
 
-**B2 – Alles eingebaut.**
-Die gebauten Dateien liegen in der APK. Offline ab der ersten Sekunde, kein
-Hosting nötig.
+### Deine Daten aus der Web-App mitnehmen
 
-* Jedes Update heißt: **neue APK bauen und an alle neu verschicken.** Bei einer
-  App, die sich jede Woche ändert, wird das schnell mühsam.
+Die App hat ihren eigenen Speicher, getrennt vom Browser. Einmal umziehen:
 
-Der Rest dieser Anleitung baut **B1**. Für B2 steht der Unterschied unten in
-einem eigenen Abschnitt – es ist eine geänderte Zeile.
+1. In der **Web-App**: *Profil → Einstellungen → Daten & Sicherung → Exportieren*. Es
+   öffnet sich eine JSON-Datei zum Speichern.
+2. In der **App**: *Profil → Einstellungen → Daten & Sicherung → Importieren* und die
+   Datei auswählen.
 
-## Voraussetzungen (einmalig, auf deinem Rechner)
+Oder auf beiden Seiten dasselbe Konto unter *Freunde* benutzen – dann führt
+die Synchronisierung die Stände zusammen.
 
-- **Node** – hast du schon.
-- **Java JDK 17 oder neuer** – `java -version` muss etwas ab `17` zeigen.
-- **Android Studio** – https://developer.android.com/studio. Beim ersten Start
-  installiert es das Android SDK; einfach durchklicken.
+## Widgets auf den Startbildschirm legen
 
-## Schritt 1 – Capacitor ins Projekt holen
+Auf einer freien Stelle des Startbildschirms **lange drücken** → **Widgets** →
+**Gym Tracker**. Es gibt drei:
 
-Im Projektordner:
+| Widget | Zeigt | Tippen öffnet |
+|---|---|---|
+| **Heute-Training** | Tagesplan („PUSH"), Sätze 8/20 mit Balken, nächste Übung und Satz – an Ruhetagen den nächsten Trainingstag | die Fokus-Ansicht beim nächsten Satz |
+| **Wochenziele** | Tage, Minuten, Volumen und Muskelgruppen als Balken; grün, wenn erreicht | die Trainingsseite |
+| **To-dos heute** | bis zu fünf offene Aufgaben mit Kategorie-Farbe, Überfälliges zuerst | den Reiter To-dos |
 
-```bash
-npm install --save-dev @capacitor/cli
-npm install @capacitor/core @capacitor/android
-npx cap init "Gym Tracker" com.jbderleuchtturm.gymtracker --web-dir dist
-```
+Alle drei lassen sich in der Größe ziehen (lange drücken → Rahmen) und auf
+Samsung auch stapeln (ein Widget auf ein anderes ziehen). Sie folgen dem
+hellen oder dunklen Modus des Handys.
 
-`com.jbderleuchtturm.gymtracker` ist die App-Kennung. Sie muss weltweit
-eindeutig sein und lässt sich später **nicht mehr ändern**, ohne dass die App
-als eine andere gilt – such sie dir also gleich richtig aus.
+**Wie sie aktuell bleiben:** Nach jeder Änderung in der App – Satz abgehakt,
+Aufgabe erledigt, Ziel geändert – bekommen die Widgets sofort den neuen Stand.
+Die App rechnet dabei die nächsten sieben Tage und die nächste Woche mit
+voraus. Deshalb zeigt das Widget am Morgen den richtigen Trainingstag, auch
+wenn die App seit gestern Abend zu ist. Zusätzlich zeichnet Android sie etwa
+jede halbe Stunde neu.
 
-## Schritt 2 – Auf die veröffentlichte Adresse zeigen
+## Updates
 
-`capacitor.config.ts` öffnen und den `server`-Block ergänzen:
+Nach jedem Merge baut GitHub eine neue APK (ein paar Minuten). Die App fragt
+beim Start und danach höchstens alle sechs Stunden nach, und zeigt dann oben:
 
-```ts
-import type { CapacitorConfig } from '@capacitor/cli';
+> **Neue Version verfügbar** – Build 12 herunterladen und installieren – deine
+> Daten bleiben. *[Herunterladen]*
 
-const config: CapacitorConfig = {
-  appId: 'com.jbderleuchtturm.gymtracker',
-  appName: 'Gym Tracker',
-  webDir: 'dist',
-  server: {
-    // Die App lädt den Inhalt von hier - dadurch aktualisiert sie sich selbst.
-    url: 'https://jbderleuchtturm.github.io/Gym-Tracker/',
-    cleartext: false,
-  },
-};
+Antippen lädt die neue APK im Browser. Öffnen, *Aktualisieren*, fertig. Die
+Trainingsdaten bleiben, weil jede Fassung mit **demselben Schlüssel** signiert
+ist – Android erkennt sie als Update derselben App.
 
-export default config;
-```
+Welche Fassung läuft, steht unter *Profil → Einstellungen → Daten & Sicherung* ganz unten:
+*App-Version … · Android-App, Build 12*.
 
-## Schritt 3 – Android-Projekt erzeugen
+## Was in der App anders ist als im Browser
 
-```bash
-npm run build
-npx cap add android
-npx cap sync android
-```
+- **Dateien** (Sicherung, CSV, Kalender, Fotos als ZIP) öffnen den
+  **Teilen-Dialog** statt eines Downloads – von dort in *Eigene Dateien*,
+  Drive oder eine Nachricht.
+- **Die Zurück-Taste** schließt erst Fenster, Fokus-Ansicht und Zirkel, geht
+  dann zur Trainingsseite und legt die App dort in den Hintergrund, ohne sie
+  zu beenden. Eine laufende Pause geht so nicht verloren.
+- **Bildschirm wach halten** und **Vibrieren** laufen über Android selbst.
+- **Push-Nachrichten** von Freunden gibt es nur in der Web-App (sie brauchen
+  einen Service Worker). Die Erinnerungen beim Öffnen funktionieren.
+- **Drucken** gibt es nur im Browser.
 
-Das legt einen Ordner `android/` an. Der gehört ins Repo – dort landen später
-auch das Symbol und die Einstellungen.
+## Der Schlüssel
 
-## Schritt 4 – Symbol und Name
+Die APK wird mit `android/keystore/gym-tracker.jks` signiert, das Passwort
+steht daneben in `keystore.properties`. **Nicht löschen und nicht ersetzen:**
+Mit einem anderen Schlüssel lehnt Android jedes Update ab, und die App müsste
+samt Daten deinstalliert werden.
 
-Am schnellsten in Android Studio:
+Er liegt bewusst im Repo, damit der Bau ohne Einrichtung läuft. Weil das Repo
+öffentlich ist, könnte damit jeder eine APK bauen, die Android als Update
+dieser App annimmt. Um dir zu schaden, müsste sie aber jemand auf dein Handy
+bringen. Wer das ausschließen will, legt den Schlüssel als GitHub-Secret ab
+und nimmt ihn aus dem Repo. Es bleibt derselbe Schlüssel, also gehen keine
+Updates verloren.
 
-```bash
-npx cap open android
-```
+## Selbst bauen (optional)
 
-Dann Rechtsklick auf `app` → **New → Image Asset**, bei *Path* die Datei
-`public/icon-512.png` wählen, *Name* auf `ic_launcher` lassen, **Next → Finish**.
-
-Den angezeigten Namen setzt du in `android/app/src/main/res/values/strings.xml`:
-
-```xml
-<string name="app_name">Gym Tracker</string>
-<string name="title_activity_main">Gym Tracker</string>
-```
-
-## Schritt 5 – Einen Schlüssel anlegen (einmalig, gut aufheben!)
-
-Android nimmt nur signierte Apps. Der Schlüssel entscheidet, ob eine spätere
-APK als **Update** oder als **fremde App** gilt.
-
-```bash
-keytool -genkey -v -keystore ~/gym-tracker.jks \
-  -keyalg RSA -keysize 2048 -validity 10000 -alias gym
-```
-
-> **Diese Datei ist unersetzlich.** Verlierst du sie, kannst du nie wieder ein
-> Update für dieselbe App bauen – alle müssten deinstallieren und neu
-> installieren. Leg sie in deinen Passwort-Manager oder auf einen Stick.
->
-> **Nicht ins Repo legen.** Weder die `.jks` noch die Passwörter.
-
-Die Passwörter kommen nach `~/.gradle/gradle.properties` (also außerhalb des
-Projekts):
-
-```properties
-GYM_STORE_FILE=/Users/DEINNAME/gym-tracker.jks
-GYM_STORE_PASSWORD=…
-GYM_KEY_ALIAS=gym
-GYM_KEY_PASSWORD=…
-```
-
-Und in `android/app/build.gradle` innerhalb von `android { … }`:
-
-```gradle
-signingConfigs {
-    release {
-        storeFile file(GYM_STORE_FILE)
-        storePassword GYM_STORE_PASSWORD
-        keyAlias GYM_KEY_ALIAS
-        keyPassword GYM_KEY_PASSWORD
-    }
-}
-buildTypes {
-    release {
-        signingConfig signingConfigs.release
-        minifyEnabled false
-    }
-}
-```
-
-## Schritt 6 – Bauen
+Nur nötig, wenn du ohne GitHub bauen willst. Voraussetzungen: Node 22,
+JDK 21, Android Studio (bringt das Android SDK mit).
 
 ```bash
-cd android
-./gradlew assembleRelease
-```
-
-Die fertige Datei liegt unter:
-
-```
-android/app/build/outputs/apk/release/app-release.apk
-```
-
-Das ist die Datei zum Verschicken. Sie ist ein paar Megabyte groß.
-
-## Schritt 7 – Verteilen
-
-Per WhatsApp, Telegram, Drive-Link, E-Mail – die Datei ist die Datei.
-
-Sag dazu, was zu tun ist, sonst hängen alle an derselben Stelle fest:
-
-> Android erlaubt Apps aus dem Store und sonst nichts. Beim Antippen der Datei
-> fragt es einmal nach: **„Installieren von unbekannten Apps zulassen"** →
-> erlauben → zurück → **Installieren**. Danach ist die Berechtigung nur für die
-> App gesetzt, aus der du die Datei geöffnet hast, nicht für alles.
-
-Es kann außerdem eine Warnung von Play Protect kommen („App nicht geprüft") –
-das ist normal bei allem, was nicht aus dem Store kommt. **Trotzdem
-installieren** antippen.
-
-## Variante B2 – alles eingebaut, ohne Hosting
-
-Nimm den ganzen `server`-Block aus `capacitor.config.ts` wieder heraus. Dann
-liegen die Dateien aus `dist/` in der APK.
-
-Der Ablauf für jedes Update ist dann:
-
-```bash
+npm ci
 npm run build
 npx cap sync android
-cd android && ./gradlew assembleRelease
+cd android && ./gradlew assembleRelease -PappBuild=1
+# → android/app/build/outputs/apk/release/app-release.apk
 ```
 
-… und die neue APK an alle verschicken. Wichtig: In
-`android/app/build.gradle` **vor jedem Update** `versionCode` um eins erhöhen,
-sonst weigert sich Android, drüberzuinstallieren.
+Mit `npx cap open android` öffnet sich das Projekt in Android Studio. Dort
+lässt sich die App auch direkt auf ein per USB angeschlossenes Handy spielen.
+Die Widgets stehen unter `android/app/src/main/java/.../widgets`, ihre Daten
+rechnet `src/lib/widgetSnapshot.ts`.
 
 ---
 
@@ -343,12 +274,9 @@ Geräts, nicht in den App-Dateien. Ein Update ändert nie einen Eintrag.
 | Bauart | Was du tun musst | Wann es ankommt |
 |---|---|---|
 | Weg A (Link) | mergen | beim nächsten Öffnen |
-| Weg B1 (Hülle) | mergen | beim nächsten Öffnen |
-| Weg B2 (eingebaut) | mergen, APK neu bauen, verschicken | wenn jeder sie installiert hat |
+| Weg B (Android-App) | mergen – GitHub baut die APK | wenn man auf *Herunterladen* tippt |
 | Weg C (Play Store, TWA) | mergen | beim nächsten Öffnen |
 | Weg D (TestFlight) | mergen, hochladen | wenn jeder aktualisiert hat |
-
-Deshalb die Empfehlung für B1: Du baust die APK ein einziges Mal.
 
 ## Wenn jemand eine alte Fassung festhält
 
@@ -360,7 +288,8 @@ Kommt vor, wenn der Browser hartnäckig ist:
 - **iPhone/Safari:** App vom Startbildschirm schließen und neu öffnen. Wenn es
   hakt, Symbol löschen und über Safari neu hinzufügen. **Vorher exportieren**,
   siehe unten.
-- **APK (B1):** App schließen und neu öffnen.
+- **Android-App (Weg B):** Keine Zwischenspeicher-Probleme – die Dateien
+  liegen in der APK. Unter *Profil → Einstellungen → Daten & Sicherung* steht der Build.
 
 ## Vor jedem Umzug: exportieren
 
@@ -387,11 +316,12 @@ dann führt die Synchronisierung die Stände zusammen.
       öffnen und zum Startbildschirm hinzufügen
 - [ ] Link mit einem Satz Anleitung in die Gruppe schicken
 
-**Wenn danach jemand nach einer „richtigen App" fragt:**
+**Für die Android-App mit Widgets:**
 
-- [ ] Android Studio installieren
-- [ ] Weg B, Schritte 1 bis 6 – einmal, dann nie wieder
-- [ ] APK verschicken
+- [ ] Nach dem Merge auf *Actions → Android-App* warten (ein paar Minuten)
+- [ ] Den APK-Link auf dem Handy öffnen und installieren
+- [ ] In der Web-App exportieren, in der App importieren
+- [ ] Widgets auf den Startbildschirm ziehen
 
 **Ab dann für immer:**
 

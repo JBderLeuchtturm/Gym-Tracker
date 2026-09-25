@@ -2,6 +2,38 @@
 
 Alle nennenswerten Änderungen an diesem Projekt, neueste zuerst.
 
+## Android-App mit Widgets
+
+*Branch `claude/todo-tab-kategorien-6d4uj0`*
+
+**Eine eigene App statt der Web-App.** Mit Capacitor liegen alle Dateien in
+der APK. Sie startet offline ab der ersten Sekunde und hängt weder an der
+Webseite noch an deren Zwischenspeicher. GitHub baut sie bei jedem Merge
+(`.github/workflows/android.yml`), signiert sie immer mit demselben Schlüssel
+und legt sie unter einem festen Link ab. Die App meldet neue Fassungen selbst
+(„Build 12 herunterladen und installieren – deine Daten bleiben“).
+
+**Drei Widgets für den Startbildschirm:**
+- *Heute-Training*: Tagesplan, Sätze 8/20 mit Balken, nächste Übung und Satz,
+  an Ruhetagen der nächste Trainingstag. Tippen öffnet die Fokus-Ansicht.
+- *Wochenziele*: Tage, Minuten, Volumen, Muskelgruppen; grün, wenn erreicht.
+- *To-dos heute*: bis zu fünf offene Aufgaben mit Kategorie-Farbe,
+  Überfälliges zuerst.
+
+Die App rechnet den Stand der Widgets sieben Tage voraus
+(`src/lib/widgetSnapshot.ts`). So zeigt das Widget morgens den richtigen Tag,
+auch wenn die App über Nacht zu war. Die Widgets folgen dem hellen oder
+dunklen Modus des Handys.
+
+**Was die App anders macht als der Browser:** Die Zurück-Taste schließt erst
+Fenster, Fokus und Zirkel. Bildschirm-wach und Vibrieren laufen über Android,
+die Statusleiste folgt dem Thema. Dateien (Sicherung, CSV, Kalender, Fotos)
+gehen über den Teilen-Dialog, weil ein Download-Link in der App nichts tut.
+Service Worker, Web-Push und Drucken gibt es nur im Browser.
+
+**Neues Symbol:** die gelbe Hantel auf Anthrazit, passend zum neuen Aussehen –
+für App und Web-App.
+
 ## Übungen frei anpassbar, Supersätze und Zirkel im Plan, Wochenziele, neues Aussehen
 
 *Branch `claude/todo-tab-kategorien-6d4uj0`*

@@ -482,13 +482,23 @@ oder bei Netlify, Vercel und Co.
 
 ## Aufs Handy holen und weitergeben
 
-Im Browser die Seite öffnen und „Zum Startbildschirm hinzufügen" wählen
+**Android: als echte App mit Widgets.** Bei jedem Merge baut GitHub eine
+signierte APK. Die neueste liegt immer unter
+[`releases/download/app/Gym-Tracker.apk`](https://github.com/JBderLeuchtturm/Gym-Tracker/releases/download/app/Gym-Tracker.apk).
+Link auf dem Handy öffnen, installieren, fertig. Alle Dateien stecken in der
+APK – sie startet offline und hängt nicht an der Webseite. Drei Widgets für
+den Startbildschirm kommen mit: *Heute-Training* (Tagesplan, Sätze, nächste
+Übung; Tippen öffnet die Fokus-Ansicht), *Wochenziele* und *To-dos heute*.
+Neue Fassungen meldet die App selbst. Installation am Samsung, Datenumzug aus
+der Web-App und alles Weitere: [`docs/app-verteilen.md`](docs/app-verteilen.md).
+
+**Im Browser (auch iPhone):** Die Seite öffnen und „Zum Startbildschirm hinzufügen" wählen
 (Safari: Teilen-Menü, Chrome: Drei-Punkte-Menü). Danach startet der Tracker im
 Vollbild wie eine normale App und funktioniert dank Service Worker auch ohne
 Internet – nur die Online-Übungssuche braucht dann eine Verbindung.
 
-> **Schritt für Schritt**, inklusive Weitergeben an Freunde, einer Android-APK
-> zum Verschicken und dem, was beim Aktualisieren passiert:
+> **Schritt für Schritt**, inklusive Weitergeben an Freunde, der Android-App
+> mit Widgets und dem, was beim Aktualisieren passiert:
 > [`docs/app-verteilen.md`](docs/app-verteilen.md).
 
 **Updates** kommen von selbst: Die installierte App prüft beim Öffnen und
@@ -836,10 +846,15 @@ src/
 ├── lib/           Datum, Suche, Kalorien, Statistik, Muskeln, Scheiben, Ziele, To-dos, ZIP, iCal,
 │                  Erfassungsarten, Supersatz-Gruppen, Wochenziele
 ├── pages/         Heute, Pläne, To-dos, Fortschritt, Kalorien, Freunde, Profil, Verlauf
+├── native/        Nur in der Android-App: Widgets füttern, Zurück-Taste, Teilen, Updates
 ├── storage/       Speicherung, Migration, globaler Zustand
 ├── fonts.css      Big Shoulders Display und Barlow, lokal eingebunden
 └── types.ts       Datenmodell
 ```
+
+Die Android-App liegt unter `android/` (Capacitor): `MainActivity`, das
+Plugin `GymNativePlugin` und die drei Widgets unter `widgets/`. Gebaut wird sie
+von `.github/workflows/android.yml`.
 
 Dazu `supabase/schema.sql` – das Datenbankschema samt Zugriffsregeln – und
 `supabase/functions/notify-friends/` für die Push-Nachrichten.
